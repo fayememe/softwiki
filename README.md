@@ -2,7 +2,7 @@
 
 [English](#english) | [中文](#中文)
 
-> **当前状态**：核心功能完整，MCP 层就绪，Shell 独立化完成。详见 [docs/project-status.md](docs/project-status.md)。
+> **当前状态**：LightRAG 集成完成，WebUI 重新设计，MCP 17 tools 就绪。详见 [docs/project-status.md](docs/project-status.md)。
 
 ---
 
@@ -15,19 +15,23 @@
 ```
 External AI Tools (opencode / Claude / Cursor)
         ↕  MCP
-SoftWiki Core (RAG · GraphRAG · ClaimDB · Timeline · LLM-Wiki)
-        ↕  SQLite + Local Files
+SoftWiki Core (RAG · LightRAG · ClaimDB · Timeline · LLM-Wiki)
+        ↕  SQLite + Local Files / PostgreSQL (optional)
 Workspace (any directory, fully isolated)
 ```
 
 ### 🌟 Key Features
 
-- **MCP-First**: All knowledge operations exposed as MCP tools — `ask`, `ingest`, `index`, `search`, `wiki_build`, `status`, `web_search`
-- **Workspace Isolation**: Multiple independent knowledge bases at any path (`workspace/my-workspace/`, `/any/absolute/path/`)
+- **MCP-First**: 17 MCP tools — `ask`, `ingest`, `index`, `search`, `wiki_build`, `lightrag_query`, `lightrag_explore`, `graph_query`, etc.
+- **LightRAG GraphRAG**: Multi-hop graph traversal, incremental insertion, BFS subgraph exploration, 6 query modes (local/global/hybrid/mix/naive/bypass)
+- **Workspace Isolation**: Multiple independent knowledge bases at any path
 - **Hybrid Retrieval**: Dense vector + BM25 with Reciprocal Rank Fusion (RRF)
-- **Multi-Layer Extraction**: Claims · Knowledge Graph (entities + relations) · Timeline events
+- **Multi-Layer Extraction**: Claims · Knowledge Graph (entities + relations) · Timeline events · LLM-Wiki
 - **LLM-Wiki**: Auto-generated, compounding Markdown wiki pages per topic
+- **WebUI**: Next.js 16 dark-theme dashboard with session management, Wikipedia-style wiki viewer, theme switching
 - **Shell TUI**: opencode-powered research shell, zero dependency on Core Python APIs
+- **Separated LLM/Embedding config**: LLM and embedding can use different providers (e.g., DeepSeek LLM + Gemini embedding)
+- **PostgreSQL support**: Switch from JSON to PostgreSQL storage via config, no code changes
 - **BYOK Web Search**: Tavily / SerpAPI / Bing (optional, shell uses model-native search)
 
 ---
@@ -114,20 +118,24 @@ PYTHONPATH=. ./venv/bin/pytest
 ```
 外部 AI 工具（opencode / Claude / Cursor）
         ↕  MCP
-SoftWiki Core（RAG · 图谱 · 声明库 · 时间线 · LLM-Wiki）
-        ↕  SQLite + 本地文件
+SoftWiki Core（RAG · LightRAG · 声明库 · 时间线 · LLM-Wiki）
+        ↕  SQLite + 本地文件 / PostgreSQL（可选）
 Workspace（任意路径，完全隔离）
 ```
 
 ### 🌟 核心特性
 
-- **MCP 优先**：所有知识库操作通过 MCP tools 暴露：`ask`、`ingest`、`index`、`search`、`wiki_build`、`status`、`web_search`
-- **工作空间隔离**：支持任意路径的独立知识库（`workspace/my-workspace/`、`/any/path/`）
-- **混合检索**：dense 向量 + BM25，基于 RRF 融合
-- **多维知识抽取**：声明/立场 · 知识图谱（实体+关系）· 时序事件
+- **MCP 优先**：17 个 MCP tools，覆盖检索/摄入/图查询/Wiki 编译
+- **LightRAG 图查询**：多跳推理、增量插入、BFS 子图遍历，支持 6 种查询模式
+- **工作空间隔离**：支持任意路径的独立知识库，完全隔离
+- **混合检索**：dense 向量 + BM25，RRF 融合
+- **多维知识抽取**：声明 · 知识图谱 · 时序事件 · LLM-Wiki
 - **LLM-Wiki**：基于 LLM 的可累积 Markdown 知识页面
-- **Shell TUI**：以 opencode 为核心的研究助手，对 Core Python 零依赖
-- **BYOK 网络搜索**：Tavily / SerpAPI / Bing（可选），Shell 使用模型原生搜索
+- **WebUI**：Next.js 16 暗色主题仪表盘，会话管理，Wikipedia 风格阅读器
+- **Shell TUI**：opencode 研究助手，对 Core 零 Python 依赖
+- **LLM/Embedding 分离配置**：LLM 和 Embedding 可独立设定不同 Provider
+- **PostgreSQL 支持**：配置切换，一行代码不改
+- **BYOK 网络搜索**：Tavily / SerpAPI / Bing（可选）
 
 ---
 
