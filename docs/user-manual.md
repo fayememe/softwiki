@@ -40,7 +40,7 @@ SoftWiki 是一个**领域无关的研究知识库引擎**，以 MCP（Model Con
 
 ```bash
 # 1. 进入项目根目录
-cd /path/to/softwki
+cd /path/to/softwiki
 
 # 2. 创建并激活虚拟环境
 python3 -m venv venv
@@ -198,12 +198,12 @@ SoftWiki MCP server 可注册到任何支持 MCP 的 AI 工具：
 {
   "mcpServers": {
     "softwiki": {
-      "command": "/path/to/softwki/venv/bin/python",
+      "command": "/path/to/softwiki/venv/bin/python",
       "args": ["-m", "softwiki.mcp.server"],
-      "cwd": "/path/to/softwki",
+      "cwd": "/path/to/softwiki",
       "env": {
         "WORKSPACE_DIR": "/path/to/your/workspace",
-        "PYTHONPATH": "/path/to/softwki",
+        "PYTHONPATH": "/path/to/softwiki",
         "SOFTWIKI_MODE": "wiki-admin"
       }
     }

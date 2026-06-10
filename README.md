@@ -85,10 +85,10 @@ Add to your AI tool's MCP config:
     "softwiki": {
       "command": "/path/to/venv/bin/python",
       "args": ["-m", "softwiki.mcp.server"],
-      "cwd": "/path/to/softwki",
+      "cwd": "/path/to/softwiki",
       "env": {
         "WORKSPACE_DIR": "/path/to/your/workspace",
-        "PYTHONPATH": "/path/to/softwki"
+        "PYTHONPATH": "/path/to/softwiki"
       }
     }
   }
@@ -184,10 +184,10 @@ cp .env.example .env
     "softwiki": {
       "command": "/path/to/venv/bin/python",
       "args": ["-m", "softwiki.mcp.server"],
-      "cwd": "/path/to/softwki",
+      "cwd": "/path/to/softwiki",
       "env": {
         "WORKSPACE_DIR": "/path/to/your/workspace",
-        "PYTHONPATH": "/path/to/softwki"
+        "PYTHONPATH": "/path/to/softwiki"
       }
     }
   }

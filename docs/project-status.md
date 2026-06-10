@@ -24,7 +24,7 @@ Workspace（用户工作空间，任意路径）
 ## 二、项目结构
 
 ```
-softwki/
+softwiki/
 ├── softwiki/
 │   ├── config.py                 # 工作空间路径、环境变量加载
 │   ├── mcp/
@@ -299,10 +299,10 @@ MCP server 可直接在 Claude Desktop / Cursor / opencode 等工具的配置中
     "softwiki": {
       "command": "/path/to/venv/bin/python",
       "args": ["-m", "softwiki.mcp.server"],
-      "cwd": "/path/to/softwki",
+      "cwd": "/path/to/softwiki",
       "env": {
         "WORKSPACE_DIR": "/path/to/your/workspace",
-        "PYTHONPATH": "/path/to/softwki"
+        "PYTHONPATH": "/path/to/softwiki"
       }
     }
   }

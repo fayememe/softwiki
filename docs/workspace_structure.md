@@ -7,7 +7,7 @@
 ## 1. Engine Root Directory Layout
 
 ```text
-softwki/
+softwiki/
 ├── README.md
 ├── pyproject.toml
 ├── setup.py
