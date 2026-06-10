@@ -1,0 +1,52 @@
+workflows:
+  research:
+    name: "Research & Contribute"
+    description: "Research a topic using native websearch, then contribute relevant findings to the knowledge base."
+    modes: [wiki-admin, wiki-manage, wiki-work, wiki-study]
+    steps:
+      1: "Analyze the question and formulate a list of search queries."
+      2: "Use native websearch/webfetch to find relevant sources and synthesize findings."
+      3: "[wiki-admin / wiki-manage only] For each high-quality source found: check scope (config/scope.md). If in scope, call softwiki_ingest."
+      4: "[wiki-admin / wiki-manage only] After ingesting, ask user if they want to rebuild affected wiki topics via softwiki_wiki_build."
+      5: "[wiki-work] If you found valuable sources, offer to use the `submit` workflow to stage them for manager review."
+      6: "Present a structured research summary with citations."
+
+  wiki-compile:
+    name: "Wiki Page Compiler"
+    description: "Compile or update a structured wiki page for a topic."
+    modes: [wiki-admin, wiki-manage]
+    steps:
+      1: "Call softwiki_status to confirm the workspace has relevant documents."
+      2: "Use native websearch to find any missing context or recent developments."
+      3: "If new relevant sources are found, ingest them first with softwiki_ingest."
+      4: "Call softwiki_wiki_build to generate the markdown wiki page."
+      5: "Report the output path of the compiled page."
+
+  contribute:
+    name: "Contribute to Knowledge Base"
+    description: "Add a URL, file, or note to the knowledge base and update affected wiki pages."
+    modes: [wiki-admin, wiki-manage]
+    steps:
+      1: "Ingest the provided source using softwiki_ingest."
+      2: "Confirm ingestion and report document ID."
+      3: "Identify which topics in config/topics.yaml are likely affected."
+      4: "Offer to run softwiki_wiki_build for each affected topic."
+
+  submit:
+    name: "Submit Research for Review"
+    description: "For wiki-work users: stage research output or sources for manager review. Does not modify the canonical knowledge base directly."
+    modes: [wiki-work]
+    steps:
+      1: "Summarize the research findings or identify the source URL/file to submit."
+      2: "Write a structured research note to the session output directory (output/{session_id}/)."
+      3: "Include: source URL, relevance to workspace topics, key findings, suggested wiki topics to update."
+      4: "Inform the user that the submission is staged and awaiting review by a wiki-manage or wiki-admin user."
+      5: "Do NOT call softwiki_ingest. Do NOT modify the knowledge base directly."
+
+  simple-q&a:
+    name: "Simple Q&A"
+    description: "Answer a quick question using native reasoning and websearch."
+    modes: [wiki-admin, wiki-manage, wiki-work, wiki-study]
+    steps:
+      1: "Answer directly from knowledge or use native websearch for current information."
+      2: "[wiki-admin / wiki-manage only] If a high-quality in-scope source is found, offer to ingest it."

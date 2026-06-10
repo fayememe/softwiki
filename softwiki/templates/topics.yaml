@@ -1,0 +1,17 @@
+topics:
+  topic-alpha:
+    aliases:
+      - topic a
+      - alpha project
+      - 第一主题
+    related:
+      - topic-beta
+      - topic-gamma
+
+  topic-beta:
+    aliases:
+      - topic b
+      - beta system
+      - 第二主题
+    related:
+      - topic-alpha

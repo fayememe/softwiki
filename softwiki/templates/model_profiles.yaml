@@ -1,0 +1,14 @@
+profiles:
+  cheap_extraction:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.0
+
+  high_quality_analysis:
+    provider: openai
+    model: gpt-4o
+    temperature: 0.2
+
+  local_embedding:
+    provider: local
+    model: bge-m3

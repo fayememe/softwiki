@@ -1,0 +1,153 @@
+/* Wikipedia-style theme for WikiPanel */
+.panel {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: #f8f9fa;
+  color: #202122;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.topicList {
+  width: 200px;
+  min-width: 200px;
+  background: #fff;
+  border-right: 1px solid #a2a9b1;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.topicListHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #54595d;
+  border-bottom: 1px solid #eaecf0;
+  font-family: sans-serif;
+}
+.topicListHeader svg { color: #3366cc; flex-shrink: 0; }
+.topicLoading { padding: 20px 16px; color: #72777d; font-size: 13px; font-family: sans-serif; }
+.topicListItems { flex: 1; overflow-y: auto; padding: 6px; }
+.topicItem {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  background: none; border: none; border-left: 3px solid transparent;
+  cursor: pointer; font-size: 13px; color: #0645ad; line-height: 1.4;
+  font-family: sans-serif; transition: background 0.1s;
+}
+.topicItem:hover { background: #eaf3fb; }
+.topicActive { border-left-color: #3366cc; background: #eaf3fb; font-weight: 600; }
+.article {
+  flex: 1; overflow-y: auto; padding: 28px 36px 48px;
+  max-width: 860px; min-width: 0;
+}
+.articleHeader {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; border-bottom: 1px solid #a2a9b1; padding-bottom: 12px; margin-bottom: 20px;
+}
+.articleTitle {
+  font-family: 'Linux Libertine', Georgia, Times, serif;
+  font-size: 28px; font-weight: normal; color: #202122; line-height: 1.2; margin: 0;
+}
+.articleMeta {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: #72777d; font-family: sans-serif;
+  white-space: nowrap; flex-shrink: 0; padding-top: 8px;
+}
+.builtAt { font-size: 11px; }
+.rebuildBtn {
+  background: none; border: 1px solid #a2a9b1; border-radius: 2px;
+  padding: 4px 10px; font-size: 12px; color: #0645ad;
+  cursor: pointer; font-family: sans-serif; transition: background 0.1s;
+}
+.rebuildBtn:hover:not(:disabled) { background: #eaf3fb; }
+.rebuildBtn:disabled { color: #72777d; cursor: not-allowed; }
+.tocBox {
+  float: right; clear: right; margin: 0 0 16px 24px;
+  padding: 14px 18px; background: #f8f9fa; border: 1px solid #a2a9b1;
+  font-size: 13px; font-family: sans-serif; min-width: 180px; max-width: 280px;
+}
+.tocTitle { font-weight: 700; margin-bottom: 8px; color: #202122; font-size: 13px; }
+.tocList { display: flex; flex-direction: column; gap: 2px; }
+.tocItem {
+  background: none; border: none; padding: 3px 0 3px 8px; cursor: pointer;
+  color: #0645ad; font-size: 12.5px; text-align: left; font-family: sans-serif;
+  border-left: 2px solid transparent; transition: border-color 0.1s; line-height: 1.4;
+}
+.tocItem:hover { text-decoration: underline; }
+.tocLevel1 { font-weight: 500; }
+.tocLevel2 { padding-left: 18px; font-size: 12px; }
+.tocLevel3 { padding-left: 28px; font-size: 11.5px; color: #54595d; }
+.tocActive { border-left-color: #3366cc !important; font-weight: 700 !important; }
+.articleBody { line-height: 1.65; color: #202122; font-size: 14.5px; }
+.articleBody::after { content: ''; display: table; clear: both; }
+.articleBody h1 {
+  font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 26px;
+  font-weight: normal; border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; margin: 24px 0 14px;
+}
+.articleBody h2 {
+  font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 20px;
+  font-weight: normal; border-bottom: 1px solid #a2a9b1; padding-bottom: 4px; margin: 24px 0 12px;
+}
+.articleBody h3 { font-size: 16px; font-weight: bold; margin: 18px 0 10px; font-family: sans-serif; }
+.articleBody h4 { font-size: 14px; font-weight: bold; margin: 14px 0 8px; font-family: sans-serif; }
+.articleBody p { margin: 0 0 12px; line-height: 1.65; }
+.articleBody ul, .articleBody ol { margin: 6px 0 14px; padding-left: 28px; }
+.articleBody li { margin-bottom: 4px; }
+.articleBody a { color: #0645ad; text-decoration: none; }
+.articleBody a:hover { text-decoration: underline; }
+.articleBody code {
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85em;
+  background: #f8f9fa; border: 1px solid #a2a9b1; border-radius: 2px; padding: 0.15em 0.4em; color: #202122;
+}
+.articleBody pre { background: #f8f9fa; border: 1px solid #a2a9b1; border-radius: 2px; padding: 14px 18px; overflow-x: auto; margin: 14px 0; }
+.articleBody pre code { background: none; border: none; padding: 0; }
+.articleBody blockquote { border-left: 3px solid #a2a9b1; padding: 6px 16px; color: #54595d; background: #f8f9fa; margin: 12px 0; font-style: italic; }
+.articleBody table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; font-family: sans-serif; }
+.articleBody th { background: #eaecf0; border: 1px solid #a2a9b1; padding: 8px 12px; text-align: left; font-weight: 700; }
+.articleBody td { border: 1px solid #a2a9b1; padding: 7px 12px; vertical-align: top; }
+.articleBody hr { border: none; border-top: 1px solid #a2a9b1; margin: 24px 0; }
+.articleBody strong { font-weight: 700; }
+.tocSidebar {
+  width: 200px; min-width: 200px; padding: 24px 16px; height: 100%; overflow-y: auto;
+  border-left: 1px solid #eaecf0; background: #fff; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.tocSidebarTitle {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #54595d; margin-bottom: 10px; padding-left: 4px; font-family: sans-serif;
+}
+.tocSidebarItem {
+  display: block; background: none; border: none; padding: 4px 0 4px 10px;
+  cursor: pointer; text-align: left; color: #0645ad; font-size: 12px;
+  line-height: 1.4; font-family: sans-serif; border-left: 2px solid transparent; transition: border-color 0.1s;
+}
+.tocSidebarItem:hover { text-decoration: underline; }
+.tocSidebarLevel1 { font-weight: 600; }
+.tocSidebarLevel2 { padding-left: 20px; font-size: 11.5px; }
+.tocSidebarLevel3 { padding-left: 30px; font-size: 11px; color: #54595d; }
+.tocSidebarActive { border-left-color: #3366cc !important; font-weight: 700 !important; }
+.emptyState {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 12px; text-align: center; padding: 60px 20px; font-family: sans-serif;
+}
+.emptyIcon { color: #72777d; opacity: 0.5; margin-bottom: 4px; }
+.emptyTitle { font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 26px; font-weight: normal; color: #202122; margin: 0; }
+.emptyDesc { color: #54595d; font-size: 14px; margin: 0; }
+.buildBtn {
+  display: flex; align-items: center; gap: 8px; background: #3366cc; color: #fff;
+  border: none; padding: 9px 20px; border-radius: 2px; cursor: pointer;
+  font-size: 13px; font-weight: 500; font-family: sans-serif; transition: background 0.1s; margin-top: 8px;
+}
+.buildBtn:hover:not(:disabled) { background: #2a55b5; }
+.buildBtn:disabled { background: #a2a9b1; cursor: not-allowed; }
+.btnSpinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.errorMsg { color: #d33; font-size: 13px; margin-top: 8px; }
+.loadingState { display: flex; align-items: center; justify-content: center; gap: 12px; height: 100%; color: #54595d; font-size: 14px; font-family: sans-serif; }
+.spinner { width: 18px; height: 18px; border: 2px solid #eaecf0; border-top-color: #3366cc; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 1100px) { .tocSidebar { display: none; } }
+@media (max-width: 700px) { .topicList { width: 140px; min-width: 140px; } .article { padding: 16px 16px 32px; } .tocBox { float: none; margin: 0 0 16px; max-width: 100%; } }

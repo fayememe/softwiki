@@ -1,0 +1,16 @@
+sources:
+  - id: sample_source_1
+    name: Sample News Outlet
+    type: news
+    url: https://www.example-news.com/
+    trust_level: high
+    source_country: us
+    language: en
+
+  - id: sample_source_2
+    name: Sample Official Portal
+    type: official
+    url: https://www.example-gov.org/
+    trust_level: high
+    source_country: uk
+    language: en

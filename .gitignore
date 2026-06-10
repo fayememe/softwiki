@@ -1,0 +1,29 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Runtime
+.softwiki_runtime/
+output/
+
+# Workspace (user data)
+workspace/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# opencode runtime
+.omo/run-continuation/
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
