@@ -204,15 +204,15 @@ cp .env.example .env
 
 ### 📚 文档
 
-| 文档 | 说明 |
+| 分类 | 说明 |
 |------|------|
-| [docs/project-status.md](docs/project-status.md) | ⭐ 项目状态与开发总结（主要参考） |
-| [docs/user-manual.md](docs/user-manual.md) | 用户与管理员使用手册 |
-| [docs/system-mapping.md](docs/system-mapping.md) | 系统架构层级映射 |
-| [docs/model-guide.md](docs/model-guide.md) | 模型选型与配置指南 |
-| [docs/workspace_structure.md](docs/workspace_structure.md) | 文件系统与工作空间结构 |
-| [docs/technical-implementation.md](docs/technical-implementation.md) | 技术白皮书 |
-| [docs/application-system.md](docs/application-system.md) | 架构讨论参考（非设计要求） |
+| [docs/README.md](docs/README.md) | ⭐ 文档导航入口 |
+| [01-architecture](docs/01-architecture/overview.md) | 系统架构、数据流、接口定义 |
+| [02-design](docs/02-design/data-model.md) | 数据模型、管道、RAG/图设计、配置 schema |
+| [03-operations](docs/03-operations/setup.md) | 安装、CLI、存储运维 |
+| [04-guides](docs/04-guides/quickstart.md) | 快速上手、Shell/WebUI、工作流 |
+| [05-roadmap](docs/05-roadmap/status.md) | Phase 1-5 项目状态 |
+| [06-archive](docs/06-archive/work-log.md) | 历史决策记录 |
 
 ---
 
