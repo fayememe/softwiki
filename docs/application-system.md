@@ -128,8 +128,7 @@ SoftWiki Core 要足够聪明，能完成知识库自己的业务；
 
 ```mermaid
 graph TD
-    Producer["External Raw Data Producer<br/>human / script / git / rsync / rclone / crawler"] --> FS["Filesystem / Mounted Folder"]
-    FS -->|SoftWiki Source Scanner| Core["SoftWiki Core<br/>knowledge-domain business logic<br/>ingest / index / wiki / graph / claims / answer / publish"]
+    Producer["External Raw Data Producer<br/>human / script / git / rsync / rclone / crawler"] -->|Filesystem / Mounted Folder<br/>SoftWiki Source Scanner| Core["SoftWiki Core<br/>knowledge-domain business logic<br/>ingest / index / wiki / graph / claims / answer / publish"]
     Core --> Gateway["SoftWiki Server / MCP Gateway<br/>auth / RBAC / audit / HTTP API / MCP tools"]
     Gateway --> WebUI["WebUI Client<br/>human portal"]
     Gateway --> Shell["Shell / TUI Client<br/>power interface"]
