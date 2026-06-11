@@ -60,7 +60,7 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
   return (
     <div className={`${styles.row} ${isUser ? styles.userRow : ''} animate-fadeInUp`}>
       {/* Side column for avatar (assistant only) — user avatar is inside bubble */}
-      {isAssistant && !message.isLoading && (
+      {isAssistant && (
         <div className={styles.avatarCol}>
           <BotAvatar />
         </div>
@@ -82,7 +82,6 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
           <>
             {message.isLoading ? (
               <div className={styles.botContainer}>
-                <BotAvatar />
                 <div className={`${styles.bubble} ${styles.botBubble} ${styles.loadingBubble}`}>
                   <ThinkingDots />
                 </div>

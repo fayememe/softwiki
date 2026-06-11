@@ -17,7 +17,7 @@ function extractToc(markdown: string): TocItem[] {
   for (const line of lines) {
     const m = line.match(/^(#{1,4})\s+(.+)$/);
     if (m) {
-      const text = m[2].replace(/\*+/g, '').trim();
+      let text = m[2].replace(/\*+/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
       const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
       toc.push({ id, text, level: m[1].length });
     }

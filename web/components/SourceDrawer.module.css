@@ -82,8 +82,8 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--accent-blue);
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.25);
+  background: rgba(85,136,255,0.10);
+  border: 1px solid rgba(85,136,255,0.25);
   border-radius: 6px;
   padding: 4px 10px;
   display: inline-block;
@@ -188,8 +188,8 @@
 }
 
 .urlLink:hover {
-  background: rgba(59,130,246,0.08);
-  border-color: rgba(59,130,246,0.3);
+  background: rgba(85,136,255,0.08);
+  border-color: rgba(85,136,255,0.3);
 }
 
 .urlText {

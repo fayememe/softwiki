@@ -106,7 +106,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
                     </td>
                     <td className={styles.td}>{doc.published_at}</td>
                     <td className={styles.td}>
-                      <span className={`${styles.badge} ${styles[doc.trust_level.toLowerCase()] || styles.medium}`}>
+                      <span className={`${styles.badge} ${styles[(doc.trust_level || 'medium').toLowerCase()] || styles.medium}`}>
                         {doc.trust_level}
                       </span>
                     </td>
