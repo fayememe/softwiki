@@ -1,0 +1,24 @@
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#0e1118"/>
+  <rect x="0" y="0" width="240" height="400" fill="#090b10"/>
+  <rect x="12" y="12" width="32" height="32" rx="8" fill="#5588ff"/>
+  <text x="52" y="32" font-family="sans-serif" font-size="14" font-weight="700" fill="#f0f2f5">Softwiki</text>
+  <rect x="16" y="56" width="208" height="1" fill="rgba(255,255,255,0.06)"/>
+  <text x="20" y="90" font-family="sans-serif" font-size="13" fill="#9499a8">💬 Chat</text>
+  <text x="20" y="115" font-family="sans-serif" font-size="13" fill="#5588ff" font-weight="600">📥 Ingest</text>
+  <text x="20" y="140" font-family="sans-serif" font-size="13" fill="#9499a8">📄 Documents</text>
+  <text x="20" y="165" font-family="sans-serif" font-size="13" fill="#9499a8">🏷️ Claims</text>
+  <text x="20" y="190" font-family="sans-serif" font-size="13" fill="#9499a8">📚 Wiki</text>
+  <rect x="256" y="12" width="200" height="400" fill="#0e1118"/>
+  <text x="270" y="90" font-family="sans-serif" font-size="15" fill="#f0f2f5" font-weight="700">Ingest Sources</text>
+  <rect x="270" y="110" width="350" height="36" rx="8" fill="#151923" stroke="rgba(255,255,255,0.08)"/>
+  <text x="280" y="133" font-family="sans-serif" font-size="13" fill="#363c48">https://example.com/article</text>
+  <rect x="270" y="155" width="350" height="80" rx="10" fill="none" stroke="rgba(255,255,255,0.14)" stroke-dasharray="6,4"/>
+  <text x="420" y="200" font-family="sans-serif" font-size="13" fill="#9499a8" text-anchor="middle">Drop PDF here</text>
+  <rect x="270" y="260" width="160" height="36" rx="8" fill="#5588ff"/>
+  <text x="350" y="283" font-family="sans-serif" font-size="13" fill="white" text-anchor="middle">Ingest Document</text>
+  <rect x="270" y="310" width="350" height="60" rx="8" fill="#151923" stroke="rgba(255,255,255,0.04)"/>
+  <text x="280" y="335" font-family="sans-serif" font-size="11" fill="#9499a8">Activity Log</text>
+  <text x="280" y="355" font-family="monospace" font-size="11" fill="#5c6270">[10:30] Starting ingest...</text>
+  <text x="120" y="380" font-family="sans-serif" font-size="11" fill="#5c6270" text-anchor="middle">Screenshot — SoftWiki WebUI</text>
+</svg>

@@ -2,6 +2,8 @@
 
 **Domain-independent research intelligence and knowledge management engine.** Exposes RAG, knowledge graphs, timeline analysis, and auto-generated wikis through the Model Context Protocol (MCP).
 
+![SoftWiki WebUI](docs/screenshot.svg)
+
 ## Features
 
 - **MCP-First** — 17 MCP tools for query, ingest, search, graph traversal, wiki compilation
