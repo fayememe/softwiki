@@ -126,36 +126,15 @@ SoftWiki Core 要足够聪明，能完成知识库自己的业务；
 
 # 5. 高层架构
 
-```text
-                 External Raw Data Producer
-                 human / script / git / rsync /
-                 rclone / crawler / Hermes / etc.
-                              |
-                              v
-                    Filesystem / Mounted Folder
-                              |
-                              v
-                    SoftWiki Source Scanner
-                              |
-                              v
-+---------------------------------------------------------------+
-|                       SoftWiki Core                           |
-|  knowledge-domain business logic                              |
-|  ingest / index / wiki / graph / claims / answer / publish    |
-+---------------------------+-----------------------------------+
-                            |
-                            v
-+---------------------------------------------------------------+
-|                    SoftWiki Server / MCP Gateway              |
-|  auth / RBAC / audit / HTTP API / MCP tools                   |
-+---------------------------+-----------------------------------+
-                            |
-        +-------------------+-------------------+
-        |                   |                   |
-        v                   v                   v
-   WebUI Client        Shell / TUI Client   External MCP Clients
-   human portal        power interface      opencode / Claude /
-                                           Cursor / Zed / apps
+```mermaid
+graph TD
+    Producer["External Raw Data Producer<br/>human / script / git / rsync / rclone / crawler"] --> FS["Filesystem / Mounted Folder"]
+    FS --> Scanner["SoftWiki Source Scanner"]
+    Scanner --> Core["SoftWiki Core<br/>knowledge-domain business logic<br/>ingest / index / wiki / graph / claims / answer / publish"]
+    Core --> Gateway["SoftWiki Server / MCP Gateway<br/>auth / RBAC / audit / HTTP API / MCP tools"]
+    Gateway --> WebUI["WebUI Client<br/>human portal"]
+    Gateway --> Shell["Shell / TUI Client<br/>power interface"]
+    Gateway --> ExtClients["External MCP Clients<br/>opencode / Claude / Cursor / Zed / apps"]
 ```
 
 ---
