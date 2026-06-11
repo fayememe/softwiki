@@ -1,24 +1,72 @@
-<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
-  <rect width="800" height="400" fill="#0e1118"/>
-  <rect x="0" y="0" width="240" height="400" fill="#090b10"/>
-  <rect x="12" y="12" width="32" height="32" rx="8" fill="#5588ff"/>
-  <text x="52" y="32" font-family="sans-serif" font-size="14" font-weight="700" fill="#f0f2f5">Softwiki</text>
-  <rect x="16" y="56" width="208" height="1" fill="rgba(255,255,255,0.06)"/>
-  <text x="20" y="90" font-family="sans-serif" font-size="13" fill="#9499a8">💬 Chat</text>
-  <text x="20" y="115" font-family="sans-serif" font-size="13" fill="#5588ff" font-weight="600">📥 Ingest</text>
-  <text x="20" y="140" font-family="sans-serif" font-size="13" fill="#9499a8">📄 Documents</text>
-  <text x="20" y="165" font-family="sans-serif" font-size="13" fill="#9499a8">🏷️ Claims</text>
-  <text x="20" y="190" font-family="sans-serif" font-size="13" fill="#9499a8">📚 Wiki</text>
-  <rect x="256" y="12" width="200" height="400" fill="#0e1118"/>
-  <text x="270" y="90" font-family="sans-serif" font-size="15" fill="#f0f2f5" font-weight="700">Ingest Sources</text>
-  <rect x="270" y="110" width="350" height="36" rx="8" fill="#151923" stroke="rgba(255,255,255,0.08)"/>
-  <text x="280" y="133" font-family="sans-serif" font-size="13" fill="#363c48">https://example.com/article</text>
-  <rect x="270" y="155" width="350" height="80" rx="10" fill="none" stroke="rgba(255,255,255,0.14)" stroke-dasharray="6,4"/>
-  <text x="420" y="200" font-family="sans-serif" font-size="13" fill="#9499a8" text-anchor="middle">Drop PDF here</text>
-  <rect x="270" y="260" width="160" height="36" rx="8" fill="#5588ff"/>
-  <text x="350" y="283" font-family="sans-serif" font-size="13" fill="white" text-anchor="middle">Ingest Document</text>
-  <rect x="270" y="310" width="350" height="60" rx="8" fill="#151923" stroke="rgba(255,255,255,0.04)"/>
-  <text x="280" y="335" font-family="sans-serif" font-size="11" fill="#9499a8">Activity Log</text>
-  <text x="280" y="355" font-family="monospace" font-size="11" fill="#5c6270">[10:30] Starting ingest...</text>
-  <text x="120" y="380" font-family="sans-serif" font-size="11" fill="#5c6270" text-anchor="middle">Screenshot — SoftWiki WebUI</text>
+<svg width="800" height="420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0e1118"/>
+      <stop offset="100%" stop-color="#090b10"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5588ff"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <!-- bg -->
+  <rect width="800" height="420" fill="url(#bg)"/>
+  <!-- sidebar -->
+  <rect x="0" y="0" width="220" height="420" fill="#0a0c10"/>
+  <rect x="12" y="12" width="30" height="30" rx="8" fill="url(#accent)"/>
+  <text x="50" y="31" font-family="'Plus Jakarta Sans',sans-serif" font-size="15" font-weight="700" fill="#f0f2f5">SoftWiki</text>
+  <text x="50" y="45" font-family="sans-serif" font-size="10" fill="#5c6270" text-transform="uppercase">Research Hub</text>
+  <rect x="0" y="56" width="220" height="1" fill="rgba(255,255,255,0.04)"/>
+  <!-- nav -->
+  <text x="20" y="90" font-family="sans-serif" font-size="13" fill="#5588ff" font-weight="600">💬  Chat</text>
+  <text x="20" y="115" font-family="sans-serif" font-size="13" fill="#9499a8">📥  Ingest</text>
+  <text x="20" y="140" font-family="sans-serif" font-size="13" fill="#9499a8">📄  Documents</text>
+  <text x="20" y="165" font-family="sans-serif" font-size="13" fill="#9499a8">🏷️  Claims</text>
+  <text x="20" y="190" font-family="sans-serif" font-size="13" fill="#9499a8">📚  Wiki</text>
+  <!-- sessions -->
+  <rect x="12" y="215" width="196" height="1" fill="rgba(255,255,255,0.04)"/>
+  <text x="16" y="235" font-family="sans-serif" font-size="10" fill="#5c6270" font-weight="600" text-transform="uppercase">Sessions 2</text>
+  <rect x="12" y="245" width="196" height="28" rx="4" fill="rgba(85,136,255,0.06)"/>
+  <text x="24" y="264" font-family="sans-serif" font-size="12" fill="#f0f2f5">EVA Lore Deep Dive</text>
+  <text x="24" y="280" font-family="sans-serif" font-size="10" fill="#5c6270">8 messages · 2h ago</text>
+  <text x="24" y="295" font-family="sans-serif" font-size="12" fill="#9499a8">Second Impact Analysis</text>
+  <text x="24" y="310" font-family="sans-serif" font-size="10" fill="#5c6270">3 messages · yesterday</text>
+  <!-- chat messages -->
+  <rect x="230" y="0" width="570" height="420" fill="transparent"/>
+  <!-- user msg -->
+  <rect x="540" y="20" width="230" height="36" rx="16" fill="url(#accent)"/>
+  <text x="555" y="41" font-family="sans-serif" font-size="13" fill="white">What is the Human</text>
+  <text x="555" y="55" font-family="sans-serif" font-size="13" fill="white" opacity="0.7">Instrumentality Project?</text>
+  <!-- assistant msg -->
+  <rect x="245" y="75" width="340" height="100" rx="16" fill="#111318" stroke="rgba(255,255,255,0.04)"/>
+  <text x="258" y="97" font-family="sans-serif" font-size="12" fill="#22c55e">SoftWiki Analyst</text>
+  <text x="258" y="118" font-family="sans-serif" font-size="12" fill="#f0f2f5">The Human Instrumentality Project (人類補完計画)</text>
+  <text x="258" y="136" font-family="sans-serif" font-size="12" fill="#f0f2f5">is the central plot driving SEELE's secret agenda</text>
+  <text x="258" y="154" font-family="sans-serif" font-size="12" fill="#f0f2f5">in Neon Genesis Evangelion. [1]</text>
+  <!-- source citation -->
+  <rect x="258" y="180" width="290" height="44" rx="8" fill="#151923" stroke="rgba(255,255,255,0.04)"/>
+  <rect x="268" y="189" width="22" height="22" rx="6" fill="rgba(85,136,255,0.08)" stroke="rgba(85,136,255,0.15)"/>
+  <text x="279" y="204" font-family="sans-serif" font-size="10" font-weight="700" fill="#5588ff">1</text>
+  <text x="296" y="200" font-family="sans-serif" font-size="11" fill="#f0f2f5" font-weight="500">Neon Genesis Evangelion</text>
+  <text x="296" y="215" font-family="sans-serif" font-size="10" fill="#5c6270">Wikipedia · 1995 · ↑92%</text>
+  <!-- thinking dots -->
+  <circle cx="258" cy="250" r="4" fill="#5588ff" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite"/></circle>
+  <circle cx="272" cy="250" r="4" fill="#5588ff" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.2s" repeatCount="indefinite"/></circle>
+  <circle cx="286" cy="250" r="4" fill="#5588ff" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.4s" repeatCount="indefinite"/></circle>
+  <text x="300" y="254" font-family="sans-serif" font-size="11" fill="#5c6270">Analyzing knowledge base…</text>
+  <!-- input bar -->
+  <rect x="245" y="278" width="530" height="44" rx="16" fill="#111318" stroke="rgba(255,255,255,0.08)"/>
+  <text x="258" y="304" font-family="sans-serif" font-size="13" fill="#363c48">Ask a research question…</text>
+  <circle cx="745" cy="300" r="16" fill="#5588ff"/>
+  <polyline points="740,296 750,300 740,304" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="240" y="350" font-family="sans-serif" font-size="10" fill="#363c48" text-anchor="middle">Answers grounded in indexed documents · Enter to send · Shift+Enter for newline</text>
+  <!-- floating theme toggle -->
+  <rect x="756" y="8" width="32" height="32" rx="8" fill="#111318" stroke="rgba(255,255,255,0.06)"/>
+  <circle cx="772" cy="24" r="7" fill="none" stroke="#5c6270" stroke-width="1.5"/>
+  <circle cx="772" cy="21" r="2" fill="#5c6270" opacity="0.4"/>
+  <!-- footer -->
+  <rect x="0" y="395" width="220" height="1" fill="rgba(255,255,255,0.04)"/>
+  <text x="16" y="412" font-family="sans-serif" font-size="10" fill="#5c6270" font-weight="600">Workspace</text>
+  <circle cx="202" cy="409" r="3" fill="#22c55e"/>
+  <text x="186" y="412" font-family="sans-serif" font-size="10" fill="#22c55e">Active</text>
 </svg>
