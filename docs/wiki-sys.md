@@ -31,16 +31,21 @@ The canonical source of truth is always the raw source material plus source meta
 
 The system should follow this principle:
 
-```text
-Raw Sources / Source Store = canonical evidence
-
-RAG = evidence retrieval view
-
-Graph / Claim DB = relationship and structured reasoning view
-
-Timeline = temporal change view
-
-llm-wiki = human-readable synthesis and navigation view
+```mermaid
+graph LR
+    subgraph Canonical["Canonical Evidence"]
+        RS["Raw Sources / Source Store"]
+    end
+    subgraph Views["Derived Views"]
+        RAG["RAG<br/>evidence retrieval"]
+        GC["Graph / Claim DB<br/>relationship & reasoning"]
+        TL["Timeline<br/>temporal change"]
+        WIKI["llm-wiki<br/>human-readable synthesis"]
+    end
+    Canonical --> RAG
+    Canonical --> GC
+    Canonical --> TL
+    Canonical --> WIKI
 ```
 
 The wiki is not the ground truth.
@@ -81,45 +86,16 @@ This model is wrong because:
 
 Use this model instead:
 
-```text
-                    ┌──────────────────┐
-                    │   Raw Sources     │
-                    │ Docs / Web / PDFs │
-                    │ APIs / Notes      │
-                    └─────────┬────────┘
-                              ↓
-                    ┌──────────────────┐
-                    │   Source Store    │
-                    │ canonical evidence│
-                    └─────────┬────────┘
-                              ↓
-       ┌──────────────────────┼──────────────────────┐
-       ↓                      ↓                      ↓
-┌──────────────┐       ┌──────────────┐       ┌──────────────┐
-│  RAG Index   │       │ Extraction   │       │ Metadata DB  │
-│ evidence     │       │ entities     │       │ sources      │
-│ retrieval    │       │ claims       │       │ dates        │
-└──────┬───────┘       │ events       │       │ trust levels │
-       │               └──────┬───────┘       └──────────────┘
-       │                      ↓
-       │               ┌──────────────┐
-       │               │ Graph Store  │
-       │               │ relations    │
-       │               │ claims       │
-       │               │ timelines    │
-       │               └──────┬───────┘
-       │                      │
-       └──────────────┬───────┘
-                      ↓
-              ┌──────────────┐
-              │ Intelligence │
-              │ Router / QA  │
-              └──────┬───────┘
-                     ↓
-              ┌──────────────┐
-              │ Wiki/Reports │
-              │ synthesis    │
-              └──────────────┘
+```mermaid
+graph TD
+    RS["Raw Sources<br/>Docs / Web / PDFs / APIs / Notes"] --> SS["Source Store<br/>canonical evidence"]
+    SS --> RAG["RAG Index<br/>evidence retrieval"]
+    SS --> EX["Extraction<br/>entities / claims / events"]
+    SS --> MD["Metadata DB<br/>sources / dates / trust levels"]
+    EX --> GS["Graph Store<br/>relations / claims / timelines"]
+    RAG --> INTEL["Intelligence<br/>Router / QA"]
+    GS --> INTEL
+    INTEL --> WR["Wiki / Reports<br/>synthesis"]
 ```
 
 In this design:

@@ -35,36 +35,21 @@
 
 系统整体拓扑结构如下：
 
-```text
-                           ┌───────────────────────────┐
-                           │        Raw Sources        │
-                           │   (web_loader/pdf_loader) │
-                           └─────────────┬─────────────┘
-                                         ↓
-                           ┌───────────────────────────┐
-                           │       Source Store        │
-                           │    (DocumentRepository)   │
-                           └─────────────┬─────────────┘
-                                         ↓
-   ┌───────────────────┬─────────────────┼─────────────────┬───────────────────┐
-   ↓                   ↓                 ↓                 ↓                   ↓
-┌──────────────┐┌──────────────┐ ┌──────────────┐┌──────────────┐┌──────────────┐
-│  RAG Index   ││   Claim DB   │ │   LLM Wiki   ││  Knowledge   ││   Timeline   │
-│(LocalVector  ││              │ │  WikiPage-   ││   Graph DB   ││  Timeline-   │
-│/Bm25Store)   ││ClaimExtractor│ │  Generator   ││GraphExtractor││  Extractor   │
-└──────┬───────┘└──────┬───────┘ └──────┬───────┘└──────┬───────┘└──────┬───────┘
-       │               │                │               │               │
-       └───────────────┴────────────────┼───────────────┴───────────────┘
-                                        ↓
-                           ┌───────────────────────────┐
-                           │   Answer Engine Router    │
-                           │      (AnswerEngine)       │
-                           └─────────────┬─────────────┘
-                                         ↓
-                           ┌───────────────────────────┐
-                           │      Wiki / Reports       │
-                           │   (WikiPanel / Exports)   │
-                           └───────────────────────────┘
+```mermaid
+graph TD
+    Raw["Raw Sources<br/>(web_loader/pdf_loader)"] --> Store["Source Store<br/>(DocumentRepository)"]
+    Store --> RAG["RAG Index<br/>(LocalVector / Bm25Store)"]
+    Store --> ClaimDB["Claim DB<br/>(ClaimExtractor)"]
+    Store --> Wiki["LLM Wiki<br/>(WikiPageGenerator)"]
+    Store --> Graph["Knowledge Graph<br/>(GraphExtractor)"]
+    Store --> Timeline["Timeline<br/>(TimelineExtractor)"]
+    RAG --> Router["Answer Engine Router<br/>(AnswerEngine)"]
+    ClaimDB --> Router
+    Graph --> Router
+    Timeline --> Router
+    Wiki --> Router
+    Router --> Output["Wiki / Reports<br/>(WikiPanel / Exports)"]
+```
 ```
 
 系统包含以下关键自定义工具组件与类：

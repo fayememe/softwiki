@@ -12,12 +12,11 @@
 
 ### Architecture
 
-```
-External AI Tools (opencode / Claude / Cursor)
-        ↕  MCP
-SoftWiki Core (RAG · LightRAG · ClaimDB · Timeline · LLM-Wiki)
-        ↕  SQLite + Local Files / PostgreSQL (optional)
-Workspace (any directory, fully isolated)
+```mermaid
+graph TD
+    Tools["External AI Tools<br/>(opencode / Claude / Cursor)"] -->|MCP| MCPLayer["SoftWiki MCP Server"]
+    MCPLayer --> Core["SoftWiki Core<br/>(RAG · LightRAG · ClaimDB · Timeline · LLM-Wiki)"]
+    Core -->|SQLite / PostgreSQL| WS["Workspace<br/>(any directory, fully isolated)"]
 ```
 
 ### 🌟 Key Features
@@ -115,12 +114,11 @@ PYTHONPATH=. ./venv/bin/pytest
 
 ### 核心架构
 
-```
-外部 AI 工具（opencode / Claude / Cursor）
-        ↕  MCP
-SoftWiki Core（RAG · LightRAG · 声明库 · 时间线 · LLM-Wiki）
-        ↕  SQLite + 本地文件 / PostgreSQL（可选）
-Workspace（任意路径，完全隔离）
+```mermaid
+graph TD
+    Tools["外部 AI 工具<br/>(opencode / Claude / Cursor)"] -->|MCP| MCPLayer["SoftWiki MCP Server"]
+    MCPLayer --> Core["SoftWiki Core<br/>(RAG · LightRAG · 声明库 · 时间线 · LLM-Wiki)"]
+    Core -->|SQLite / PostgreSQL| WS["Workspace<br/>(任意路径，完全隔离)"]
 ```
 
 ### 🌟 核心特性
