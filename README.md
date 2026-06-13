@@ -2,6 +2,8 @@
 
 > **Work in progress.** Not ready for production use.
 
+***
+
 **Multi-Strategy Research Intelligence Engine.** Unifies RAG, GraphRAG, and LLM-Wiki (Karpathy architecture) into a single MCP-powered knowledge platform. Designed for deep research workflows across isolated knowledge bases.
 
 ```mermaid
