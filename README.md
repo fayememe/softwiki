@@ -10,16 +10,16 @@ graph TD
     SS --> RAG["RAG Index<br/>BM25 + Vector (hybrid)<br/>evidence retrieval"]
     SS --> EX["Extraction Pipeline<br/>LLM + rule-based"]
 
-    EX --> CDB["ClaimDB<br/>actor / stance / topic<br/>structured reasoning"]
-    EX --> KG["Knowledge Graph<br/>entities + relations<br/>relationship reasoning"]
-    EX --> TL["Timeline<br/>chronological events<br/>temporal reasoning"]
+    EX --> CDB["ClaimDB<br/>structured reasoning"]
+    EX --> KG["Knowledge Graph<br/>LightRAG + SQL<br/>entities & relations"]
+    EX --> TL["Timeline<br/>chronological events"]
 
     RAG --> INTEL["Intelligence Layer<br/>AnswerEngine"]
     CDB --> INTEL
     KG --> INTEL
     TL --> INTEL
 
-    INTEL --> WIKI["LLM Wiki<br/>compounding markdown pages<br/>human-readable synthesis"]
+    INTEL --> WIKI["LLM Wiki<br/>Karpathy compounding architecture<br/>human-readable synthesis"]
 
     style SS fill:#4a90d9,color:#fff
     style RAG fill:#7b68ee,color:#fff
@@ -27,6 +27,7 @@ graph TD
     style KG fill:#f39c12,color:#fff
     style TL fill:#e74c3c,color:#fff
     style WIKI fill:#9b59b6,color:#fff
+    style INTEL fill:#e67e22,color:#fff
 ```
 
 ## Screenshots
