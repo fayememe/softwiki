@@ -16,11 +16,21 @@ graph TD
     STR2 --> INTEL
     STR3 --> INTEL
 
+    INTEL --> TUI["Shell TUI<br/>opencode-powered"]
+    INTEL --> MCP["MCP Server<br/>stdio + SSE"]
+    INTEL --> WEB["WebUI<br/>Chat / Dashboard / Wiki"]
+
+    MCP --> AGENTS["External Agents<br/>Claude / Hermes / opencode / Cursor / Zed"]
+
     style SS fill:#4a90d9,color:#fff
     style STR1 fill:#7b68ee,color:#fff
     style STR2 fill:#f39c12,color:#fff
     style STR3 fill:#9b59b6,color:#fff
     style INTEL fill:#e67e22,color:#fff
+    style TUI fill:#34495e,color:#fff
+    style MCP fill:#2c3e50,color:#fff
+    style WEB fill:#16a085,color:#fff
+    style AGENTS fill:#7f8c8d,color:#fff
 ```
 
 ## Screenshots
