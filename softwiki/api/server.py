@@ -4,13 +4,14 @@ import shutil
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Ensure parent directory is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from softwiki.config import get_workspace_dir, get_db_url, get_config_path, is_module_enabled
+from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces
 from softwiki.source_store.db import SessionLocal
 from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event
 from softwiki.source_store.document_repo import DocumentRepository
@@ -230,7 +231,25 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
                     "language": src_config.language
                 }
                 
-        content = extract_pdf_content(dest_path)
+        # Handle markdown files directly (read as plain text)
+        if file.filename and file.filename.lower().endswith(".md"):
+            raw_md_dir = os.path.join(get_workspace_dir(), "raw", "md")
+            os.makedirs(raw_md_dir, exist_ok=True)
+            md_dest = os.path.join(raw_md_dir, file.filename)
+            # Save to raw/md first
+            with open(dest_path, "r", encoding="utf-8") as src, open(md_dest, "w", encoding="utf-8") as dst:
+                md_text = src.read()
+                dst.write(md_text)
+            title = os.path.splitext(file.filename)[0]
+            content = {
+                "title": title,
+                "author": "Unknown",
+                "raw_text": md_text,
+                "cleaned_text": md_text,
+                "published_at": None,
+            }
+        else:
+            content = extract_pdf_content(dest_path)
         content["url"] = None
         
         title = content["title"] or file.filename
@@ -397,7 +416,7 @@ def build_wiki_page(req: WikiBuildRequest):
 @app.get("/api/wiki/page/{topic}")
 def get_wiki_page(topic: str):
     """Read an already-generated wiki page without rebuilding it."""
-    from softwiki.config import get_export_dir
+    
     export_dir = get_export_dir("wiki/topics")
     filepath = os.path.join(export_dir, f"{topic}.md")
     if not os.path.exists(filepath):
@@ -550,4 +569,149 @@ def list_modules():
         "timeline": is_module_enabled("timeline"),
         "llmwiki": is_module_enabled("llmwiki")
     }
+
+# ── Workspace management ──
+
+@app.get("/api/workspaces")
+def get_workspaces():
+    """List all available workspaces and indicate which is active."""
+    all_ws = list_workspaces()
+    active = os.path.basename(get_workspace_dir())
+    return {"workspaces": all_ws, "active": active}
+
+class WorkspaceSwitchRequest(BaseModel):
+    workspace: str
+
+@app.post("/api/workspace")
+def switch_workspace(req: WorkspaceSwitchRequest):
+    """Switch the active workspace at runtime."""
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ws_path = os.path.join(project_root, "workspace", req.workspace)
+    ws_path = os.path.abspath(ws_path)
+    if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
+        raise HTTPException(status_code=404, detail=f"Workspace '{req.workspace}' not found or not initialized.")
+    set_workspace_dir(ws_path)
+    return {"status": "ok", "workspace": get_workspace_dir()}
+
+# ── Standalone Wiki (no dashboard required) ──
+
+_WIKI_CSS = """
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #202122; background: #f8f9fa; }
+.wrapper { display: flex; height: 100vh; }
+.sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #a2a9b1; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-header { padding: 14px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #54595d; border-bottom: 1px solid #eaecf0; }
+.sidebar-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+.sidebar-group-label { padding: 6px 16px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #72777d; }
+.sidebar-item { display: block; padding: 5px 16px 5px 20px; color: #0645ad; text-decoration: none; font-size: 13px; }
+.sidebar-item:hover { background: #eaf3fb; text-decoration: underline; }
+.sidebar-item.active { background: #eaf3fb; color: #202122; font-weight: 600; }
+.sidebar-ws { padding: 8px 12px; border-bottom: 1px solid #eaecf0; }
+.ws-select { width: 100%; font-size: 12px; padding: 4px 6px; border: 1px solid #a2a9b1; border-radius: 2px; font-family: inherit; background: #fff; cursor: pointer; }
+.article { flex: 1; overflow-y: auto; padding: 24px 48px 80px; max-width: 860px; margin: 0 auto; width: 100%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.article h1 { font-size: 28px; font-weight: 400; border-bottom: 1px solid #a2a9b1; padding-bottom: 6px; margin-bottom: 16px; font-family: Georgia, 'Linux Libertine', serif; }
+.article h2 { font-size: 20px; font-weight: 400; border-bottom: 1px solid #a2a9b1; padding-bottom: 4px; margin: 1em 0 0.5em; font-family: Georgia, 'Linux Libertine', serif; }
+.article h3 { font-size: 16px; font-weight: 600; margin: 1em 0 0.4em; }
+.article p { margin: 0.5em 0; line-height: 1.65; font-family: Georgia, 'Linux Libertine', serif; font-size: 14px; }
+.article ul, .article ol { padding-left: 30px; margin: 0.4em 0; }
+.article a { color: #0645ad; text-decoration: none; }
+.article a:hover { text-decoration: underline; }
+.article code { background: #f8f9fa; padding: 1px 4px; border: 1px solid #eaecf0; font-size: 13px; font-family: 'Consolas', 'Courier New', monospace; }
+.article pre { background: #f8f9fa; border: 1px solid #a2a9b1; padding: 12px 16px; overflow-x: auto; margin: 1em 0; }
+.article table { border-collapse: collapse; margin: 1em 0; font-size: 13px; width: 100%; }
+.article th, .article td { border: 1px solid #a2a9b1; padding: 6px 10px; text-align: left; }
+.article th { background: #eaecf0; font-weight: 700; }
+.article tr:nth-child(even) { background: #f8f9fa; }
+.article .meta { font-size: 12px; color: #54595d; margin-bottom: 16px; }
+.footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #a2a9b1; font-size: 11px; color: #54595d; }
+"""
+
+def _build_sidebar(topics: dict, active: str = "") -> str:
+    items = ""
+    groups = {}
+    for key, info in topics.items():
+        g = info.get("group", "Other")
+        groups.setdefault(g, []).append((key, info.get("name", key)))
+    for g, ks in groups.items():
+        items += f'<div class="sidebar-group-label">{g}</div>'
+        for key, name in ks:
+            cls = ' active' if key == active else ''
+            items += f'<a class="sidebar-item{cls}" href="/wiki/{key}">{name}</a>'
+
+    # Build workspace switcher
+    ws_name = os.path.basename(get_workspace_dir())
+    all_ws = list_workspaces()
+    ws_opts = ""
+    for w in all_ws:
+        sel = " selected" if w == ws_name else ""
+        ws_opts += f'<option value="{w}"{sel}>{w}</option>'
+    switcher = f"""<div class="sidebar-ws">
+<form method="POST" action="/wiki/switch" id="ws-form">
+<select name="workspace" onchange="document.getElementById('ws-form').submit()" class="ws-select">{ws_opts}</select>
+</form></div>"""
+    return switcher + items
+
+@app.get("/wiki", response_class=HTMLResponse)
+def wiki_index():
+    import yaml
+    topics_path = get_config_path("topics.yaml")
+    ws_name = os.path.basename(get_workspace_dir())
+    if not os.path.exists(topics_path):
+        return HTMLResponse(f"<html><body><h1>{ws_name}</h1><p>No topics configured.</p></body></html>")
+    with open(topics_path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    topics = data.get("topics", data)
+    sidebar = _build_sidebar(topics)
+    return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>{ws_name} — Wiki</title>
+<style>{_WIKI_CSS}</style></head><body><div class="wrapper">
+<div class="sidebar"><div class="sidebar-header">Topics</div><div class="sidebar-body">{sidebar}</div></div>
+<div class="article"><h1>{ws_name}</h1><p>Select a topic from the sidebar.</p><div class="footer">SoftWiki</div></div>
+</div></body></html>""")
+
+@app.post("/wiki/switch")
+def wiki_switch_workspace(workspace: str = Form(...)):
+    """Switch workspace from the wiki UI."""
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ws_path = os.path.join(project_root, "workspace", workspace)
+    ws_path = os.path.abspath(ws_path)
+    if os.path.isdir(os.path.join(ws_path, ".softwiki")):
+        set_workspace_dir(ws_path)
+    return RedirectResponse(url="/wiki", status_code=302)
+
+@app.get("/wiki/{topic}", response_class=HTMLResponse)
+def wiki_page(topic: str):
+    import yaml, markdown, re
+    topics_path = get_config_path("topics.yaml")
+    export_dir = get_export_dir("wiki/topics")
+    filepath = os.path.join(export_dir, f"{topic}.md")
+    ws_name = os.path.basename(get_workspace_dir())
+
+    topics = {}
+    if os.path.exists(topics_path):
+        with open(topics_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        topics = data.get("topics", data)
+    sidebar = _build_sidebar(topics, active=topic)
+
+    if not os.path.exists(filepath):
+        return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>Not Found</title>
+<style>{_WIKI_CSS}</style></head><body><div class="wrapper">
+<div class="sidebar"><div class="sidebar-header">Topics</div><div class="sidebar-body">{sidebar}</div></div>
+<div class="article"><h1>Not Found</h1><p>Wiki page &quot;{topic}&quot; not found.</p>
+<div class="footer"><a href="/wiki">← Back</a> · SoftWiki</div></div></div></body></html>""", status_code=404)
+
+    with open(filepath, encoding="utf-8") as f:
+        content = f.read()
+    content = re.sub(r'\[([^\]]+)\]\(wiki://([^)]+)\)', r'[\1](/wiki/\2)', content)
+    html_body = markdown.markdown(content, extensions=['extra', 'tables', 'fenced_code'])
+
+    title = topic.replace("-", " ").title()
+    return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>{title} — {ws_name}</title>
+<style>{_WIKI_CSS}</style></head><body><div class="wrapper">
+<div class="sidebar"><div class="sidebar-header">Topics</div><div class="sidebar-body">{sidebar}</div></div>
+<div class="article"><div class="meta"><a href="/wiki">← Back</a></div>
+{html_body}
+<div class="footer"><a href="/wiki/{topic}?raw=1">Source</a> · SoftWiki</div></div>
+</div></body></html>""")
 

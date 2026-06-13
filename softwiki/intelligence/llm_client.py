@@ -37,26 +37,29 @@ def get_llm_client_and_params(profile_name: str):
         else:
             model_name = "gpt-4o-mini"
 
-    # API key and base URL resolution
-    api_key = None
-    base_url = None
+    # API key and base URL resolution (profile takes priority, then env vars)
+    api_key = profile.get("api_key") or None
+    base_url = profile.get("api_base") or None
 
-    if provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_BASE")
-    elif provider in ["gemini", "google"]:
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/"
-    elif provider == "ollama":
-        api_key = "ollama"  # Ollama standard placeholder
-        base_url = profile.get("api_base") or os.getenv("OLLAMA_API_BASE") or "http://localhost:11434/v1"
-    else:
-        # Fallback to OpenAI
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_BASE")
+    if not api_key:
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+        elif provider in ["gemini", "google"]:
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        elif provider == "deepseek":
+            api_key = os.getenv("DEEPSEEK_API_KEY")
 
-    # Verify key (except for Ollama which doesn't use keys)
-    is_valid_key = (api_key and not api_key.startswith("your_")) if provider != "ollama" else True
+    if not base_url:
+        if provider in ["gemini", "google"]:
+            base_url = os.getenv("OPENAI_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/"
+        elif provider == "ollama":
+            base_url = os.getenv("OLLAMA_API_BASE") or "http://localhost:11434/v1"
+        elif provider == "deepseek":
+            base_url = "https://api.deepseek.com/v1"
+        else:
+            base_url = os.getenv("OPENAI_API_BASE") or "https://api.openai.com/v1"
+
+    is_valid_key = bool(api_key and not api_key.startswith("your_"))
 
     if not is_valid_key:
         return None, model_name, temperature, max_tokens
