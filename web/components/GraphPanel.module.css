@@ -1,0 +1,185 @@
+.panel {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 220px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+  overflow: hidden;
+  border-right: 1px solid var(--glass-border);
+  background: var(--bg-surface);
+}
+
+.search {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.search:focus {
+  border-color: var(--accent-blue);
+}
+
+.entityList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.entityItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.entityItem:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.entityActive {
+  background: rgba(85,136,255,0.12);
+}
+
+.entityDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.entityName {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Graph ── */
+.graphArea {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nodeGroup {
+  transition: opacity var(--transition-fast);
+}
+
+.nodeGroup:hover {
+  opacity: 1;
+}
+
+.nodeLabel {
+  pointer-events: none;
+  user-select: none;
+  paint-order: stroke;
+  stroke: rgba(0,0,0,0.6);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Detail panel ── */
+.detail {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 280px;
+  max-height: 300px;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  padding: 14px 16px;
+  overflow-y: auto;
+  backdrop-filter: blur(16px);
+  z-index: 2;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.detailDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.detailName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.detailType {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.detailRels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailRel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background var(--transition-fast);
+}
+
+.detailRel:hover {
+  background: var(--glass-bg-hover);
+}
+
+.relArrow {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
