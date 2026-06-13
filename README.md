@@ -8,13 +8,19 @@ graph TD
 
     ING --> SS["Source Store<br/>SQLite<br/>canonical evidence"]
 
-    SS --> STR1["RAG Strategy<br/>BM25 + Vector<br/>hybrid retrieval"]
-    SS --> STR2["Graph Strategy<br/>LightRAG + SQL<br/>entity & relation reasoning"]
-    SS --> STR3["Wiki Strategy<br/>LLM compounding<br/>Karpathy architecture"]
+    SS --> RAG["RAG Index<br/>BM25 + Vector<br/>hybrid retrieval"]
+    SS --> EX["Extraction Pipeline<br/>LLM + rule-based"]
 
-    STR1 --> INTEL["Intelligence Layer<br/>AnswerEngine"]
-    STR2 --> INTEL
-    STR3 --> INTEL
+    EX --> CDB["ClaimDB<br/>structured claims"]
+    EX --> KG["Knowledge Graph<br/>LightRAG + SQL<br/>entity & relation reasoning"]
+    EX --> TL["Timeline<br/>chronological events"]
+    EX --> WIKI["LLM Wiki<br/>Karpathy compounding<br/>persistent synthesis"]
+
+    RAG --> INTEL["Intelligence Layer<br/>AnswerEngine"]
+    CDB --> INTEL
+    KG --> INTEL
+    TL --> INTEL
+    WIKI --> INTEL
 
     INTEL --> TUI["Shell TUI<br/>opencode-powered"]
     INTEL --> MCP["MCP Server<br/>stdio + SSE"]
@@ -23,11 +29,14 @@ graph TD
     MCP --> AGENTS["External Agents<br/>Claude / Hermes / opencode / Cursor / Zed"]
 
     style SS fill:#4a90d9,color:#fff
-    style STR1 fill:#7b68ee,color:#fff
-    style STR2 fill:#f39c12,color:#fff
-    style STR3 fill:#9b59b6,color:#fff
-    style INTEL fill:#e67e22,color:#fff
-    style TUI fill:#34495e,color:#fff
+    style RAG fill:#7b68ee,color:#fff
+    style EX fill:#e67e22,color:#fff
+    style CDB fill:#2ecc71,color:#fff
+    style KG fill:#f39c12,color:#fff
+    style TL fill:#e74c3c,color:#fff
+    style WIKI fill:#9b59b6,color:#fff
+    style INTEL fill:#34495e,color:#fff
+    style TUI fill:#1abc9c,color:#fff
     style MCP fill:#2c3e50,color:#fff
     style WEB fill:#16a085,color:#fff
     style AGENTS fill:#7f8c8d,color:#fff
