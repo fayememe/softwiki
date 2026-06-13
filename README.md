@@ -29,6 +29,16 @@ graph TD
     style WIKI fill:#9b59b6,color:#fff
 ```
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><a href="docs/assets/chat.png"><img src="docs/assets/chat.png" width="280" alt="Chat interface"/></a><br/><em>Chat with RAG + web search</em></td>
+    <td align="center"><a href="docs/assets/wiki.png"><img src="docs/assets/wiki.png" width="280" alt="Wiki reader"/></a><br/><em>Wikipedia-style wiki reader</em></td>
+    <td align="center"><a href="docs/assets/graph.png"><img src="docs/assets/graph.png" width="280" alt="Knowledge graph"/></a><br/><em>Knowledge graph visualization</em></td>
+  </tr>
+</table>
+
 ## Why softwiki?
 
 > **Not another RAG tool.** softwiki is a knowledge operating system — orchestrating heterogeneous retrieval strategies, autonomous extraction pipelines, and agentic collaboration through the Model Context Protocol.
