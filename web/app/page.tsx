@@ -205,7 +205,7 @@ export default function Home() {
       await apiSwitchWorkspace(name);
       setActiveWorkspace(name);
       localStorage.setItem(WORKSPACE_KEY, name);
-      fetchStats();
+      window.location.reload();
     } catch (e) {
       console.error('Failed to switch workspace:', e);
     }
