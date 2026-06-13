@@ -6,27 +6,20 @@
 graph TD
     RS["Raw Sources<br/>Web / PDFs / APIs / Notes"] --> ING["Ingestion Pipeline<br/>fetch → clean → dedup"]
 
-    ING --> SS["Source Store<br/>SQLite: documents table<br/>canonical evidence"]
-    SS --> RAG["RAG Index<br/>BM25 + Vector (hybrid)<br/>evidence retrieval"]
-    SS --> EX["Extraction Pipeline<br/>LLM + rule-based"]
+    ING --> SS["Source Store<br/>SQLite<br/>canonical evidence"]
 
-    EX --> CDB["ClaimDB<br/>structured reasoning"]
-    EX --> KG["Knowledge Graph<br/>LightRAG + SQL<br/>entities & relations"]
-    EX --> TL["Timeline<br/>chronological events"]
+    SS --> STR1["RAG Strategy<br/>BM25 + Vector<br/>hybrid retrieval"]
+    SS --> STR2["Graph Strategy<br/>LightRAG + SQL<br/>entity & relation reasoning"]
+    SS --> STR3["Wiki Strategy<br/>LLM compounding<br/>Karpathy architecture"]
 
-    RAG --> INTEL["Intelligence Layer<br/>AnswerEngine"]
-    CDB --> INTEL
-    KG --> INTEL
-    TL --> INTEL
-
-    INTEL --> WIKI["LLM Wiki<br/>compounding markdown pages<br/>human-readable synthesis"]
+    STR1 --> INTEL["Intelligence Layer<br/>AnswerEngine"]
+    STR2 --> INTEL
+    STR3 --> INTEL
 
     style SS fill:#4a90d9,color:#fff
-    style RAG fill:#7b68ee,color:#fff
-    style CDB fill:#2ecc71,color:#fff
-    style KG fill:#f39c12,color:#fff
-    style TL fill:#e74c3c,color:#fff
-    style WIKI fill:#9b59b6,color:#fff
+    style STR1 fill:#7b68ee,color:#fff
+    style STR2 fill:#f39c12,color:#fff
+    style STR3 fill:#9b59b6,color:#fff
     style INTEL fill:#e67e22,color:#fff
 ```
 
