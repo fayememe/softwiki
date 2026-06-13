@@ -22,9 +22,16 @@ export default function IngestPanel() {
 
   const handleIngest = async () => {
     if (loading) return;
-    if (mode === 'url' && !url.trim()) {
-      setStatus({ type: 'error', message: 'Please enter a URL.' });
-      return;
+    if (mode === 'url') {
+      const trimmed = url.trim();
+      if (!trimmed) {
+        setStatus({ type: 'error', message: 'Please enter a URL.' });
+        return;
+      }
+      try { new URL(trimmed); } catch {
+        setStatus({ type: 'error', message: 'Invalid URL format. Please enter a valid URL (e.g. https://example.com).' });
+        return;
+      }
     }
     if (mode === 'file' && !file) {
       setStatus({ type: 'error', message: 'Please select a PDF file.' });
@@ -135,6 +142,7 @@ export default function IngestPanel() {
             onDragOver={e => e.preventDefault()}
             onDrop={handleFileDrop}
             onClick={() => fileRef.current?.click()}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }}
             role="button"
             tabIndex={0}
             aria-label="PDF drop zone"

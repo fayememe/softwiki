@@ -7,7 +7,11 @@ import IngestPanel from '@/components/IngestPanel';
 import DocumentsPanel from '@/components/DocumentsPanel';
 import ClaimsPanel from '@/components/ClaimsPanel';
 import WikiPanel from '@/components/WikiPanel';
-import { apiStatus } from '@/lib/api';
+import DashboardPanel from '@/components/DashboardPanel';
+import GraphPanel from '@/components/GraphPanel';
+import TimelinePanel from '@/components/TimelinePanel';
+import GlobalSearch from '@/components/GlobalSearch';
+import { apiStatus, apiListWorkspaces, apiSwitchWorkspace } from '@/lib/api';
 import type { Message } from '@/components/ChatMessage';
 
 export interface Session {
@@ -22,6 +26,7 @@ export type ThemeMode = 'dark' | 'light' | 'auto';
 
 const SESSION_KEY = 'softwiki_sessions';
 const THEME_KEY = 'softwiki_theme';
+const WORKSPACE_KEY = 'softwiki_workspace';
 
 function loadSessions(): Session[] {
   if (typeof window === 'undefined') return [];
@@ -133,6 +138,9 @@ export default function Home() {
   const [docCount, setDocCount] = useState(0);
   const [claimCount, setClaimCount] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>('auto');
+  const [workspaces, setWorkspaces] = useState<string[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<string>('default');
 
   // Load theme
   useEffect(() => {
@@ -145,6 +153,21 @@ export default function Home() {
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Load workspaces
+  useEffect(() => {
+    apiListWorkspaces().then(res => {
+      setWorkspaces(res.workspaces);
+      const saved = localStorage.getItem(WORKSPACE_KEY);
+      if (saved && res.workspaces.includes(saved)) {
+        setActiveWorkspace(saved);
+        apiSwitchWorkspace(saved).catch(() => {});
+      } else {
+        setActiveWorkspace(res.active);
+        localStorage.setItem(WORKSPACE_KEY, res.active);
+      }
+    }).catch(() => {});
   }, []);
 
   // Load sessions
@@ -163,6 +186,30 @@ export default function Home() {
   useEffect(() => {
     if (sessions.length > 0) saveSessions(sessions);
   }, [sessions]);
+
+  // ⌘K / Ctrl+K global search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(s => !s);
+      }
+      if (e.key === 'Escape') setSearchOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const handleWorkspaceChange = useCallback(async (name: string) => {
+    try {
+      await apiSwitchWorkspace(name);
+      setActiveWorkspace(name);
+      localStorage.setItem(WORKSPACE_KEY, name);
+      fetchStats();
+    } catch (e) {
+      console.error('Failed to switch workspace:', e);
+    }
+  }, []);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -217,14 +264,13 @@ export default function Home() {
     }));
   }, [updateSession]);
 
-  const cycleTheme = useCallback(() => {
-    setTheme(prev => {
-      const next = THEME_NEXT[prev];
-      localStorage.setItem(THEME_KEY, next);
-      applyTheme(next);
-      return next;
-    });
-  }, []);
+  function cycleTheme() {
+    const current = localStorage.getItem(THEME_KEY) || 'auto';
+    const next = current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto';
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+    applyTheme(next);
+    setTheme(next);
+  }
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -239,16 +285,26 @@ export default function Home() {
         onSelectSession={setActiveSessionId}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
+        workspaces={workspaces}
+        activeWorkspace={activeWorkspace}
+        onWorkspaceChange={handleWorkspaceChange}
+        theme={theme}
+        onCycleTheme={cycleTheme}
       />
       <main style={{ flex: 1, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {/* Floating theme toggle — top right */}
         <button
           onClick={cycleTheme}
           className="theme-float-btn"
           title={`Theme: ${theme} (click to cycle)`}
-          aria-label="Switch theme"
+          aria-label="Toggle theme"
         >
-          {THEME_ICONS[theme]}
+          {theme === 'light' ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+          ) : theme === 'dark' ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" fill="currentColor" opacity="0.3"/></svg>
+          )}
         </button>
         {activePanel === 'chat' && activeSession && (
           <ChatPanel
@@ -258,11 +314,16 @@ export default function Home() {
             onMessagesChange={handleMessagesChange}
           />
         )}
+        {activePanel === 'home' && <DashboardPanel />}
         {activePanel === 'ingest' && <IngestPanel />}
         {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} />}
         {activePanel === 'claims' && <ClaimsPanel />}
+        {activePanel === 'graph' && <GraphPanel />}
+        {activePanel === 'timeline' && <TimelinePanel />}
         {activePanel === 'wiki' && <WikiPanel />}
       </main>
+
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { apiListWikiTopics, apiBuildWikiPage, apiGetWikiPage } from '@/lib/api';
+import remarkGfm from 'remark-gfm';
+import { apiListWikiTopics, apiGetWikiPage } from '@/lib/api';
 import styles from './WikiPanel.module.css';
 
-interface TocItem {
-  id: string;
-  text: string;
-  level: number;
-}
+interface TocItem { id: string; text: string; level: number; }
 
 function extractToc(markdown: string): TocItem[] {
   const lines = markdown.split('\n');
@@ -32,16 +29,44 @@ function slugify(text: string): string {
 export default function WikiPanel() {
   const [topics, setTopics] = useState<Record<string, any>>({});
   const [selectedTopic, setSelectedTopic] = useState('');
-  const [building, setBuilding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingTopics, setLoadingTopics] = useState(true);
-  const [markdown, setMarkdown] = useState('');
+  const [rawMarkdown, setRawMarkdown] = useState('');
   const [builtAt, setBuiltAt] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [linkedMarkdown, setLinkedMarkdown] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
+  const [searchIdx, setSearchIdx] = useState(0);
+  const searchMatches = useRef<HTMLElement[]>([]);
 
-  const toc = extractToc(markdown);
+  const toc = extractToc(rawMarkdown);
+
+  // Build linked markdown: replace topic names with wiki:// links
+  const buildLinkedMarkdown = useCallback((md: string, topicKeys: string[], topicsMap: Record<string, any>, current: string) => {
+    if (!md) return '';
+    // Sort topic names by length descending to match longer names first
+    const names = topicKeys
+      .filter(k => k !== current)
+      .map(k => ({ key: k, name: topicsMap[k]?.name || k.replace(/-/g, ' ') }))
+      .sort((a, b) => b.name.length - a.name.length);
+
+    let result = md;
+    for (const { key, name } of names) {
+      // Only replace whole-word matches (not inside other words)
+      const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'gi');
+      result = result.replace(regex, (match) => `[${match}](wiki://${key})`);
+    }
+    return result;
+  }, []);
+
+  useEffect(() => {
+    fetchTopics();
+  }, []);
+
+  function escapeRegex(s: string) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   const fetchTopics = async () => {
     setLoadingTopics(true);
@@ -51,78 +76,113 @@ export default function WikiPanel() {
       setTopics(loaded);
       const keys = Object.keys(loaded);
       if (keys.length > 0) selectTopic(keys[0], loaded);
-    } catch {
-      setError('Failed to fetch topics');
-    } finally {
-      setLoadingTopics(false);
-    }
+    } catch {} finally { setLoadingTopics(false); }
   };
 
   const selectTopic = async (topic: string, topicsMap?: Record<string, any>) => {
+    const map = topicsMap || topics;
     setSelectedTopic(topic);
-    setMarkdown('');
-    setError(null);
+    setRawMarkdown('');
+    setLinkedMarkdown('');
+    setSearchQuery('');
     setLoading(true);
     try {
       const page = await apiGetWikiPage(topic);
-      setMarkdown(page.content);
+      setRawMarkdown(page.content);
+      const keys = Object.keys(map);
+      const linked = buildLinkedMarkdown(page.content, keys, map, topic);
+      setLinkedMarkdown(linked);
       setBuiltAt(page.built_at);
-    } catch {
-      setMarkdown('');
-      setBuiltAt('');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setRawMarkdown(''); setBuiltAt(''); }
+    finally { setLoading(false); }
   };
 
-  const handleBuild = async () => {
-    if (!selectedTopic || building) return;
-    setBuilding(true);
-    setError(null);
-    try {
-      const res = await apiBuildWikiPage(selectedTopic);
-      setMarkdown(res.content);
-      const now = new Date();
-      setBuiltAt(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Build failed');
-    } finally {
-      setBuilding(false);
-    }
+  const handleWikiLink = (e: React.MouseEvent, topicKey: string) => {
+    e.preventDefault();
+    selectTopic(topicKey);
   };
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setActiveSection(id);
-    }
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); setActiveSection(id); }
   };
 
-  useEffect(() => { fetchTopics(); }, []);
-
-  // Track active section on scroll
+  // Scroll tracking for TOC
   useEffect(() => {
     if (!contentRef.current || toc.length === 0) return;
     const headings = contentRef.current.querySelectorAll('h1,h2,h3,h4');
     const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        }
-      },
+      (entries) => { for (const e of entries) { if (e.isIntersecting) setActiveSection(e.target.id); } },
       { rootMargin: '-20% 0px -70% 0px' }
     );
     headings.forEach(h => observer.observe(h));
     return () => observer.disconnect();
-  }, [markdown]);
+  }, [linkedMarkdown]);
 
+  // In-page search
+  useEffect(() => {
+    if (!searchQuery || !contentRef.current) {
+      searchMatches.current = [];
+      setSearchIdx(0);
+      document.querySelectorAll('.wiki-search-highlight').forEach(el => {
+        el.replaceWith(el.textContent || '');
+      });
+      return;
+    }
+    const body = contentRef.current;
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) textNodes.push(node as Text);
+
+    body.querySelectorAll('.wiki-search-highlight').forEach(el => {
+      el.replaceWith(el.textContent || '');
+    });
+
+    const q = searchQuery.toLowerCase();
+    const matches: HTMLElement[] = [];
+    textNodes.forEach(n => {
+      const text = n.textContent || '';
+      const idx = text.toLowerCase().indexOf(q);
+      if (idx === -1) return;
+      const span = document.createElement('span');
+      span.className = 'wiki-search-highlight';
+      span.textContent = text.substring(idx, idx + q.length);
+      const rest = document.createTextNode(text.substring(idx + q.length));
+      n.textContent = text.substring(0, idx);
+      n.parentNode?.insertBefore(span, n.nextSibling);
+      n.parentNode?.insertBefore(rest, span.nextSibling);
+      matches.push(span);
+    });
+    searchMatches.current = matches;
+    setSearchIdx(0);
+    if (matches.length > 0) matches[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [searchQuery, linkedMarkdown]);
+
+  const goToSearchMatch = (dir: number) => {
+    const ms = searchMatches.current;
+    if (ms.length === 0) return;
+    const next = (searchIdx + dir + ms.length) % ms.length;
+    setSearchIdx(next);
+    ms[next]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ms[next]?.classList.add('wiki-search-active');
+    setTimeout(() => ms[next]?.classList.remove('wiki-search-active'), 1000);
+  };
+
+  const topicKeys = Object.keys(topics);
   const topicName = (key: string) =>
     topics[key]?.name || key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+  // Compute "See also" from the raw content
+  const bodyLower = rawMarkdown.toLowerCase();
+  const related = topicKeys.filter(k => {
+    if (k === selectedTopic) return false;
+    const name = (topics[k]?.name || k.replace(/-/g, ' ')).toLowerCase();
+    return bodyLower.includes(name) && name.length > 2;
+  });
+
   return (
     <div className={styles.panel}>
-      {/* ── Left: Topic List ── */}
       <aside className={styles.topicList}>
         <div className={styles.topicListHeader}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -135,119 +195,105 @@ export default function WikiPanel() {
           <div className={styles.topicLoading}>Loading…</div>
         ) : (
           <div className={styles.topicListItems}>
-            {Object.keys(topics).map(key => (
-              <button
-                key={key}
-                className={`${styles.topicItem} ${selectedTopic === key ? styles.topicActive : ''}`}
-                onClick={() => selectTopic(key)}
-              >
-                {topicName(key)}
-              </button>
-            ))}
+            {(() => {
+              const groups: Record<string, string[]> = {};
+              const groupOrder: string[] = [];
+              for (const key of topicKeys) {
+                const g = topics[key]?.group || 'Other';
+                if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
+                groups[g].push(key);
+              }
+              return groupOrder.map(g => (
+                <div key={g} className={styles.topicGroup}>
+                  <div className={styles.topicGroupLabel}>{g}</div>
+                  {groups[g].map(key => (
+                    <button key={key}
+                      className={`${styles.topicItem} ${selectedTopic === key ? styles.topicActive : ''}`}
+                      onClick={() => selectTopic(key)}>
+                      {topicName(key)}
+                    </button>
+                  ))}
+                </div>
+              ));
+            })()}
           </div>
         )}
       </aside>
 
-      {/* ── Center: Article ── */}
       <article className={styles.article}>
         {loading ? (
-          <div className={styles.loadingState}>
-            <div className={styles.spinner} />
-            <span>Loading wiki page…</span>
-          </div>
-        ) : !markdown ? (
+          <div className={styles.loadingState}><div className={styles.spinner} /><span>Loading wiki page…</span></div>
+        ) : !rawMarkdown ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-            </div>
             <h3 className={styles.emptyTitle}>{topicName(selectedTopic)}</h3>
-            <p className={styles.emptyDesc}>This wiki page has not been compiled yet.</p>
-            <button
-              className={styles.buildBtn}
-              onClick={handleBuild}
-              disabled={building}
-            >
-              {building ? (
-                <><span className={styles.btnSpinner} /> Compiling…</>
-              ) : (
-                '◆ Compile Wiki Page'
-              )}
-            </button>
-            {error && <p className={styles.errorMsg}>{error}</p>}
+            <p className={styles.emptyDesc}>Wiki page not available yet. Ingest documents and rebuild the index — wiki pages are built automatically.</p>
           </div>
         ) : (
           <>
             <div className={styles.articleHeader}>
               <h1 className={styles.articleTitle}>{topicName(selectedTopic)}</h1>
               <div className={styles.articleMeta}>
-                <span className={styles.builtAt}>
-                  Built {builtAt}
-                </span>
-                <button
-                  className={styles.rebuildBtn}
-                  onClick={handleBuild}
-                  disabled={building}
-                >
-                  {building ? 'Compiling…' : '↻ Rebuild'}
-                </button>
+                <span className={styles.builtAt}>Built {builtAt}</span>
               </div>
             </div>
 
-            {/* Inline TOC */}
+            <div className={styles.searchBar}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input className={styles.searchInput} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search in page…" />
+              {searchMatches.current.length > 0 && (
+                <span className={styles.searchCount}>
+                  {searchIdx + 1}/{searchMatches.current.length}
+                  <button className={styles.searchNav} onClick={() => goToSearchMatch(-1)}>↑</button>
+                  <button className={styles.searchNav} onClick={() => goToSearchMatch(1)}>↓</button>
+                </span>
+              )}
+            </div>
+
             {toc.length > 2 && (
-              <div className={styles.tocBox}>
-                <div className={styles.tocTitle}>Contents</div>
-                <nav className={styles.tocList}>
-                  {toc.filter(t => t.level <= 3).map((item, i) => (
-                    <button
-                      key={i}
-                      className={`${styles.tocItem} ${styles['tocLevel' + item.level]} ${activeSection === item.id ? styles.tocActive : ''}`}
-                      onClick={() => scrollToSection(item.id)}
-                    >
-                      {item.text}
-                    </button>
-                  ))}
-                </nav>
+              <div className={styles.tocFloat}>
+                <div className={styles.tocFloatTitle}>Contents</div>
+                {toc.filter(t => t.level <= 3).map((item, i) => (
+                  <button key={i}
+                    className={`${styles.tocFloatItem} ${styles['tocFloatLevel' + item.level]} ${activeSection === item.id ? styles.tocFloatActive : ''}`}
+                    onClick={() => scrollToSection(item.id)}>{item.text}</button>
+                ))}
               </div>
             )}
-
-            {/* Article body */}
             <div className={styles.articleBody} ref={contentRef}>
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => <h1 id={slugify(String(children))}>{children}</h1>,
-                  h2: ({ children }) => <h2 id={slugify(String(children))}>{children}</h2>,
-                  h3: ({ children }) => <h3 id={slugify(String(children))}>{children}</h3>,
-                  h4: ({ children }) => <h4 id={slugify(String(children))}>{children}</h4>,
-                }}
-              >
-                {markdown}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                h1: ({ children }) => <h1 id={slugify(String(children))}>{children}</h1>,
+                h2: ({ children }) => <h2 id={slugify(String(children))}>{children}</h2>,
+                h3: ({ children }) => <h3 id={slugify(String(children))}>{children}</h3>,
+                h4: ({ children }) => <h4 id={slugify(String(children))}>{children}</h4>,
+                a: ({ href, children }) => {
+                  if (href?.startsWith('wiki://')) {
+                    const key = href.slice(7);
+                    return <a href="#" className={styles.internalLink} onClick={e => handleWikiLink(e, key)}>{children}</a>;
+                  }
+                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                },
+              }}>{linkedMarkdown}</ReactMarkdown>
             </div>
+
+            {related.length > 0 && (
+              <div className={styles.seeAlso}>
+                <h2>See also</h2>
+                <ul>
+                  {related.map(k => (
+                    <li key={k}>
+                      <a href="#" onClick={e => handleWikiLink(e, k)}>{topicName(k)}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         )}
       </article>
 
-      {/* ── Right: Sticky TOC ── */}
-      {toc.length > 2 && markdown && (
-        <nav className={styles.tocSidebar}>
-          <div className={styles.tocSidebarTitle}>On this page</div>
-          {toc.filter(t => t.level <= 3).map((item, i) => (
-            <button
-              key={i}
-              className={`${styles.tocSidebarItem} ${styles['tocSidebarLevel' + item.level]} ${activeSection === item.id ? styles.tocSidebarActive : ''}`}
-              onClick={() => scrollToSection(item.id)}
-            >
-              {item.text}
-            </button>
-          ))}
-        </nav>
-      )}
     </div>
   );
 }

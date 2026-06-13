@@ -20,20 +20,37 @@ interface ChatPanelProps {
   onMessagesChange: (sessionId: string, messages: Message[]) => void;
 }
 
+const MODES = [
+  { id: 'normal', label: 'Normal' },
+  { id: 'deep', label: 'Deep' },
+  { id: 'concise', label: 'Concise' },
+  { id: 'creative', label: 'Creative' },
+];
+
 export default function ChatPanel({ sessionId, messages, onMessagesChange }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [drawerSource, setDrawerSource] = useState<Source | null>(null);
+  const [mode, setMode] = useState('normal');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = useCallback((instant = false) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'instant' : 'smooth' });
   }, []);
 
-  useEffect(() => { scrollToBottom(); }, [messages, streamingContent, scrollToBottom]);
+  // Scroll on new messages (smooth), but not on initial mount
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      scrollToBottom(true);
+      isFirstRender.current = false;
+    } else {
+      scrollToBottom();
+    }
+  }, [messages, streamingContent, scrollToBottom]);
 
   // Focus input on session change
   useEffect(() => {
@@ -68,7 +85,11 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
     setIsLoading(true);
 
     try {
-      const response = await apiAsk(question);
+      const history = messages
+        .filter(m => !m.isLoading)
+        .slice(-20) // last 20 messages
+        .map(m => ({ role: m.role, content: m.content }));
+      const response = await apiAsk(question, history, mode);
       const assistantMsg: Message = {
         id: genId(),
         role: 'assistant',
@@ -169,6 +190,21 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               <div ref={messagesEndRef} />
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Mode selector */}
+      <div className={styles.modeBar}>
+        <div className={styles.modeInner}>
+          {MODES.map(m => (
+            <button
+              key={m.id}
+              className={`${styles.modeBtn} ${mode === m.id ? styles.modeActive : ''}`}
+              onClick={() => setMode(m.id)}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
 

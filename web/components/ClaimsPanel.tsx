@@ -32,7 +32,7 @@ export default function ClaimsPanel() {
   }, []);
 
   // Compute unique actors for filter
-  const actors = Array.from(new Set(claims.map(c => c.actor).filter(Boolean))) as string[];
+  const actors = Array.from(new Set(claims.map(c => c.actor).filter(a => a && a.trim()))) as string[];
 
   // Filtered claims
   const filteredClaims = claims.filter(c => {
@@ -127,7 +127,7 @@ export default function ClaimsPanel() {
                       <span style={{ fontWeight: 500 }}>{c.topic || 'general'}</span>
                     </td>
                     <td className={styles.td}>
-                      <span className={`${styles.badge} ${styles[(c.stance || 'unclear').toLowerCase()]}`}>
+                      <span className={`${styles.badge} ${styles[(c.stance || 'unclear').toLowerCase()] || styles.unclear}`}>
                         {c.stance || 'unclear'}
                       </span>
                     </td>

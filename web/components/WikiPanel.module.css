@@ -1,4 +1,3 @@
-/* Wikipedia-style theme for WikiPanel */
 .panel {
   display: flex;
   height: 100%;
@@ -7,15 +6,18 @@
   color: #202122;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* ── Left: Topic List ── */
 .topicList {
-  width: 200px;
-  min-width: 200px;
+  width: 220px;
+  min-width: 220px;
   background: #fff;
   border-right: 1px solid #a2a9b1;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  overflow: hidden;
 }
+
 .topicListHeader {
   display: flex;
   align-items: center;
@@ -27,127 +29,379 @@
   letter-spacing: 0.08em;
   color: #54595d;
   border-bottom: 1px solid #eaecf0;
-  font-family: sans-serif;
 }
-.topicListHeader svg { color: #3366cc; flex-shrink: 0; }
-.topicLoading { padding: 20px 16px; color: #72777d; font-size: 13px; font-family: sans-serif; }
-.topicListItems { flex: 1; overflow-y: auto; padding: 6px; }
+
+.topicLoading {
+  padding: 24px;
+  color: #a2a9b1;
+  font-size: 13px;
+  text-align: center;
+}
+
+.topicListItems {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.topicGroup {
+  padding: 4px 0;
+}
+
+.topicGroupLabel {
+  padding: 6px 16px 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #72777d;
+}
+
 .topicItem {
-  display: block; width: 100%; text-align: left; padding: 8px 12px;
-  background: none; border: none; border-left: 3px solid transparent;
-  cursor: pointer; font-size: 13px; color: #0645ad; line-height: 1.4;
-  font-family: sans-serif; transition: background 0.1s;
+  display: block;
+  width: 100%;
+  padding: 5px 16px 5px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: #0645ad;
+  font-family: inherit;
+  transition: background 0.1s;
 }
-.topicItem:hover { background: #eaf3fb; }
-.topicActive { border-left-color: #3366cc; background: #eaf3fb; font-weight: 600; }
+
+.topicItem:hover {
+  background: #eaf3fb;
+  text-decoration: underline;
+}
+
+.topicActive {
+  background: #eaf3fb;
+  color: #202122;
+  font-weight: 600;
+  cursor: default;
+}
+
+.topicActive:hover {
+  background: #eaf3fb;
+  text-decoration: none;
+}
+
+/* ── Center: Article ── */
 .article {
-  flex: 1; overflow-y: auto; padding: 28px 36px 48px;
-  max-width: 860px; min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 48px 80px;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px;
+  color: #a2a9b1;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #eaecf0;
+  border-top-color: #0645ad;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.emptyState {
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.emptyTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #202122;
+  margin-bottom: 8px;
+}
+
+.emptyDesc {
+  font-size: 14px;
+  color: #54595d;
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ── Article header ── */
 .articleHeader {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; border-bottom: 1px solid #a2a9b1; padding-bottom: 12px; margin-bottom: 20px;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #a2a9b1;
 }
+
 .articleTitle {
-  font-family: 'Linux Libertine', Georgia, Times, serif;
-  font-size: 28px; font-weight: normal; color: #202122; line-height: 1.2; margin: 0;
+  font-size: 28px;
+  font-weight: 400;
+  color: #202122;
+  line-height: 1.2;
+  font-family: 'Georgia', 'Linux Libertine', serif;
 }
+
 .articleMeta {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 12px; color: #72777d; font-family: sans-serif;
-  white-space: nowrap; flex-shrink: 0; padding-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
 }
-.builtAt { font-size: 11px; }
-.rebuildBtn {
-  background: none; border: 1px solid #a2a9b1; border-radius: 2px;
-  padding: 4px 10px; font-size: 12px; color: #0645ad;
-  cursor: pointer; font-family: sans-serif; transition: background 0.1s;
+
+.builtAt {
+  font-size: 12px;
+  color: #54595d;
 }
-.rebuildBtn:hover:not(:disabled) { background: #eaf3fb; }
-.rebuildBtn:disabled { color: #72777d; cursor: not-allowed; }
-.tocBox {
-  float: right; clear: right; margin: 0 0 16px 24px;
-  padding: 14px 18px; background: #f8f9fa; border: 1px solid #a2a9b1;
-  font-size: 13px; font-family: sans-serif; min-width: 180px; max-width: 280px;
+
+/* ── Search bar ── */
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: 16px;
+  border: 1px solid #a2a9b1;
+  border-radius: 2px;
+  background: #fff;
+  color: #54595d;
 }
-.tocTitle { font-weight: 700; margin-bottom: 8px; color: #202122; font-size: 13px; }
-.tocList { display: flex; flex-direction: column; gap: 2px; }
-.tocItem {
-  background: none; border: none; padding: 3px 0 3px 8px; cursor: pointer;
-  color: #0645ad; font-size: 12.5px; text-align: left; font-family: sans-serif;
-  border-left: 2px solid transparent; transition: border-color 0.1s; line-height: 1.4;
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: #202122;
+  font-family: inherit;
 }
-.tocItem:hover { text-decoration: underline; }
-.tocLevel1 { font-weight: 500; }
-.tocLevel2 { padding-left: 18px; font-size: 12px; }
-.tocLevel3 { padding-left: 28px; font-size: 11.5px; color: #54595d; }
-.tocActive { border-left-color: #3366cc !important; font-weight: 700 !important; }
-.articleBody { line-height: 1.65; color: #202122; font-size: 14.5px; }
-.articleBody::after { content: ''; display: table; clear: both; }
+
+.searchInput::placeholder { color: #a2a9b1; }
+
+.searchCount {
+  font-size: 11px;
+  color: #54595d;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.searchNav {
+  background: none;
+  border: 1px solid #a2a9b1;
+  border-radius: 2px;
+  padding: 1px 5px;
+  cursor: pointer;
+  color: #54595d;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.searchNav:hover {
+  background: #eaf3fb;
+}
+
+/* ── Floating TOC (inside article, sticky) ── */
+.tocFloat {
+  float: right;
+  width: 240px;
+  margin: 0 0 16px 20px;
+  padding: 12px 16px;
+  border: 1px solid #a2a9b1;
+  background: #f8f9fa;
+  font-size: 12px;
+  position: sticky;
+  top: 16px;
+  z-index: 1;
+  clear: right;
+}
+
+.tocFloatTitle {
+  font-weight: 700;
+  color: #202122;
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tocFloatItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #0645ad;
+  font-family: inherit;
+  padding: 2px 0;
+  line-height: 1.3;
+}
+
+.tocFloatItem:hover { text-decoration: underline; }
+.tocFloatActive { font-weight: 700; color: #202122 !important; cursor: default; }
+.tocFloatLevel2 { }
+.tocFloatLevel3 { padding-left: 14px; font-size: 11px; }
+.tocFloatLevel4 { padding-left: 28px; font-size: 11px; }
+
+/* ── Article Body ── */
+.articleBody {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #202122;
+  font-family: 'Georgia', 'Linux Libertine', serif;
+}
+
 .articleBody h1 {
-  font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 26px;
-  font-weight: normal; border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; margin: 24px 0 14px;
+  font-size: 24px;
+  font-weight: 400;
+  border-bottom: 1px solid #a2a9b1;
+  padding-bottom: 6px;
+  margin: 1em 0 0.5em;
+  font-family: 'Georgia', 'Linux Libertine', serif;
+  color: #202122;
 }
+
 .articleBody h2 {
-  font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 20px;
-  font-weight: normal; border-bottom: 1px solid #a2a9b1; padding-bottom: 4px; margin: 24px 0 12px;
+  font-size: 20px;
+  font-weight: 400;
+  border-bottom: 1px solid #a2a9b1;
+  padding-bottom: 4px;
+  margin: 1em 0 0.5em;
+  font-family: 'Georgia', 'Linux Libertine', serif;
+  color: #202122;
 }
-.articleBody h3 { font-size: 16px; font-weight: bold; margin: 18px 0 10px; font-family: sans-serif; }
-.articleBody h4 { font-size: 14px; font-weight: bold; margin: 14px 0 8px; font-family: sans-serif; }
-.articleBody p { margin: 0 0 12px; line-height: 1.65; }
-.articleBody ul, .articleBody ol { margin: 6px 0 14px; padding-left: 28px; }
-.articleBody li { margin-bottom: 4px; }
+
+.articleBody h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  color: #202122;
+}
+
+.articleBody h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 1em 0 0.3em;
+  color: #202122;
+}
+
+.articleBody p { margin: 0.5em 0; }
+.articleBody ul, .articleBody ol { padding-left: 30px; margin: 0.4em 0; }
+.articleBody li { margin-bottom: 0.2em; }
 .articleBody a { color: #0645ad; text-decoration: none; }
 .articleBody a:hover { text-decoration: underline; }
-.articleBody code {
-  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85em;
-  background: #f8f9fa; border: 1px solid #a2a9b1; border-radius: 2px; padding: 0.15em 0.4em; color: #202122;
-}
-.articleBody pre { background: #f8f9fa; border: 1px solid #a2a9b1; border-radius: 2px; padding: 14px 18px; overflow-x: auto; margin: 14px 0; }
-.articleBody pre code { background: none; border: none; padding: 0; }
-.articleBody blockquote { border-left: 3px solid #a2a9b1; padding: 6px 16px; color: #54595d; background: #f8f9fa; margin: 12px 0; font-style: italic; }
-.articleBody table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; font-family: sans-serif; }
-.articleBody th { background: #eaecf0; border: 1px solid #a2a9b1; padding: 8px 12px; text-align: left; font-weight: 700; }
-.articleBody td { border: 1px solid #a2a9b1; padding: 7px 12px; vertical-align: top; }
-.articleBody hr { border: none; border-top: 1px solid #a2a9b1; margin: 24px 0; }
 .articleBody strong { font-weight: 700; }
-.tocSidebar {
-  width: 200px; min-width: 200px; padding: 24px 16px; height: 100%; overflow-y: auto;
-  border-left: 1px solid #eaecf0; background: #fff; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 2px;
+.articleBody code {
+  background: #f8f9fa;
+  padding: 1px 4px;
+  border: 1px solid #eaecf0;
+  font-size: 13px;
+  font-family: 'Consolas', 'Courier New', monospace;
 }
-.tocSidebarTitle {
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #54595d; margin-bottom: 10px; padding-left: 4px; font-family: sans-serif;
+.articleBody pre {
+  background: #f8f9fa;
+  border: 1px solid #a2a9b1;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+  font-size: 13px;
 }
-.tocSidebarItem {
-  display: block; background: none; border: none; padding: 4px 0 4px 10px;
-  cursor: pointer; text-align: left; color: #0645ad; font-size: 12px;
-  line-height: 1.4; font-family: sans-serif; border-left: 2px solid transparent; transition: border-color 0.1s;
+.articleBody blockquote {
+  border-left: 3px solid #a2a9b1;
+  padding-left: 14px;
+  margin: 0.8em 0;
+  color: #54595d;
 }
-.tocSidebarItem:hover { text-decoration: underline; }
-.tocSidebarLevel1 { font-weight: 600; }
-.tocSidebarLevel2 { padding-left: 20px; font-size: 11.5px; }
-.tocSidebarLevel3 { padding-left: 30px; font-size: 11px; color: #54595d; }
-.tocSidebarActive { border-left-color: #3366cc !important; font-weight: 700 !important; }
-.emptyState {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  height: 100%; gap: 12px; text-align: center; padding: 60px 20px; font-family: sans-serif;
+
+.articleBody table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 13px;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-.emptyIcon { color: #72777d; opacity: 0.5; margin-bottom: 4px; }
-.emptyTitle { font-family: 'Linux Libertine', Georgia, Times, serif; font-size: 26px; font-weight: normal; color: #202122; margin: 0; }
-.emptyDesc { color: #54595d; font-size: 14px; margin: 0; }
-.buildBtn {
-  display: flex; align-items: center; gap: 8px; background: #3366cc; color: #fff;
-  border: none; padding: 9px 20px; border-radius: 2px; cursor: pointer;
-  font-size: 13px; font-weight: 500; font-family: sans-serif; transition: background 0.1s; margin-top: 8px;
+
+.articleBody th, .articleBody td {
+  border: 1px solid #a2a9b1;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
 }
-.buildBtn:hover:not(:disabled) { background: #2a55b5; }
-.buildBtn:disabled { background: #a2a9b1; cursor: not-allowed; }
-.btnSpinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
-.errorMsg { color: #d33; font-size: 13px; margin-top: 8px; }
-.loadingState { display: flex; align-items: center; justify-content: center; gap: 12px; height: 100%; color: #54595d; font-size: 14px; font-family: sans-serif; }
-.spinner { width: 18px; height: 18px; border: 2px solid #eaecf0; border-top-color: #3366cc; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 1100px) { .tocSidebar { display: none; } }
-@media (max-width: 700px) { .topicList { width: 140px; min-width: 140px; } .article { padding: 16px 16px 32px; } .tocBox { float: none; margin: 0 0 16px; max-width: 100%; } }
+
+.articleBody th {
+  background: #eaecf0;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.articleBody tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+/* ── See also ── */
+.seeAlso {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #a2a9b1;
+}
+
+.seeAlso h2 {
+  font-family: 'Georgia', 'Linux Libertine', serif;
+  font-size: 18px;
+  font-weight: 400;
+  border-bottom: 1px solid #a2a9b1;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+  color: #202122;
+}
+
+.seeAlso ul {
+  padding-left: 24px;
+  margin: 0;
+}
+
+.seeAlso li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.seeAlso a {
+  color: #0645ad;
+  text-decoration: none;
+}
+
+.seeAlso a:hover {
+  text-decoration: underline;
+}
+
+/* ── Internal links ── */
+.internalLink {
+  color: #0645ad !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+
+.internalLink:hover {
+  text-decoration: underline !important;
+}
+
+/* ── (Right sidebar TOC removed — using floating TOC inside article) */
