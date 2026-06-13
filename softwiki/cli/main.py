@@ -367,13 +367,30 @@ def shell(workspace, model, session):
     start_shell(model_override=model, session_suffix=session)
 
 @cli.command()
-@click.option('--port', type=int, default=8000, help='Port to run the API server on.')
-@click.option('--host', type=str, default='127.0.0.1', help='Host to bind the API server to.')
+@click.option('--port', type=int, default=None, help='Port to run the API server on.')
+@click.option('--host', type=str, default=None, help='Host to bind the API server to.')
 def api(port, host):
     """Start the REST API server."""
+    from softwiki.config import get_api_port, get_host
+    port = port or get_api_port()
+    host = host or get_host()
     import uvicorn
     click.echo(f"Starting API server on http://{host}:{port}...")
     uvicorn.run("softwiki.api.server:app", host=host, port=port, reload=False)
+
+@cli.command()
+@click.option('--port', type=int, default=None, help='Port to run the MCP SSE server on.')
+@click.option('--host', type=str, default=None, help='Host to bind the MCP server to.')
+def mcp(port, host):
+    """Start the MCP server in SSE mode (for agent integration)."""
+    from softwiki.config import get_mcp_port, get_host
+    port = port or get_mcp_port()
+    host = host or get_host()
+    import uvicorn
+    from softwiki.mcp.sse import create_sse_app
+    app = create_sse_app()
+    click.echo(f"Starting MCP SSE server on http://{host}:{port}...")
+    uvicorn.run(app, host=host, port=port, reload=False)
 
 @cli.group()
 def graph():

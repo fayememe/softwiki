@@ -308,20 +308,21 @@ def wiki_build(topic: str) -> str:
         db.close()
 
 @mcp.tool()
-def ask(query: str) -> str:
+def ask(query: str, mode: str = "normal") -> str:
     """Ask a research question against the active workspace knowledge base.
 
     Uses hybrid RAG retrieval, graph context, claims, timeline, and LLM synthesis
-    to produce a structured answer with citations.
+    to produce an answer with citations.
 
     Args:
         query: Your research question in natural language.
+        mode: Answer style — "normal" (balanced), "deep" (thorough), "concise" (short), "creative" (exploratory).
     """
     db = SessionLocal()
     try:
         from softwiki.intelligence.answer_engine import AnswerEngine
         engine = AnswerEngine()
-        return engine.ask(db, query)
+        return engine.ask(db, query, mode=mode)
     except Exception as e:
         return f"Ask failed: {e}"
     finally:
@@ -419,6 +420,12 @@ def web_search(query: str, top_k: int = 5) -> str:
     if not is_in_scope:
         return f"Reject: The search query is out of scope. Reason: {reason}"
 
+    # Try shared web search (DuckDuckGo free + any configured API keys)
+    from softwiki.search.web import search_web
+    web_results = search_web(query, top_k)
+    if web_results:
+        return "\n\n".join(web_results)
+
     tavily_key = os.getenv("TAVILY_API_KEY", "").strip()
     serpapi_key = os.getenv("SERPAPI_KEY", "").strip()
     bing_key = os.getenv("BING_SEARCH_API_KEY", "").strip()
@@ -430,8 +437,7 @@ def web_search(query: str, top_k: int = 5) -> str:
             "  TAVILY_API_KEY=...       (recommended, https://tavily.com)\n"
             "  SERPAPI_KEY=...          (https://serpapi.com)\n"
             "  BING_SEARCH_API_KEY=...  (Azure Cognitive Services)\n\n"
-            "Note: External agents (opencode, Claude, Cursor) have their own web search "
-            "and do not require this tool to be configured."
+            "Note: DuckDuckGo is also available without any API key."
         )
 
     results = []
@@ -816,7 +822,70 @@ def wiki_read(topic: str) -> str:
 softwiki_status = status
 softwiki_ingest = ingest
 softwiki_index = index
-softwiki_search = search
+# ── Workspace management tools ──
+
+@mcp.tool()
+def workspace_list() -> str:
+    """List available workspaces and show which is active."""
+    from softwiki.config import list_workspaces, get_workspace_dir
+    all_ws = list_workspaces()
+    active = os.path.basename(get_workspace_dir())
+    lines = [f"Active: {active}", ""]
+    for w in all_ws:
+        mark = "→" if w == active else " "
+        lines.append(f" {mark} {w}")
+    return "\n".join(lines)
+
+@mcp.tool()
+def workspace_set(name: str) -> str:
+    """Switch to a different workspace.
+    Args:
+        name: Workspace directory name (e.g. 'eva-kb', 'default').
+    """
+    from softwiki.config import set_workspace_dir
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ws_path = os.path.join(project_root, "..", "workspace", name)
+    ws_path = os.path.abspath(ws_path)
+    if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
+        return f"Workspace '{name}' not found or not initialized."
+    set_workspace_dir(ws_path)
+    return f"Switched to '{name}'. Active: {os.path.basename(get_workspace_dir())}"
+
+# ── Module management tools ──
+
+@mcp.tool()
+def modules_list() -> str:
+    """List all knowledge modules and their enabled/disabled status."""
+    from softwiki.config import get_enabled_modules, is_module_enabled, get_workspace_dir
+    ws_path = get_workspace_dir()
+    ws_config = os.path.join(ws_path, ".softwiki", "modules.json")
+    has_override = os.path.exists(ws_config)
+    lines = ["## Knowledge Modules", ""]
+    for name in ["rag", "graph", "claimdb", "timeline", "llmwiki"]:
+        status = "✅ enabled" if is_module_enabled(name) else "❌ disabled"
+        lines.append(f"- **{name}**: {status}")
+    lines.append("")
+    lines.append(f"Source: {'workspace config' if has_override else 'global default'}")
+    return "\n".join(lines)
+
+@mcp.tool()
+def modules_set(enabled: str, scope: str = "global") -> str:
+    """Enable or disable knowledge modules.
+
+    Args:
+        enabled: Comma-separated list of module names to enable (e.g. "rag,graph,claimdb").
+                 Modules not in the list will be disabled. Valid names: rag, graph, claimdb, timeline, llmwiki.
+        scope: "global" — runtime (resets on restart), "workspace" — persisted for this workspace.
+    """
+    from softwiki.config import set_enabled_modules, set_workspace_modules
+    valid = {"rag", "graph", "claimdb", "timeline", "llmwiki"}
+    modules = [m.strip().lower() for m in enabled.split(",") if m.strip().lower() in valid]
+    if scope == "workspace":
+        set_workspace_modules(modules)
+    else:
+        set_enabled_modules(modules)
+    return modules_list()
+
 softwiki_wiki_build = wiki_build
 softwiki_web_search = web_search
 softwiki_source_list = source_list
