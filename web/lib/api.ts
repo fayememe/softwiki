@@ -1,6 +1,6 @@
 // Central API client for all Softwiki REST endpoints
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface StatusResponse {
   workspace: string;
@@ -9,7 +9,40 @@ export interface StatusResponse {
     documents: number;
     chunks: number;
     claims: number;
+    entities: number;
+    relationships: number;
+    events: number;
   };
+}
+
+export interface GraphEntity {
+  id: number;
+  name: string;
+  type: string | null;
+  description: string | null;
+}
+
+export interface GraphRelationship {
+  id: number;
+  source_name: string;
+  target_name: string;
+  relation_type: string;
+  description: string | null;
+  confidence: number;
+}
+
+export interface GraphResponse {
+  entities: GraphEntity[];
+  relationships: GraphRelationship[];
+}
+
+export interface TimelineEvent {
+  id: number;
+  title: string;
+  description: string | null;
+  event_date: string;
+  topic: string | null;
+  confidence: number;
 }
 
 export interface Source {
@@ -20,6 +53,11 @@ export interface Source {
   published_at: string;
   text: string;
   score: number;
+}
+
+export interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export interface AskResponse {
@@ -76,19 +114,51 @@ export interface IndexResult {
   indexed_chunks: number;
 }
 
+export interface WorkspaceListResponse {
+  workspaces: string[];
+  active: string;
+}
+
+export interface WorkspaceSwitchResponse {
+  status: string;
+  workspace: string;
+}
+
 // ─── API Functions ───────────────────────────────────────────────────────────
 
-export async function apiStatus(): Promise<StatusResponse> {
-  const res = await fetch(`${API_BASE}/api/status`);
+export async function apiListWorkspaces(): Promise<WorkspaceListResponse> {
+  const res = await fetch(`${API_BASE}/api/workspaces`);
+  if (!res.ok) throw new Error(`Failed to list workspaces: ${res.status}`);
+  return res.json();
+}
+
+export async function apiSwitchWorkspace(workspace: string): Promise<WorkspaceSwitchResponse> {
+  const res = await fetch(`${API_BASE}/api/workspace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Switch workspace failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiStatus(workspace?: string): Promise<StatusResponse> {
+  const url = workspace
+    ? `${API_BASE}/api/status?workspace=${encodeURIComponent(workspace)}`
+    : `${API_BASE}/api/status`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
   return res.json();
 }
 
-export async function apiAsk(question: string): Promise<AskResponse> {
+export async function apiAsk(question: string, history?: HistoryMessage[], mode?: string): Promise<AskResponse> {
   const res = await fetch(`${API_BASE}/api/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history, mode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
@@ -183,5 +253,17 @@ export async function apiDeleteDocument(id: number): Promise<{ status: string; m
     const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(err.detail || `Delete failed: ${res.status}`);
   }
+  return res.json();
+}
+
+export async function apiListGraph(): Promise<GraphResponse> {
+  const res = await fetch(`${API_BASE}/api/graph`);
+  if (!res.ok) throw new Error(`Failed to list graph: ${res.status}`);
+  return res.json();
+}
+
+export async function apiListTimeline(): Promise<TimelineEvent[]> {
+  const res = await fetch(`${API_BASE}/api/timeline`);
+  if (!res.ok) throw new Error(`Failed to list timeline: ${res.status}`);
   return res.json();
 }
