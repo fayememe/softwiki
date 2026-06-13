@@ -19,7 +19,7 @@ graph TD
     KG --> INTEL
     TL --> INTEL
 
-    INTEL --> WIKI["LLM Wiki<br/>Karpathy compounding architecture<br/>human-readable synthesis"]
+    INTEL --> WIKI["LLM Wiki<br/>compounding markdown pages<br/>human-readable synthesis"]
 
     style SS fill:#4a90d9,color:#fff
     style RAG fill:#7b68ee,color:#fff
