@@ -1,0 +1,14 @@
+# SoftWiki configuration
+# Priority: CLI args > env vars > this file > defaults
+
+# Server settings
+api_port: 6200       # REST API port (env: SOFTWIKI_API_PORT)
+mcp_port: 6100       # MCP SSE port (env: SOFTWIKI_MCP_PORT)
+web_port: 6000       # Web UI port (env: SOFTWIKI_WEB_PORT)
+host: 0.0.0.0       # Bind address (env: SOFTWIKI_HOST) — 0.0.0.0 for LAN access
+
+# Workspace
+# workspace_dir: workspace/default
+
+# Default enabled modules
+# enabled_modules: rag,graph,claimdb,timeline,llmwiki
