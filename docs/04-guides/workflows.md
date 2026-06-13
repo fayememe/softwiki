@@ -1,80 +1,80 @@
-# 研究工作流
+# Research Workflows
 
-SoftWiki 提供几种预设工作流，覆盖从快速问答到深度百科编译的不同场景。
+softwiki provides several preset workflows covering scenarios from quick Q&A to deep wiki compilation.
 
-## research 深度研判流
+## research — Deep Research Flow
 
-多查询 → 对比观点 → 综合简报
+Multi-query → Compare viewpoints → Synthesis brief
 
-1. 分析问题，拆解为多个子查询。
-2. 使用 websearch/webfetch 获取各维度的来源，横向对比不同来源的观点。
-3. **[wiki-admin / wiki-manage 模式]** 对每个高质量来源检查 scope（参见 `config/scope.md`）。在范围内则调用 `softwiki_ingest` 摄入。
-4. **[wiki-admin / wiki-manage 模式]** 摄入完成后，询问用户是否重 build 受影响的百科页面（`softwiki_wiki_build`）。
-5. **[wiki-work 模式]** 若发现有价值来源，使用 `submit` 工作流预提交给管理员审核。
-6. 输出结构化研究摘要，附带引用。
+1. Analyze the question, decompose into multiple sub-queries.
+2. Use websearch/webfetch to gather sources across dimensions, cross-reference viewpoints from different sources.
+3. **[wiki-admin / wiki-manage mode]** Check scope for each high-quality source (see `config/scope.md`). If in scope, call `softwiki_ingest` to ingest.
+4. **[wiki-admin / wiki-manage mode]** After ingestion, ask the user whether to rebuild affected wiki pages (`softwiki_wiki_build`).
+5. **[wiki-work mode]** If valuable sources are found, use the `submit` workflow to pre-submit for admin review.
+6. Output a structured research summary with citations.
 
-## wiki-compile 百科编译流
+## wiki-compile — Wiki Compilation Flow
 
-收集证据 → 识别共识/分歧 → 生成文档
+Collect evidence → Identify consensus/disagreement → Generate document
 
-1. 调用 `softwiki_status` 确认工作区存在相关文档。
-2. 使用 websearch 查找缺失上下文或最新进展。
-3. 若发现新的相关来源，先 `softwiki_ingest` 摄入。
-4. 调用 `softwiki_wiki_build` 生成 markdown 百科页面。
-5. 报告编译页面的输出路径。
+1. Call `softwiki_status` to confirm the workspace has relevant documents.
+2. Use websearch to find missing context or latest developments.
+3. If new relevant sources are found, `softwiki_ingest` first.
+4. Call `softwiki_wiki_build` to generate a markdown wiki page.
+5. Report the compiled page's output path.
 
-## simple-q&a 快速问答流
+## simple-q&a — Quick Q&A Flow
 
-单次混合查询（知识库 + 网络）
+Single hybrid query (knowledge base + web)
 
-1. 直接使用已有知识或通过 websearch 获取最新信息回答。
-2. **[wiki-admin / wiki-manage 模式]** 若发现高质量且在范围内的来源，询问用户是否摄入。
+1. Answer directly using existing knowledge or via websearch for the latest information.
+2. **[wiki-admin / wiki-manage mode]** If high-quality in-scope sources are found, ask the user whether to ingest.
 
-## contribute 知识贡献流
+## contribute — Knowledge Contribution Flow
 
-1. 调用 `softwiki_ingest` 摄入提供的 URL、文件或笔记。
-2. 确认摄入结果并返回文档 ID。
-3. 识别 `config/topics.yaml` 中可能受影响的主题。
-4. 为每个受影响主题执行 `softwiki_wiki_build`。
+1. Call `softwiki_ingest` to ingest the provided URL, file, or notes.
+2. Confirm ingestion results and return the document ID.
+3. Identify potentially affected topics in `config/topics.yaml`.
+4. Execute `softwiki_wiki_build` for each affected topic.
 
-## submit 提交审核流（wiki-work 专属）
+## submit — Submit for Review Flow (wiki-work only)
 
-用于 `wiki-work` 角色：将研究成果或来源提交给管理员审核，**不直接修改**知识库。
+For `wiki-work` role: submit research results or sources to admin for review, **without directly modifying** the knowledge base.
 
-1. 汇总研究发现或在 session output 目录写结构化笔记。
-2. 笔记包含：来源 URL、对工作区主题的相关性、关键发现、建议更新的百科页面。
-3. 告知用户提交已暂存，等待 `wiki-manage` 或 `wiki-admin` 用户审核。
-4. **不要调用** `softwiki_ingest`。**不直接修改**知识库。
+1. Summarize research findings or write structured notes in the session output directory.
+2. Notes include: source URLs, relevance to workspace topics, key findings, suggested wiki pages to update.
+3. Inform the user the submission has been staged, awaiting review by a `wiki-manage` or `wiki-admin` user.
+4. **Do not call** `softwiki_ingest`. **Do not directly modify** the knowledge base.
 
 ---
 
-## 摄入 → 索引 → 问答 → Wiki 完整示例
+## Ingest → Index → Q&A → Wiki Complete Example
 
 ```bash
-# 1. 摄入：从 URL 导入文档
+# 1. Ingest: import document from URL
 ./sw ingest --url "https://example.com/de-dollarization-overview"
 
-# 2. 索引：构建向量与关键词索引
+# 2. Index: build vector and keyword indexes
 ./sw index
 
-# 3. 问答：基于知识库提问
-./sw ask "核心发现是什么？"
+# 3. Q&A: ask questions based on knowledge base
+./sw ask "What are the key findings?"
 
-# 4. 编译百科：生成结构化 Wiki 页面
+# 4. Compile wiki: generate structured wiki page
 ./sw wiki build --topic de-dollarization
 ```
 
-## Shell 内工作流
+## Shell Workflows
 
-在 **Admin** / **Manage** 模式下，Shell 自动按以下循环工作：
+In **Admin** / **Manage** modes, Shell automatically works in the following loop:
 
 ```
 research → ingest → wiki build → (loop)
 ```
 
-即：用 websearch 做研究 → 摄入高质量来源 → 编译/更新百科页面 → 回到研究。
-该循环无需手动切换模式，系统会基于对话上下文自动推进。
+That is: research with websearch → ingest high-quality sources → compile/update wiki pages → return to research.
+This loop does not require manual mode switching; the system advances automatically based on conversation context.
 
 ---
 
-> **注意**：CLI 完整命令参考见 [CLI 文档](../03-operations/cli.md)。此处仅展示工作流层面的交互逻辑。
+> **Note**: See the [CLI documentation](../03-operations/cli.md) for the full command reference. This page only covers workflow-level interaction logic.

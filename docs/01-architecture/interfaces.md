@@ -1,13 +1,13 @@
 # Interfaces
 
-> **Scope**: All external-facing interfaces of SoftWiki — MCP tools, REST API endpoints, and CLI commands.
-> **Audience**: Developers integrating with SoftWiki or building automation on top of it.
+> **Scope**: All external-facing interfaces of softwiki — MCP tools, REST API endpoints, and CLI commands.
+> **Audience**: Developers integrating with softwiki or building automation on top of it.
 
 ---
 
-## MCP 工具
+## MCP Tools
 
-SoftWiki exposes 17 tools via the Model Context Protocol (MCP). Each tool is a `@mcp.tool()` function in `softwiki/mcp/server.py`.
+softwiki exposes 17 tools via the Model Context Protocol (MCP). Each tool is a `@mcp.tool()` function in `softwiki/mcp/server.py`.
 
 Permission levels:
 - **read** — Query only; no state change.
@@ -40,7 +40,7 @@ Permission levels:
 
 ## REST API
 
-SoftWiki provides a REST API via `softwiki/api/server.py`, built with **FastAPI**. The server runs on `http://127.0.0.1:8000` by default (configurable via CLI `--port` / `--host`).
+softwiki provides a REST API via `softwiki/api/server.py`, built with **FastAPI**. The server runs on `http://127.0.0.1:8000` by default (configurable via CLI `--port` / `--host`).
 
 | Method | Path | Purpose |
 |---|---|---|

@@ -1,184 +1,184 @@
-# Shell TUI 使用指南
+# Shell TUI Guide
 
-> **范围**: SoftWiki Shell TUI 的启动、模式、命令、搜索配置和 Fallback REPL。
-> **前置阅读**: [CLI 命令参考](../03-operations/cli.md) | [安装与设置](../03-operations/setup.md)
+> **Scope**: Launching, modes, commands, search configuration, and Fallback REPL for the softwiki Shell TUI.
+> **Prerequisite reading**: [CLI Command Reference](../03-operations/cli.md) | [Setup & Installation](../03-operations/setup.md)
 
 ---
 
-## 启动
+## Launch
 
 ```bash
-./sw shell                          # 默认 wiki-admin 模式
-./sw shell --mode wiki-study        # 只读模式
-./sw shell -w workspace/my-kb       # 指定工作空间
-./sw shell -m gemini-2.5-pro        # 指定模型
-./sw shell -s round-2               # 自定义会话后缀名
+./sw shell                          # Default wiki-admin mode
+./sw shell --mode wiki-study        # Read-only mode
+./sw shell -w workspace/my-kb       # Specify workspace
+./sw shell -m gemini-2.5-pro        # Specify model
+./sw shell -s round-2               # Custom session suffix
 ```
 
-Shell 启动时显示 banner，包含工作空间、模式、会话名、模型、可用工作流和 MCP 工具列表。按任意键进入 TUI。
+Shell displays a banner on startup showing workspace, mode, session name, model, available workflows, and MCP tool list. Press any key to enter TUI.
 
-### 选项
+### Options
 
-| 选项 | 简写 | 类型 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` 或 `workspace/default` | 工作空间路径或名称 |
-| `--model` | `-m` | `str` | `ANALYSIS_MODEL` 或 `gemini-2.5-flash` | 分析用模型 |
-| `--session` | `-s` | `str` | `None` | 自定义会话名称后缀 |
-
----
-
-## 四种模式
-
-Shell 根据 `SOFTWIKI_MODE` 环境变量决定操作权限。通过 `--mode` 参数指定。
-
-| 模式 | 权限 | 可用操作 | 禁用操作 |
-|------|------|----------|----------|
-| `wiki-admin` | 全部操作 | ingest / index / wiki build / ask / web / init / status | 无 |
-| `wiki-manage` | 摄入/索引/发布 | ingest / index / wiki build / ask / web / status | 无 |
-| `wiki-work` | 只读 + Wiki 编译 + staging 提交 | wiki build / ask / web / status / submit 工作流 | ingest / index |
-| `wiki-study` | 只读 | ask / web / status | ingest / index / wiki build |
-
-### 模式详细规则
-
-**wiki-study**（只读模式）:
-- 可使用 websearch 进行研究，可检查状态
-- 禁止调用 `softwiki_ingest`、`softwiki_index`、`softwiki_wiki_build` 或任何写操作
-- 不可提交研究结果
-
-**wiki-work**（工作模式）:
-- 可使用 websearch 进行研究
-- 禁止直接调用 `softwiki_ingest` 或 `softwiki_index`
-- 研究中发现的有价值来源，可通过 `submit` 工作流暂存到 session 输出目录（`output/{session_id}/`），供 manager 审核
-- 不可修改规范知识库
-
-**wiki-manage**（知识管理）:
-- 可执行 ingest、index、wiki build
-- 可审核/发布来自 wiki-work 用户的提交
-
-**wiki-admin**（管理员）:
-- 所有操作均允许
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` or `workspace/default` | Workspace path or name |
+| `--model` | `-m` | `str` | `ANALYSIS_MODEL` or `gemini-2.5-flash` | Analysis model |
+| `--session` | `-s` | `str` | `None` | Custom session name suffix |
 
 ---
 
-## Fallback REPL（无 opencode）
+## Four Modes
 
-当系统未安装 `opencode` 可执行文件时，Shell 自动降级为 Fallback REPL — 一个轻量级命令行客户端，通过 MCP 协议与 SoftWiki 服务端通信。
+Shell determines operation permissions based on the `SOFTWIKI_MODE` environment variable. Specified via `--mode` parameter.
 
-### 启动 Fallback REPL
+| Mode | Permissions | Available Operations | Disabled Operations |
+|---|---|---|---|
+| `wiki-admin` | All operations | ingest / index / wiki build / ask / web / init / status | None |
+| `wiki-manage` | Ingest/index/publish | ingest / index / wiki build / ask / web / status | None |
+| `wiki-work` | Read-only + Wiki compile + staging submit | wiki build / ask / web / status / submit workflow | ingest / index |
+| `wiki-study` | Read-only | ask / web / status | ingest / index / wiki build |
+
+### Mode Details
+
+**wiki-study** (read-only mode):
+- Can use websearch for research, check status
+- Cannot call `softwiki_ingest`, `softwiki_index`, `softwiki_wiki_build` or any write operations
+- Cannot submit research results
+
+**wiki-work** (work mode):
+- Can use websearch for research
+- Cannot directly call `softwiki_ingest` or `softwiki_index`
+- Valuable sources found during research can be staged via `submit` workflow to `output/{session_id}/` for manager review
+- Cannot modify the canonical knowledge base
+
+**wiki-manage** (knowledge management):
+- Can execute ingest, index, wiki build
+- Can review/publish submissions from wiki-work users
+
+**wiki-admin** (administrator):
+- All operations allowed
+
+---
+
+## Fallback REPL (without opencode)
+
+When the `opencode` executable is not installed, Shell automatically degrades to Fallback REPL — a lightweight command-line client communicating with the softwiki server via MCP protocol.
+
+### Launch Fallback REPL
 
 ```bash
 ./sw shell
-# 输出: [opencode not found – running minimal MCP client shell]
+# Output: [opencode not found – running minimal MCP client shell]
 ```
 
-### Fallback REPL 命令
+### Fallback REPL Commands
 
-| 命令 | 说明 | 模式限制 |
-|------|------|----------|
-| `/ask <question>` | 查询知识库（通过 MCP `ask` 工具） | 无 |
-| `/web <query>` | Web 搜索（BYOK，见搜索配置） | 无 |
-| `/ingest <url\|path>` | 摄入文档（URL 或本地 PDF 路径） | 需 wiki-admin 或 wiki-manage |
-| `/index` | 重建搜索索引 | 需 wiki-admin 或 wiki-manage |
-| `/wiki <topic>` | 编译指定主题的 Wiki 页面 | 需 wiki-admin、wiki-manage 或 wiki-work |
-| `/init` | 初始化工作空间结构 | 需 wiki-admin 或 wiki-manage |
-| `/status` | 查看工作空间状态 | 无 |
-| `/help` | 列出所有可用命令 | 无 |
-| `/exit` | 退出 Shell | 无 |
+| Command | Description | Mode Restrictions |
+|---|---|---|
+| `/ask <question>` | Query the knowledge base (via MCP `ask` tool) | None |
+| `/web <query>` | Web search (BYOK, see search configuration) | None |
+| `/ingest <url\|path>` | Ingest document (URL or local PDF path) | Requires wiki-admin or wiki-manage |
+| `/index` | Rebuild search indexes | Requires wiki-admin or wiki-manage |
+| `/wiki <topic>` | Compile Wiki page for the given topic | Requires wiki-admin, wiki-manage or wiki-work |
+| `/init` | Initialize workspace structure | Requires wiki-admin or wiki-manage |
+| `/status` | View workspace status | None |
+| `/help` | List all available commands | None |
+| `/exit` | Exit Shell | None |
 
-> Fallback REPL 中的 `/ingest`、`/index`、`/init` 操作需要用户确认（`[y/N]`）。`/wiki` 在 wiki-study 模式下被禁用。
+> `/ingest`, `/index`, `/init` operations in Fallback REPL require user confirmation (`[y/N]`). `/wiki` is disabled in wiki-study mode.
 
 ---
 
-## 搜索配置
+## Search Configuration
 
-Shell 支持两种搜索路径：opencode 原生 websearch（默认）和独立 web 搜索配置。
+Shell supports two search paths: opencode native websearch (default) and standalone web search configuration.
 
-### 默认搜索（opencode 原生）
+### Default Search (opencode native)
 
-Shell 生成的 opencode 配置中，`tools.websearch` 默认为 `true`，由 opencode 原生 websearch 能力处理。无需额外配置。
+In the opencode configuration generated by Shell, `tools.websearch` defaults to `true`, handled by opencode's native websearch capability. No additional configuration needed.
 
-### 独立搜索 MCP（客户端侧）
+### Standalone Search MCP (client-side)
 
-Shell 按优先级自动配置客户端侧搜索 MCP，不经过 SoftWiki 服务端：
+Shell auto-configures client-side search MCP by priority, without going through the softwiki server:
 
-| 优先级 | 提供商 | 环境变量 | MCP 命令 |
-|--------|--------|----------|----------|
+| Priority | Provider | Environment Variable | MCP Command |
+|---|---|---|---|
 | 1 | Exa | `EXA_API_KEY` | `npx -y exa-mcp-server` |
 | 2 | Tavily | `TAVILY_API_KEY` | `npx -y tavily-mcp` |
-| 3 | DuckDuckGo | 无需 API Key | 通过 webfetch 原生处理 |
+| 3 | DuckDuckGo | No API Key required | Handled natively via webfetch |
 
-设置方式：
+Setup:
 
 ```bash
-# 方案一：Exa（推荐）
+# Option 1: Exa (recommended)
 export EXA_API_KEY=your-exa-key-here
 ./sw shell
 
-# 方案二：Tavily
+# Option 2: Tavily
 export TAVILY_API_KEY=your-tavily-key-here
 ./sw shell
 ```
 
-> 如果同时设置了 `EXA_API_KEY` 和 `TAVILY_API_KEY`，Exa 优先。两个都未设置时回退到 DuckDuckGo。
+> If both `EXA_API_KEY` and `TAVILY_API_KEY` are set, Exa takes priority. Falls back to DuckDuckGo if neither is set.
 
-### Fallback REPL 中的搜索
+### Fallback REPL Search
 
-Fallback REPL 的 `/web` 命令使用 `_shell_web_search()` 函数，支持以下 BYOK 提供商（按优先级）：
+The Fallback REPL's `/web` command uses `_shell_web_search()` function, supporting the following BYOK providers (by priority):
 
-| 优先级 | 提供商 | 环境变量 |
-|--------|--------|----------|
+| Priority | Provider | Environment Variable |
+|---|---|---|
 | 1 | Tavily | `TAVILY_API_KEY` |
 | 2 | SerpAPI | `SERPAPI_KEY` |
 | 3 | Bing | `BING_SEARCH_API_KEY` |
 
-若均未设置，返回配置提示信息。
+If none are set, returns configuration guidance.
 
 ---
 
-## 独立模型配置
+## Independent Model Configuration
 
-Shell 的 LLM 模型独立于 Core 模型。可通过以下环境变量配置：
+The Shell's LLM model is independent from Core models. Configure via the following environment variables:
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `SHELL_MODEL` | Shell 使用的 LLM 模型 | 回退到 `ANALYSIS_MODEL`，再回退到 `gemini-2.5-flash` |
-| `SHELL_API_BASE` | API 端点 | 回退到 `OPENAI_API_BASE`，再回退到 Google Gemini 端点 |
-| `SHELL_API_KEY` | API 密钥 | 回退到 `OPENAI_API_KEY` |
+| Variable | Description | Default |
+|---|---|---|
+| `SHELL_MODEL` | LLM model for Shell | Falls back to `ANALYSIS_MODEL`, then `gemini-2.5-flash` |
+| `SHELL_API_BASE` | API endpoint | Falls back to `OPENAI_API_BASE`, then Google Gemini endpoint |
+| `SHELL_API_KEY` | API key | Falls back to `OPENAI_API_KEY` |
 
 ```bash
-# 使用独立模型
+# Use independent model
 export SHELL_MODEL=gemini-2.5-pro
 export SHELL_API_BASE=https://generativelanguage.googleapis.com/v1beta/
 export SHELL_API_KEY=your-api-key
 ./sw shell
 
-# 或通过命令行覆盖
+# Or override via command line
 ./sw shell -m claude-sonnet-4-20250514
 ```
 
-### 模型回退链
+### Model Fallback Chain
 
 ```
 SHELL_MODEL → ANALYSIS_MODEL → gemini-2.5-flash
 SHELL_API_BASE → OPENAI_API_BASE → https://generativelanguage.googleapis.com/v1beta/
-SHELL_API_KEY → OPENAI_API_KEY → (无默认值)
+SHELL_API_KEY → OPENAI_API_KEY → (no default)
 ```
 
 ---
 
-## 工作流
+## Workflows
 
-Shell 加载 `softwiki/templates/workflows.yaml` 中的默认工作流定义，并与工作空间 `config/workflows.yaml` 深度合并。可用工作流显示在启动 banner 的 `Workflows` 行中，以 `/workflow_name` 形式列出。
+Shell loads default workflow definitions from `softwiki/templates/workflows.yaml` and deep-merges with the workspace `config/workflows.yaml`. Available workflows are displayed on the startup banner's `Workflows` line, listed as `/workflow_name`.
 
-预定义工作流包括：`research`、`wiki-compile`、`contribute`、`submit`、`simple-q&a`。
+Predefined workflows include: `research`, `wiki-compile`, `contribute`, `submit`, `simple-q&a`.
 
 ---
 
-## 架构说明
+## Architecture Note
 
-Shell 在工作空间的隔离运行时目录（`.softwiki_runtime/{ws_name}_{hash}/`）中生成独立的 opencode 配置，确保：
+Shell generates an independent opencode configuration in the workspace's isolated runtime directory (`.softwiki_runtime/{ws_name}_{hash}/`), ensuring:
 
-- 会话完全独立于用户的全局 opencode 会话
-- XDG_CONFIG_HOME 和 XDG_DATA_HOME 指向运行时目录
-- 自动清理工作空间中的遗留配置文件（AGENTS_*.md、opencode.json、.claude、.opencode 等）
-- 全局 TUI 插件列表和 node_modules 通过符号链接复用
+- Sessions are completely independent from the user's global opencode sessions
+- XDG_CONFIG_HOME and XDG_DATA_HOME point to the runtime directory
+- Auto-cleans legacy configuration files (AGENTS_*.md, opencode.json, .claude, .opencode, etc.) from the workspace
+- Global TUI plugin list and node_modules are reused via symlinks

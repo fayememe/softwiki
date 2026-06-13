@@ -1,151 +1,151 @@
-# 安装与设置
+# Setup & Installation
 
-> **范围**：系统要求、Python 环境、工作空间初始化、配置模板、多工作空间管理、MCP Server 注册。
+> **Scope**: System requirements, Python environment, workspace initialization, configuration templates, multi-workspace management, MCP Server registration.
 >
-> **前置阅读**：[架构概览](../01-architecture/overview.md) | [接口文档](../01-architecture/interfaces.md)
+> **Prerequisite reading**: [Architecture Overview](../01-architecture/overview.md) | [Interfaces](../01-architecture/interfaces.md)
 
 ---
 
-## 系统要求
+## System Requirements
 
-| 依赖 | 最低版本 | 说明 |
-|------|----------|------|
-| Python | 3.10+ | 运行 Core、CLI、MCP Server |
-| Node.js | 18+ | 仅 WebUI 需要 |
-| opencode | — | 仅 Shell TUI 需要 |
+| Dependency | Minimum Version | Notes |
+|---|---|---|
+| Python | 3.10+ | Runs Core, CLI, MCP Server |
+| Node.js | 18+ | WebUI only |
+| opencode | — | Shell TUI only |
 
-**已知兼容的 LLM Provider**：
+**Known compatible LLM Providers**:
 
-- OpenAI（GPT-4o / GPT-4o-mini / text-embedding-3-small）
-- DeepSeek（通过 OpenAI 兼容接口）
-- Gemini（通过 OpenAI 兼容接口）
-- Groq（通过 OpenAI 兼容接口）
+- OpenAI (GPT-4o / GPT-4o-mini / text-embedding-3-small)
+- DeepSeek (via OpenAI-compatible API)
+- Gemini (via OpenAI-compatible API)
+- Groq (via OpenAI-compatible API)
 
-Embedding Provider 支持 `openai`（API）或 `local`（基于 sentence-transformers）。
+Embedding Provider supports `openai` (API) or `local` (sentence-transformers based).
 
 ---
 
-## 安装
+## Installation
 
-### 1. 克隆项目
+### 1. Clone the Project
 
 ```bash
 git clone <repo-url> softwiki
 cd softwiki
 ```
 
-### 2. 创建虚拟环境
+### 2. Create Virtual Environment
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. 安装包
+### 3. Install Package
 
 ```bash
-# 基础安装（RAG + Core + MCP + API）
+# Base installation (RAG + Core + MCP + API)
 pip install -e .
 
-# 完整安装（含开发工具和 LightRAG GraphRAG）
+# Full installation (with dev tools and LightRAG GraphRAG)
 pip install -e ".[dev,graph]"
 ```
 
-可选依赖组：
+Optional dependency groups:
 
-| 组 | 包含 | 用途 |
-|----|------|------|
-| `[dev]` | pytest | 运行测试套件 |
-| `[graph]` | lightrag-hku | 知识图谱多跳推理查询 |
+| Group | Includes | Purpose |
+|---|---|---|
+| `[dev]` | pytest | Run test suite |
+| `[graph]` | lightrag-hku | Knowledge graph multi-hop reasoning queries |
 
-### 4. 配置环境变量
+### 4. Configure Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env`，至少填写：
+Edit `.env`, at minimum fill in:
 
 ```bash
 OPENAI_API_KEY=sk-...           # LLM API Key
-OPENAI_API_BASE=https://...     # API 端点（可选，默认 OpenAI）
-EXTRACTION_MODEL=gpt-4o-mini    # 提取用模型
-ANALYSIS_MODEL=gpt-4o           # 分析与合成用模型
-EMBEDDING_PROVIDER=openai       # 嵌入 Provider
+OPENAI_API_BASE=https://...     # API endpoint (optional, default OpenAI)
+EXTRACTION_MODEL=gpt-4o-mini    # Extraction model
+ANALYSIS_MODEL=gpt-4o           # Analysis & synthesis model
+EMBEDDING_PROVIDER=openai       # Embedding provider
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-环境变量自动从 `.env` 加载（`softwiki/config.py:load_env()`），也可通过 shell export 覆盖。
+Environment variables are auto-loaded from `.env` (`softwiki/config.py:load_env()`), and can also be overridden via shell export.
 
-### 5. 验证安装
+### 5. Verify Installation
 
 ```bash
 ./sw --help
 ```
 
-应显示 SoftWiki CLI 命令列表。
+Should display the softwiki CLI command list.
 
 ---
 
-## 初始化工作空间
+## Initialize Workspace
 
-工作空间（Workspace）是 SoftWiki 中**独立的知识库单元**，包含文档、索引、配置和数据库，以文件系统目录组织。
+A workspace is softwiki's **independent knowledge base unit**, containing documents, indexes, configuration, and a database, organized as a filesystem directory.
 
-### 默认工作空间
+### Default Workspace
 
 ```bash
 ./sw init
 ```
 
-在 `workspace/default/` 创建以下结构：
+Creates the following structure in `workspace/default/`:
 
 ```
 workspace/default/
-├── config/               # 工作空间配置
-│   ├── scope.md          # 知识库范围定义
-│   ├── topics.yaml       # 研究主题定义
-│   ├── sources.yaml      # 数据源信任级别
+├── config/               # Workspace configuration
+│   ├── scope.md          # Knowledge base scope definition
+│   ├── topics.yaml       # Research topic definitions
+│   ├── sources.yaml      # Data source trust levels
 │   ├── model_profiles.yaml
 │   ├── workflows.yaml
-│   └── agents.md         # Agent 提示词覆盖（可选）
-├── raw/                  # 原始文件
+│   └── agents.md         # Agent prompt overrides (optional)
+├── raw/                  # Raw files
 │   ├── html/
 │   ├── pdf/
 │   ├── markdown/
 │   └── api/
-├── .softwiki/            # 数据库与索引
-│   ├── processed.db      # SQLite 数据库
-│   ├── index/            # 向量 & BM25 索引
-│   └── lightrag/         # LightRAG 图数据
-├── exports/              # 导出产物
-│   └── wiki/             # Wiki 页面
+├── .softwiki/            # Database & indexes
+│   ├── processed.db      # SQLite database
+│   ├── index/            # Vector & BM25 indexes
+│   └── lightrag/         # LightRAG graph data
+├── exports/              # Export artifacts
+│   └── wiki/             # Wiki pages
 │       ├── topics/
 │       ├── organizations/
 │       ├── countries/
 │       ├── events/
 │       ├── claims/
 │       └── reports/
-└── processed/            # 处理中间产物（嵌入向量等）
+└── processed/            # Processing intermediates (embedding vectors, etc.)
     ├── documents/
     ├── chunks/
     ├── embeddings/
     └── extracted/
 ```
 
-`init` 命令自动完成：
+The `init` command automatically:
 
-1. 创建上述文件夹结构
-2. 从 `softwiki/templates/` 复制默认配置文件到 `config/`
-3. 创建 SQLite 数据库（`.softwiki/processed.db`）
-4. 从 `config/sources.yaml` 预置数据源记录
+1. Creates the above folder structure
+2. Copies default configuration files from `softwiki/templates/` to `config/`
+3. Creates the SQLite database (`.softwiki/processed.db`)
+4. Pre-populates data source records from `config/sources.yaml`
 
-### 自定义路径
+### Custom Path
 
 ```bash
 ./sw -w workspace/my-kb init
 ```
 
-支持任意路径：
+Supports any path:
 
 ```bash
 ./sw -w /data/research/knowledge-base init
@@ -153,21 +153,21 @@ workspace/default/
 
 ---
 
-## 多工作空间
+## Multi-Workspace
 
-每个工作空间完全隔离，拥有独立的数据库、索引、配置和数据文件。
+Each workspace is fully isolated, with its own database, indexes, configuration, and data files.
 
-### 切换方式
+### Switching Methods
 
-**方式一：`-w` 参数**
+**Method 1: `-w` parameter**
 
 ```bash
-# 使用不同工作空间
+# Use different workspaces
 ./sw -w workspace/kb-alpha ingest --url "https://..."
-./sw -w workspace/kb-beta ask "核心发现？"
+./sw -w workspace/kb-beta ask "What are the key findings?"
 ```
 
-**方式二：环境变量**
+**Method 2: Environment variable**
 
 ```bash
 export WORKSPACE_DIR=/data/research/kb-alpha
@@ -175,33 +175,33 @@ export WORKSPACE_DIR=/data/research/kb-alpha
 ./sw ingest --url "https://..."
 ```
 
-**方式三：路径格式**
+**Method 3: Path format**
 
-`-w` 接受相对路径（相对于项目根目录）或绝对路径：
+`-w` accepts relative paths (relative to project root) or absolute paths:
 
 ```bash
-./sw -w workspace/my-kb shell       # 相对路径
-./sw -w /home/user/my-kb shell      # 绝对路径
+./sw -w workspace/my-kb shell       # relative path
+./sw -w /home/user/my-kb shell      # absolute path
 ```
 
-### 使用场景
+### Use Cases
 
-| 场景 | 实践 |
-|------|------|
-| 独立研究课题 | 每个课题独立工作空间 |
-| 团队共享 | 每个研究者独立工作空间，通过 `workspace/` 目录共享 |
-| 分阶段研究 | 第一阶段、第二阶段可分离至不同工作空间 |
-| 生产/测试隔离 | 生产库和测试库使用不同工作空间 |
+| Scenario | Practice |
+|---|---|
+| Independent research topics | Each topic gets its own workspace |
+| Team sharing | Each researcher has their own workspace, shared via `workspace/` directory |
+| Phased research | Phase 1 and Phase 2 can be separate workspaces |
+| Production/test isolation | Production and test databases use different workspaces |
 
 ---
 
-## 配置模板
+## Configuration Templates
 
-工作空间初始化后，`config/` 目录包含以下配置文件：
+After workspace initialization, the `config/` directory contains the following configuration files:
 
-### scope.md — 知识库范围
+### scope.md — Knowledge Base Scope
 
-定义知识库的话题边界，供 `scope_guard` 在摄入文档时自动过滤。
+Defines the knowledge base topic boundaries, used by `scope_guard` to automatically filter documents during ingestion.
 
 ```markdown
 # Knowledge Base Scope
@@ -213,7 +213,7 @@ export WORKSPACE_DIR=/data/research/kb-alpha
 - Unrelated financial news, stock market updates, recipes, entertainment, sports.
 ```
 
-### topics.yaml — 研究主题定义
+### topics.yaml — Research Topic Definitions
 
 ```yaml
 topics:
@@ -221,7 +221,7 @@ topics:
     aliases:
       - topic a
       - alpha project
-      - 第一主题
+      - first topic
     related:
       - topic-beta
       - topic-gamma
@@ -230,14 +230,14 @@ topics:
     aliases:
       - topic b
       - beta system
-      - 第二主题
+      - second topic
     related:
       - topic-alpha
 ```
 
-每个主题包含别名字段（用于匹配）和相关主题列表（用于 Wiki 页面交叉引用）。
+Each topic has aliases (for matching) and a related topics list (for Wiki page cross-references).
 
-### sources.yaml — 数据源信任级别
+### sources.yaml — Data Source Trust Levels
 
 ```yaml
 sources:
@@ -250,9 +250,9 @@ sources:
     language: en
 ```
 
-`init` 命令会将 `sources.yaml` 中的所有源预置到数据库，后续摄入可通过 `--source-id` 参数关联。
+The `init` command pre-populates all sources from `sources.yaml` into the database; subsequent ingests can associate via `--source-id`.
 
-### model_profiles.yaml — LLM 参数覆盖
+### model_profiles.yaml — LLM Parameter Overrides
 
 ```yaml
 profiles:
@@ -271,25 +271,25 @@ profiles:
     model: bge-m3
 ```
 
-可通过环境变量 `EXTRACTION_MODEL`、`ANALYSIS_MODEL` 等覆盖默认模型选择。
+Default model selection can be overridden via the `EXTRACTION_MODEL`, `ANALYSIS_MODEL` environment variables, etc.
 
-### workflows.yaml — 工作流覆盖
+### workflows.yaml — Workflow Overrides
 
-定义 Agent shell 中使用的自路由工作流。默认提供 `research`、`wiki-compile`、`contribute`、`submit`、`simple-q&a` 五个工作流。工作空间级配置会与默认模板进行**深度合并**。
+Defines self-routing workflows used in the Agent shell. Provides five default workflows: `research`, `wiki-compile`, `contribute`, `submit`, `simple-q&a`. Workspace-level configuration does a **deep merge** with the default template.
 
-### agents.md — Agent 提示词覆盖
+### agents.md — Agent Prompt Overrides
 
-可选的 Agent 行为覆盖文件。放置在 `config/agents.md` 后，Shell TUI 启动时会自动加载并追加至默认 Agent Soul 之后，用于自定义 Agent 的行为模式、工具边界和响应格式。
+An optional agent behavior override file. When placed at `config/agents.md`, the Shell TUI auto-loads and appends its content to the default Agent Soul, allowing customization of agent behavior patterns, tool boundaries, and response formats.
 
 ---
 
-## 注册 MCP Server
+## Register MCP Server
 
-SoftWiki 通过 Model Context Protocol（MCP）将知识库能力暴露给外部 AI 工具。MCP Server 以独立进程运行，通过 stdio JSON-RPC 通信。
+softwiki exposes knowledge base capabilities to external AI tools via the Model Context Protocol (MCP). The MCP Server runs as an independent process, communicating via stdio JSON-RPC.
 
-### 通用配置
+### Generic Configuration
 
-将以下 JSON 加入 AI 工具的 MCP 配置：
+Add the following JSON to your AI tool's MCP configuration:
 
 ```json
 {
@@ -307,19 +307,19 @@ SoftWiki 通过 Model Context Protocol（MCP）将知识库能力暴露给外部
 }
 ```
 
-### 各平台配置位置
+### Platform Configuration Locations
 
-**Claude Desktop**：编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`（macOS）或 `%APPDATA%\Claude\claude_desktop_config.json`（Windows）。
+**Claude Desktop**: Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
 
-**Cursor**：在 Cursor 设置中配置 MCP Servers 列表。
+**Cursor**: Configure MCP Servers in Cursor settings.
 
-**opencode**：编辑 `opencode.json` 或 `.opencode/mcp.json`。
+**opencode**: Edit `opencode.json` or `.opencode/mcp.json`.
 
-**自定义 MCP 客户端**：任何支持 MCP 协议的客户端均可通过 stdio 方式连接。
+**Custom MCP clients**: Any MCP protocol-compatible client can connect via stdio.
 
-### 只读模式
+### Read-Only Mode
 
-若要限制外部工具仅能查询，设置环境变量：
+To restrict external tools to query-only, set the environment variable:
 
 ```json
 "env": {
@@ -329,42 +329,42 @@ SoftWiki 通过 Model Context Protocol（MCP）将知识库能力暴露给外部
 }
 ```
 
-四种运行模式见 [架构概览-运行模式](../01-architecture/overview.md#运行模式)。
+For the four operating modes, see [Architecture Overview — Operating Modes](../01-architecture/overview.md#operating-modes).
 
 ---
 
-## 验证安装
+## Verify Installation
 
-### CLI 工作流
+### CLI Workflow
 
 ```bash
-# 1. 初始化默认工作空间
+# 1. Initialize default workspace
 ./sw init
 
-# 2. 摄入一篇文档
+# 2. Ingest a document
 ./sw ingest --url "https://example.com/article"
 
-# 3. 重建索引
+# 3. Rebuild index
 ./sw index
 
-# 4. 提问
-./sw ask "文章的核心观点是什么？"
+# 4. Ask a question
+./sw ask "What are the key points of the article?"
 
-# 5. 编译 Wiki 页面
+# 5. Compile Wiki page
 ./sw wiki build --topic topic-alpha
 ```
 
-### MCP Server 心跳
+### MCP Server Heartbeat
 
-MCP Server 启动后无日志输出（stdio 协议），可通过外部 MCP 客户端调用 `softwiki_status` 工具验证连接。
+The MCP Server produces no log output on startup (stdio protocol). Verify the connection by calling the `softwiki_status` tool from an external MCP client.
 
 ---
 
-## 常见问题
+## FAQ
 
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| `./sw: No such file or directory` | 虚拟环境未创建 | `python3 -m venv venv && source venv/bin/activate && pip install -e .` |
-| `ModuleNotFoundError: softwiki` | PYTHONPATH 未设置 | `sw` 脚本已自动设置；手动运行时需 `export PYTHONPATH=.` |
-| 摄入文档被拒绝（out of scope） | `config/scope.md` 范围过窄 | 编辑 `scope.md` 扩大范围 |
-| MCP 连接失败 | `WORKSPACE_DIR` 路径错误 | 确认 `PYTHONPATH` 和 `WORKSPACE_DIR` 均使用绝对路径 |
+| Problem | Cause | Solution |
+|---|---|---|
+| `./sw: No such file or directory` | Virtual environment not created | `python3 -m venv venv && source venv/bin/activate && pip install -e .` |
+| `ModuleNotFoundError: softwiki` | PYTHONPATH not set | The `sw` script sets it automatically; for manual runs use `export PYTHONPATH=.` |
+| Document rejected (out of scope) | `config/scope.md` scope too narrow | Edit `scope.md` to broaden the scope |
+| MCP connection failure | `WORKSPACE_DIR` path incorrect | Ensure both `PYTHONPATH` and `WORKSPACE_DIR` use absolute paths |

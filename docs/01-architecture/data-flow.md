@@ -1,8 +1,8 @@
 # Data Flow Architecture
 
-## 五层知识模型
+## Five-Layer Knowledge Model
 
-SoftWiki derives **six complementary views** from the same canonical source store. Each view is purpose-built for a different kind of query — evidence retrieval, structured reasoning, relationship analysis, temporal reasoning, and human-readable synthesis. They are not independent databases; they are projections of the same underlying evidence.
+softwiki derives **six complementary views** from the same canonical source store. Each view is purpose-built for a different kind of query — evidence retrieval, structured reasoning, relationship analysis, temporal reasoning, and human-readable synthesis. They are not independent databases; they are projections of the same underlying evidence.
 
 ```mermaid
 graph TD
@@ -35,7 +35,7 @@ Each layer derives from the layer directly below it. The direction of arrows is 
 
 ---
 
-## 各层职责
+## Layer Responsibilities
 
 ### Source Store — canonical evidence
 
@@ -82,7 +82,7 @@ Each layer derives from the layer directly below it. The direction of arrows is 
 
 ---
 
-## Pipeline 数据流
+## Pipeline Data Flow
 
 The end-to-end data flow for a single document follows a strict four-stage pipeline:
 
@@ -200,7 +200,7 @@ workspace/<name>/
 
 ---
 
-## 核心原则
+## Core Principles
 
 > **Every derived object must point back to one or more source documents.**
 
@@ -223,7 +223,7 @@ This principle enforces several design decisions:
 
 ---
 
-## Module gating
+## Module Gating
 
 Each knowledge layer can be independently enabled or disabled via the `ENABLED_MODULES` environment variable:
 

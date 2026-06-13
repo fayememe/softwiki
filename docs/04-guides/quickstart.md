@@ -1,45 +1,45 @@
 # QuickStart
 
-## 1. 安装
+## 1. Install
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -e ".[dev,graph]"
 cp .env.example .env
-# 编辑 .env 填入 API key
+# Edit .env to fill in API keys
 ```
 
-## 2. 初始化
+## 2. Initialize
 
 ```bash
 ./sw init
 ```
 
-## 3. 摄入
+## 3. Ingest
 
 ```bash
 ./sw ingest --url "https://example.com/article"
-# 或导入 EVA 示例数据
+# Or import the EVA sample data
 python scripts/seed_eva.py
 ```
 
-## 4. 问答
+## 4. Ask Questions
 
 ```bash
 ./sw ask "What is the Human Instrumentality Project?"
 ```
 
-## 5. 启动 Shell / WebUI
+## 5. Launch Shell / WebUI
 
 ```bash
-./sw shell     # TUI（需 opencode）
+./sw shell     # TUI (requires opencode)
 ./sw api       # REST API + WebUI
 ```
 
-## 注册 MCP Server
+## Register MCP Server
 
-在 Claude Desktop / Cursor / opencode 等 AI 工具的 MCP 配置中添加：
+Add to your AI tool's MCP configuration (Claude Desktop / Cursor / opencode):
 
 ```json
 {

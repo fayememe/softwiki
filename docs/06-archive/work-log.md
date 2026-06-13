@@ -1,47 +1,47 @@
-# Softwiki 开发与架构设计决策工作日志 (Softwiki Development & Architecture Work Log)
+# softwiki Development & Architecture Decision Work Log
 
-本日志记录了 Softwiki 项目在开发迭代过程中所做的核心架构决策、技术权衡及业务流程设计，方便团队后续追溯和参考。
+This log records core architectural decisions, technical trade-offs, and business process designs made during the softwiki project's development iterations, for team review and future reference.
 
 ---
 
-## 📅 2026-06-07
+## 2026-06-07
 
-### 决策一：软路由模式命名规范化 (`wiki-xxxx` 命名空间)
-*   **背景**：为了将 Softwiki 的工作模式与宿主终端 OpenCode 原生的模式（如 `sisyphus`, `plan`, `build` 等）隔离开来，并且让用户能够非常明确地识别当前处于 Softwiki 特定的研究子沙箱环境中。
-*   **具体修改**：
-    *   将原本的 `study`、`work`、`manage`、`admin` 模式，全部加上统一的前缀命名空间，变更为：`wiki-study`、`wiki-work`、`wiki-manage` 和 `wiki-admin`。
-    *   在 `opencode.json` 生成器中，将内置的 OpenCode 智能体（如 `sisyphus` 等）全部禁用 (`disable: true`)，并且只注册 `wiki-` 前缀的自定义模式。
-    *   在 MCP 服务和 FastAPI API 服务层更新权限判断规则，完美兼容并识别新前缀。
+### Decision 1: Soft Routing Mode Naming Standardization (`wiki-xxxx` namespace)
+*   **Background**: To isolate softwiki's working modes from the host terminal opencode's native modes (such as `sisyphus`, `plan`, `build`, etc.), and to allow users to clearly identify when they are in a softwiki-specific research sub-sandbox environment.
+*   **Specific changes**:
+    *   Renamed the original `study`, `work`, `manage`, `admin` modes with a unified prefix namespace: `wiki-study`, `wiki-work`, `wiki-manage`, and `wiki-admin`.
+    *   In the `opencode.json` generator, all built-in opencode agents (e.g., `sisyphus`, etc.) are disabled (`disable: true`), and only custom modes with the `wiki-` prefix are registered.
+    *   Updated permission check logic in MCP and FastAPI API service layers for full backward compatibility with new prefixes.
 
-### 决策二：端侧（本地）与云端大模型分工架构设计
-*   **背景**：针对 GraphRAG 框架在导入时需要多轮提取、在编译 Wiki 时 Token 消耗大、网速慢、API 费用高的痛点。
-*   **具体修改**：
-    *   确立了 **“端侧小模型干脏活，云端最强模型做参谋”** 的混搭架构。
-    *   产出了 [docs/model-guide.md](./model-guide.md) 指南。
-    *   **职责分工**：
-        1.  **向量化 (Embedding)**：完全移至本地（如使用 `bge-small-zh-v1.5`）以降低成本。
-        2.  **知识特征提取 (Extraction)**：使用本地小模型（如 `qwen2.5:7b` 跑在 Ollama）或高性价比云端 API（`gpt-4o-mini`），降低 Ingest Token 开销。
-        3.  **问答推理 (QA Answer)**：使用云端最强智商模型（如 `Claude-3.5-Sonnet` / `GPT-4o`）。
-        4.  **全局维基生成 (Wiki Page Compilation)**：使用超长上下文模型（如 `Gemini-2.5-Pro`）。
+### Decision 2: Edge (Local) vs Cloud LLM Hybrid Architecture
+*   **Background**: Addressing the pain points of GraphRAG needing multiple extraction rounds during import, high token consumption during Wiki compilation, slow network speeds, and high API costs.
+*   **Specific changes**:
+    *   Established a mixed architecture of **"small edge models handle the dirty work, the best cloud model acts as the advisor"**.
+    *   Produced [docs/model-guide.md](./model-guide.md) guide.
+    *   **Responsibility split**:
+        1.  **Embedding**: Fully moved to local (e.g., using `bge-small-zh-v1.5`) to reduce costs.
+        2.  **Knowledge extraction**: Uses local small models (e.g., `qwen2.5:7b` on Ollama) or cost-effective cloud APIs (`gpt-4o-mini`) to reduce ingest token costs.
+        3.  **QA reasoning**: Uses the most intelligent cloud model (e.g., `Claude-3.5-Sonnet` / `GPT-4o`).
+        4.  **Global wiki generation**: Uses ultra-long context models (e.g., `Gemini-2.5-Pro`).
 
-### 决策三：后端多模型配置管理器 (`llm_client.py`)
-*   **背景**：在 `model-guide.md` 设计完毕后，为了支撑系统真正实现对多模型的动态解析和自动分流。
-*   **具体修改**：
-    *   新建 [llm_client.py](../softwiki/intelligence/llm_client.py) 模块，支持读取 `configs/model_profiles.yaml` 配置文件。
-    *   解析包含 `openai`、`gemini`、`google`、`ollama` 在内的各种 Provider。
-    *   实现 API 基础路径 (`base_url`) 和密钥的自动组装适配。
+### Decision 3: Backend Multi-Model Configuration Manager (`llm_client.py`)
+*   **Background**: After the `model-guide.md` design was completed, to support the system's dynamic resolution and automatic routing of multiple models.
+*   **Specific changes**:
+    *   Created [llm_client.py](../softwiki/intelligence/llm_client.py) module, supporting reading `configs/model_profiles.yaml` configuration files.
+    *   Parses various providers including `openai`, `gemini`, `google`, `ollama`.
+    *   Implements automatic assembly and adaptation of API base URL and keys.
 
-### 决策四：异步延迟提取流水线 (Asynchronous Lazy Extraction)
-*   **背景**：之前 Ingest 文档时需要同步等待 Claim/Graph/Timeline 提取完毕才返回，导致上传一个 PDF 需要卡顿十几秒甚至几分钟，体验极差。
-*   **具体修改**：
-    *   在 `Document` 数据库表中增加 `status` 状态字段（`pending`, `extracting`, `completed`, `failed`）。
-    *   引入自动 SQLite 迁移代码，兼容已有旧数据库。
-    *   在 Ingest 时立刻进行切片、本地向量化和 BM25 索引构建，用户可立刻利用传统 RAG 检索。
-    *   通过 Python `threading` 启动后台守护线程，异步去跑需要调用 LLM 的三项提取器，执行完毕后静默将状态更新为 `completed`。
+### Decision 4: Asynchronous Lazy Extraction Pipeline
+*   **Background**: Previously, ingesting a document required synchronous waiting for Claim/Graph/Timeline extraction to complete, causing 10+ second or even minute-long delays for PDF uploads, providing a poor user experience.
+*   **Specific changes**:
+    *   Added a `status` field (pending, extracting, completed, failed) to the `Document` database table.
+    *   Introduced automatic SQLite migration code for backward compatibility with existing databases.
+    *   During ingest, chunking, local vectorization, and BM25 index building happen immediately, allowing users to use traditional RAG retrieval right away.
+    *   Uses Python `threading` to start a background daemon thread that asynchronously runs the three LLM-dependent extractors, silently updating status to `completed` when done.
 
-### 决策五：增量 Wiki 编译与更新 (Incremental Wiki Compilation)
-*   **背景**：随着文献库的变大，全量重构 Wiki 页面的 Token 消耗呈指数级上升。
-*   **具体修改**：
-    *   重构 `WikiPageGenerator`，引入增量 Diff-Patch 更新逻辑。
-    *   生成 Wiki 时同时生成 `[topic_id].json` 记录所有已被处理的 Claims ID。
-    *   当新增文献再次触发该主题的 Wiki 编译时，系统比对数据库与 JSON 文件，挑出“新增加的 Claims 和 Timeline 事件”，并将“原有 Wiki Markdown 文本” + “新增事实”一起喂给大模型，指示其进行原地修补（Incremental Update/Patch），避免全量重构的昂贵开销。
+### Decision 5: Incremental Wiki Compilation and Update
+*   **Background**: As the document library grows, full Wiki page rebuilds cause exponentially increasing token consumption.
+*   **Specific changes**:
+    *   Refactored `WikiPageGenerator` to introduce incremental diff-patch update logic.
+    *   Wiki generation now also produces a `[topic_id].json` file recording all processed Claim IDs.
+    *   When new documents trigger Wiki compilation for the same topic, the system compares the database with the JSON file, picks out "new Claims and Timeline events", and feeds "existing Wiki Markdown text" + "new facts" together to the large model, directing it to perform an in-place patch (Incremental Update/Patch), avoiding the expensive cost of full rebuilds.

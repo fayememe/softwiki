@@ -1,6 +1,6 @@
 # RAG Engine Design
 
-## 混合检索 (Hybrid Search)
+## Hybrid Search
 
 `HybridSearcher` (`softwiki/rag/hybrid_search.py`) combines dense and sparse retrieval via Reciprocal Rank Fusion (RRF).
 
@@ -46,7 +46,7 @@ Returns `List[Dict]` with keys `chunk`, `document`, and `score`.
 
 ---
 
-## 5 层上下文融合 (Context Layer Fusion)
+## 5-Layer Context Fusion
 
 `AnswerEngine.ask()` (`softwiki/intelligence/answer_engine.py`) builds a consolidated prompt from up to 5 knowledge layers. Each layer is independently gated by `is_module_enabled()`.
 
@@ -109,7 +109,7 @@ If no LLM client is available, `_generate_fallback_answer_modular()` produces a 
 
 ---
 
-## 引用管理 (Citation Management)
+## Citation Management
 
 `CitationManager` (`softwiki/rag/citations.py`) tracks document-level citations across a single answer session.
 
@@ -127,7 +127,7 @@ Citations are appended to the final answer string (both LLM-generated and fallba
 
 ---
 
-## Scope 约束 (Scope Guard)
+## Scope Guard
 
 `scope_guard.py` (`softwiki/intelligence/scope_guard.py`) enforces knowledge-base scope boundaries.
 

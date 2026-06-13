@@ -1,62 +1,53 @@
 > [!NOTE]
-> **本文档为参考文档，不作为设计要求。**
-> 本文记录了架构讨论与设计思考过程，部分内容超出当前实现范围，仅供参考。
-> 以实际代码实现为准，以 [project-status.md](project-status.md) 为当前状态说明文档。
+> **This document is for reference only, not a design requirement.**
+> It records architectural discussions and design thinking. Some content may exceed the current implementation scope.
+> The actual code implementation takes precedence; see [project-status.md](project-status.md) for current status.
 
-# SoftWiki Core 外部架构总结
+# softwiki Core External Architecture Summary
 
-## 1. 文档范围
+## 1. Document Scope
 
-本文描述 SoftWiki Core 与其外部系统之间的架构边界。
+This document describes the architectural boundaries between softwiki Core and its external systems.
 
-SoftWiki Core 已经存在，并且可以完成知识库相关业务逻辑。本文不重新设计 Core 内部的 RAG、GraphRAG、LLM-Wiki、综合器、索引、图谱等实现。
+softwiki Core already exists and can handle knowledge-base business logic. This document does not redesign the internal RAG, GraphRAG, LLM-Wiki, synthesizer, index, graph, etc. implementations within Core.
 
-本文重点覆盖：
+This document focuses on:
 
-* Core 与外部工具的职责边界
-* 子项目拆分
-* MCP 服务暴露方式
-* 远程 MCP 访问
-* WebUI 定位
-* Shell / TUI 定位
-* 外部客户端工具
-* raw data 输入边界
-* filesystem-based source model
-* token 与权限模型
-* team 部署方式
+* Responsibility boundaries between Core and external tools
+* Sub-project decomposition
+* MCP service exposure methods
+* Remote MCP access
+* WebUI positioning
+* Shell / TUI positioning
+* External client tools
+* Raw data input boundary
+* Filesystem-based source model
+* Token and permission model
+* Team deployment approach
 
 ---
 
-# 2. 核心原则
+# 2. Core Principles
 
-SoftWiki Core 不是 dumb backend。
-SoftWiki Core 应该负责知识库领域内的业务逻辑。
+softwiki Core is not a dumb backend.
+softwiki Core should be responsible for business logic within the knowledge base domain.
 
-但是 SoftWiki Core 不应该变成通用 Agent 平台。
+But softwiki Core should not become a general-purpose Agent platform.
 
-正确边界是：
+The correct boundary is:
 
 ```text
-SoftWiki Core = knowledge-domain business logic
+softwiki Core = knowledge-domain business logic
 External Tools = user-facing / cross-domain agent workflow
 MCP = capability boundary
 Filesystem = raw data boundary
 ```
 
-中文解释：
-
-```text
-SoftWiki Core 负责知识库自己的业务闭环。
-外部工具负责自己的 Agent、模型、UI 和跨工具任务编排。
-MCP 用于暴露 SoftWiki 能力。
-Filesystem 是 SoftWiki 的正式 raw data 输入边界。
-```
-
 ---
 
-# 3. SoftWiki Core 应该负责什么
+# 3. What softwiki Core Should Handle
 
-Core 可以并且应该完成知识库相关业务逻辑，包括：
+Core can and should handle knowledge-base business logic, including:
 
 ```text
 source scan
@@ -75,9 +66,9 @@ publish / rollback
 workspace status
 ```
 
-这些属于知识库领域内的业务逻辑，不应该全部交给外部 Agent 临时拼装。
+These are within the knowledge base domain and should not be left to external agents to assemble on the fly.
 
-Core 可以使用 LLM-powered internal workflow / internal agent 完成领域任务，例如：
+Core can use LLM-powered internal workflow / internal agent to complete domain tasks, such as:
 
 ```text
 contextual chunking
@@ -92,44 +83,44 @@ conflict explanation
 build diagnosis
 ```
 
-但是 Core 不负责：
+But Core is not responsible for:
 
 ```text
-通用 coding agent
-通用 browser agent
-通用办公 agent
-论文/报告/项目任务的完整跨工具编排
-用户外部文件系统管理
-外部工具的模型选择
-外部工具的 agent loop
+general coding agent
+general browser agent
+general office agent
+complete cross-tool orchestration for papers/reports/project tasks
+user external filesystem management
+model selection for external tools
+agent loop for external tools
 ```
 
 ---
 
-# 4. Core Agent 与外部 Agent 的区别
+# 4. Core Agent vs External Agent
 
-| 类型                             | 属于谁                                     | 负责什么                                                | 不负责什么                          |
-| ------------------------------ | --------------------------------------- | --------------------------------------------------- | ------------------------------ |
-| Core internal agent / workflow | SoftWiki Core                           | 知识库内部任务：ingest、build、wiki、claim、answer、eval、publish | 通用用户任务、IDE 操作、跨工具规划            |
-| Shell assistant                | SoftWiki Shell                          | 帮 admin / maintainer 操作 SoftWiki                    | 通用 coding/browser/office agent |
-| WebUI ask                      | SoftWiki Web                            | 调用 Core 的 ask/search/wiki 能力                        | 自己重做复杂 agent loop              |
-| External tool agent            | opencode / Claude / Cursor / custom app | 用户任务、模型选择、多工具编排                                     | SoftWiki Core 内部状态管理           |
+| Type | Belongs to | Responsible for | Not responsible for |
+|---|---|---|---|
+| Core internal agent / workflow | softwiki Core | Knowledge base internal tasks: ingest, build, wiki, claim, answer, eval, publish | General user tasks, IDE operations, cross-tool planning |
+| Shell assistant | softwiki Shell | Help admin / maintainer operate softwiki | General coding/browser/office agent |
+| WebUI ask | softwiki Web | Call Core's ask/search/wiki capabilities | Building complex agent loops itself |
+| External tool agent | opencode / Claude / Cursor / custom app | User tasks, model selection, multi-tool orchestration | softwiki Core internal state management |
 
-关键原则：
+Key principle:
 
 ```text
-SoftWiki Core 要足够聪明，能完成知识库自己的业务；
-但不要成为所有客户端的通用大脑。
+softwiki Core should be smart enough to handle its own business;
+but should not become the general brain for all clients.
 ```
 
 ---
 
-# 5. 高层架构
+# 5. High-Level Architecture
 
 ```mermaid
 graph TD
-    Producer["External Raw Data Producer<br/>human / script / git / rsync / rclone / crawler"] -->|Filesystem / Mounted Folder<br/>SoftWiki Source Scanner| Core["SoftWiki Core<br/>knowledge-domain business logic<br/>ingest / index / wiki / graph / claims / answer / publish"]
-    Core --> Gateway["SoftWiki Server / MCP Gateway<br/>auth / RBAC / audit / HTTP API / MCP tools"]
+    Producer["External Raw Data Producer<br/>human / script / git / rsync / rclone / crawler"] -->|Filesystem / Mounted Folder<br/>softwiki Source Scanner| Core["softwiki Core<br/>knowledge-domain business logic<br/>ingest / index / wiki / graph / claims / answer / publish"]
+    Core --> Gateway["softwiki Server / MCP Gateway<br/>auth / RBAC / audit / HTTP API / MCP tools"]
     Gateway --> WebUI["WebUI Client<br/>human portal"]
     Gateway --> Shell["Shell / TUI Client<br/>power interface"]
     Gateway --> ExtClients["External MCP Clients<br/>opencode / Claude / Cursor / Zed / apps"]
@@ -137,13 +128,13 @@ graph TD
 
 ---
 
-# 6. 推荐子项目划分
+# 6. Recommended Sub-Project Breakdown
 
-SoftWiki 应采用分离式子项目架构。
+softwiki should adopt a separated sub-project architecture.
 
-可以是 multi-repo，也可以是 monorepo packages。
+Can be multi-repo or monorepo packages.
 
-推荐逻辑模块：
+Recommended logical modules:
 
 ```text
 softwiki-core
@@ -156,7 +147,7 @@ softwiki-bridge
 softwiki-apps
 ```
 
-如果采用 monorepo：
+If using monorepo:
 
 ```text
 softwiki/
@@ -174,11 +165,11 @@ softwiki/
 
 ---
 
-# 7. 各子项目职责
+# 7. Sub-Project Responsibilities
 
 ## 7.1 softwiki-core
 
-职责：
+Responsibilities:
 
 ```text
 workspace knowledge runtime
@@ -198,22 +189,22 @@ eval
 publish / rollback
 ```
 
-可以包含：
+May include:
 
 ```text
 knowledge-domain internal agent / workflow
 ```
 
-不负责：
+Not responsible for:
 
 ```text
 WebUI
 Shell UI
-第三方 Agent
-通用任务规划
+third-party agent
+general task planning
 crawler
 raw data acquisition
-用户模型配置
+user model configuration
 IDE / coding workflow
 ```
 
@@ -221,32 +212,32 @@ IDE / coding workflow
 
 ## 7.2 softwiki-server
 
-职责：
+Responsibilities:
 
 ```text
-对外服务进程
+external service process
 HTTP API
 auth
 RBAC
-token 校验
+token validation
 audit log
 workspace routing
-调用 softwiki-core
+calls softwiki-core
 ```
 
-不负责：
+Not responsible for:
 
 ```text
-前端页面
-外部 Agent 决策
-raw data 获取
+frontend pages
+external agent decision making
+raw data acquisition
 ```
 
 ---
 
 ## 7.3 softwiki-mcp
 
-职责：
+Responsibilities:
 
 ```text
 MCP Gateway
@@ -257,7 +248,7 @@ stdio MCP server
 remote HTTP MCP endpoint
 ```
 
-它把 Core 的 domain-level capability 包装成 MCP tools，例如：
+It wraps Core's domain-level capabilities into MCP tools, for example:
 
 ```text
 softwiki.ask
@@ -273,9 +264,9 @@ softwiki.ingest.request
 softwiki.publish
 ```
 
-MCP 暴露的是 domain capability，不是 Core 内部零件。
+MCP exposes domain capability, not Core internal parts.
 
-不推荐暴露过低层接口：
+Exposing too-low-level interfaces is not recommended:
 
 ```text
 softwiki.get_embeddings
@@ -288,26 +279,26 @@ softwiki.agent_do_everything
 
 ## 7.4 softwiki-web
 
-职责：
+Responsibilities:
 
 ```text
 WebUI
 Dashboard
-Ask/Search 页面
+Ask/Search page
 Wiki Web
 Source Browser
 MCP setup page
-Admin status 页面
+Admin status page
 ```
 
-WebUI 是独立客户端。
+WebUI is an independent client.
 
 ```text
-WebUI 通过 HTTP API 或 MCP-backed API 调用 softwiki-server。
-WebUI 不直接访问 Core 内部对象、vector DB、graph DB 或 raw data。
+WebUI calls softwiki-server via HTTP API or MCP-backed API.
+WebUI does not directly access Core internal objects, vector DB, graph DB, or raw data.
 ```
 
-第一阶段 WebUI 可以以只读为主：
+Phase 1 WebUI can be primarily read-only:
 
 ```text
 ask
@@ -319,7 +310,7 @@ view build status
 view MCP config
 ```
 
-后续可以支持轻量贡献：
+Subsequent phases can support lightweight contribution:
 
 ```text
 submit note
@@ -333,10 +324,10 @@ request re-index
 
 ## 7.5 softwiki-cli
 
-职责：
+Responsibilities:
 
 ```text
-命令行管理工具
+command-line management tool
 token create/revoke
 workspace status
 source scan
@@ -345,7 +336,7 @@ mcp config generation
 remote login
 ```
 
-示例：
+Examples:
 
 ```bash
 softwiki token create --workspace chip-kb --role wiki-study
@@ -358,51 +349,51 @@ softwiki mcp config --client opencode --workspace chip-kb
 
 ## 7.6 softwiki-shell / TUI
 
-职责：
+Responsibilities:
 
 ```text
-maintainer / power user 操作界面
-交互式 workspace 操作
-诊断
-build / publish 控制
+maintainer / power user operation interface
+interactive workspace operations
+diagnostics
+build / publish control
 answer trace inspection
 ```
 
-Shell 可以有轻量内部助手，但 scope 限制在 SoftWiki operations。
+Shell can have a lightweight internal assistant, but scope is limited to softwiki operations.
 
 ```text
-Shell Agent scope = SoftWiki operations only.
+Shell Agent scope = softwiki operations only.
 ```
 
-不应变成：
+Should not become:
 
 ```text
-通用 coding agent
-通用 browser automation
-通用办公 agent
+general coding agent
+general browser automation
+general office agent
 ```
 
 ---
 
 ## 7.7 softwiki-bridge
 
-职责：
+Responsibilities:
 
 ```text
 stdio-to-remote MCP bridge
-兼容只支持 stdio MCP 的客户端
+compatibility for clients that only support stdio MCP
 ```
 
-数据流：
+Data flow:
 
 ```text
 External MCP Client
   -> local stdio bridge
-  -> HTTPS remote SoftWiki MCP
-  -> SoftWiki Server
+  -> HTTPS remote softwiki MCP
+  -> softwiki Server
 ```
 
-示例：
+Example:
 
 ```json
 {
@@ -429,9 +420,9 @@ External MCP Client
 
 ## 7.8 softwiki-apps
 
-未来生产力工具放这里，作为独立客户端。
+Future productivity tools go here, as independent clients.
 
-例如：
+For example:
 
 ```text
 paper writer
@@ -441,60 +432,60 @@ review assistant
 research workspace
 ```
 
-这些 app 可以有自己的 Agent：
+These apps can have their own Agents:
 
 ```text
-自己配置 LLM
-自己规划任务
-自己调用 SoftWiki MCP
-自己调用其他工具
+configure their own LLM
+plan their own tasks
+call softwiki MCP themselves
+call other tools themselves
 ```
 
-SoftWiki Core 不承载这些 Agent。
+softwiki Core does not host these Agents.
 
 ---
 
-# 8. 子项目之间如何互通
+# 8. How Sub-Projects Communicate
 
-## 8.1 Core 与 Server
+## 8.1 Core and Server
 
 ```text
 server -> core internal API
 ```
 
-这是内部调用，可以使用本地 library API 或 RPC。
+This is an internal call, can use local library API or RPC.
 
 ---
 
-## 8.2 Server 与 WebUI
+## 8.2 Server and WebUI
 
 ```text
 web -> HTTP API -> server -> core
 ```
 
-WebUI 不直接访问 Core。
+WebUI does not directly access Core.
 
 ---
 
-## 8.3 Server 与外部 Tool
+## 8.3 Server and External Tool
 
 ```text
 external tool -> MCP -> softwiki-mcp/server -> core
 ```
 
-MCP 是外部工具的正式能力边界。
+MCP is the formal capability boundary for external tools.
 
 ---
 
-## 8.4 Shell 与 Server/Core
+## 8.4 Shell and Server/Core
 
-本地模式：
+Local mode:
 
 ```text
 shell -> core/server local API
 ```
 
-远程模式：
+Remote mode:
 
 ```text
 shell -> HTTPS API/MCP -> server -> core
@@ -502,15 +493,15 @@ shell -> HTTPS API/MCP -> server -> core
 
 ---
 
-## 8.5 Raw Data Producer 与 SoftWiki
+## 8.5 Raw Data Producer and softwiki
 
-正式输入边界是 filesystem：
+The formal input boundary is the filesystem:
 
 ```text
 external producer -> filesystem -> softwiki source scanner -> core ingest
 ```
 
-External producer 可以是任意东西：
+The external producer can be anything:
 
 ```text
 manual copy
@@ -523,52 +514,52 @@ Hermes
 company sync tool
 ```
 
-但它们都不属于 SoftWiki 开发范围。
+But none of them fall within softwiki's development scope.
 
 ---
 
-# 9. 知识输入边界
+# 9. Knowledge Input Boundary
 
-SoftWiki 不负责开发、维护或集成 Hermes / crawler / importer / sync tool。
+softwiki is not responsible for developing, maintaining, or integrating Hermes / crawler / importer / sync tool.
 
-SoftWiki 不关心用户如何获得 raw data。
+softwiki does not care how users obtain raw data.
 
-用户可以用任意方式准备 raw data，例如：
+Users can prepare raw data in any way, for example:
 
 ```text
-手工复制文件
+manual file copy
 git clone / git pull
 rsync
 rclone
 wget / curl
-自己写脚本
-公司内部同步工具
+writing their own scripts
+internal company sync tools
 Hermes
 crawler
 downloader
 exported Confluence / Google Drive / Notion data
 ```
 
-这些都不属于 SoftWiki 的开发范围。
+None of these are within softwiki's development scope.
 
-SoftWiki 的正式输入边界是：
+softwiki's formal input boundary is:
 
 ```text
 filesystem
 ```
 
-也就是：
+That is:
 
 ```text
-用户把 raw data 放到 SoftWiki workspace 可访问的目录里。
-SoftWiki 从这些目录读取、扫描、登记、ingest。
+Users place raw data in a directory accessible by the softwiki workspace.
+softwiki reads, scans, registers, and ingests from these directories.
 ```
 
 ---
 
-# 10. Workspace 输入目录
+# 10. Workspace Input Directory
 
-推荐 workspace 结构：
+Recommended workspace structure:
 
 ```text
 workspace/
@@ -588,14 +579,14 @@ workspace/
   sources.yaml
 ```
 
-其中：
+Where:
 
 ```text
-sources/ = 已注册的 raw data source
-uploads/ = 用户或外部工具提交的待处理资料
+sources/ = registered raw data sources
+uploads/ = pending materials submitted by users or external tools
 ```
 
-也可以允许用户把真实 raw data 放在 workspace 外部，然后通过 manifest 指向它：
+Users can also keep actual raw data outside the workspace and point to it via a manifest:
 
 ```yaml
 sources:
@@ -623,55 +614,55 @@ sources:
       - "README.md"
 ```
 
-即使数据来源原本是 Git、Confluence、Google Drive、Hermes 或 crawler，SoftWiki 看到的仍然只是 filesystem path。
+Even if the data source was originally Git, Confluence, Google Drive, Hermes, or a crawler, all softwiki sees is a filesystem path.
 
 ---
 
-# 11. 外部工具如何接入 raw data
+# 11. How External Tools Access Raw Data
 
-外部工具不需要使用 SoftWiki 专用协议。
+External tools do not need to use a softwiki-specific protocol.
 
-只要能把文件写入 SoftWiki 可访问目录即可。
+As long as they can write files to a directory accessible by softwiki.
 
-示例：
+Examples:
 
 ```bash
-# 用户自己同步
+# User syncs manually
 rsync -av ./docs/ /data/softwiki/workspaces/chip-kb/sources/docs/
 
-# 用户自己下载
+# User downloads manually
 wget -P /data/softwiki/workspaces/research-kb/sources/web/ https://example.com/page.html
 
-# 用户自己 clone
+# User clones manually
 git clone git@github.com:org/project.git /data/softwiki/workspaces/chip-kb/sources/repos/project
 
-# 用户自己用 rclone
+# User uses rclone
 rclone sync gdrive:team-docs /data/softwiki/workspaces/team-kb/sources/docs
 ```
 
-SoftWiki 只需要：
+softwiki only needs:
 
 ```bash
 softwiki source scan --workspace chip-kb
 softwiki ingest run --workspace chip-kb
 ```
 
-或者自动 watch / schedule scan。
+Or automatic watch / scheduled scan.
 
 ---
 
-# 12. MCP 写入工具定位
+# 12. MCP Write Tool Positioning
 
-MCP 写入工具可以保留，但不作为主要 raw data 输入路径。
+MCP write tools can be retained, but not as the primary raw data input path.
 
-建议定位：
+Suggested positioning:
 
 ```text
-MCP 写入 = 轻量 contribution / upload / submit
-filesystem = 正式 raw data 输入边界
+MCP write = lightweight contribution / upload / submit
+filesystem = formal raw data input boundary
 ```
 
-外部 Agent 可以调用：
+External agents can call:
 
 ```text
 softwiki.upload.submit
@@ -679,58 +670,58 @@ softwiki.submit.note
 softwiki.propose.wiki_edit
 ```
 
-但这些内容最终仍应落到：
+But these should ultimately land in:
 
 ```text
 workspace/uploads/
 ```
 
-或者等价 staging area。
+Or an equivalent staging area.
 
-不要让 MCP submit 绕过 filesystem / staging / source tracking 直接进入正式知识库。
+Do not let MCP submit bypass filesystem / staging / source tracking and go directly into the formal knowledge base.
 
 ---
 
-# 13. Staging 与 Publish
+# 13. Staging and Publish
 
-外部写入不应该直接修改正式知识库。
+External writes should not directly modify the formal knowledge base.
 
-推荐流程：
+Recommended flow:
 
 ```text
 external tool writes file
   -> uploads/
-  -> SoftWiki scan
+  -> softwiki scan
   -> hash / metadata / dedup
   -> ingest draft
   -> optional review
   -> publish
 ```
 
-权限规则：
+Permission rules:
 
 ```text
-wiki-work 只能写 uploads/staging。
-wiki-manage 才能把内容纳入正式 source / publish。
+wiki-work can only write to uploads/staging.
+wiki-manage can incorporate content into formal source / publish.
 ```
 
 ---
 
-# 14. MCP Transport 与远程访问
+# 14. MCP Transport and Remote Access
 
-SoftWiki 应支持三种 MCP 使用方式。
+softwiki should support three MCP usage modes.
 
 ---
 
 ## 14.1 Local stdio MCP
 
-适合只支持本地 MCP server 的客户端。
+Suitable for clients that only support local MCP server.
 
 ```text
 client -> stdio -> local softwiki MCP server
 ```
 
-示例配置：
+Example configuration:
 
 ```json
 {
@@ -747,20 +738,20 @@ client -> stdio -> local softwiki MCP server
 
 ## 14.2 Remote HTTP MCP
 
-适合 team / cloud 部署。
+Suitable for team / cloud deployment.
 
 ```text
-client -> HTTPS Streamable HTTP MCP -> SoftWiki server
+client -> HTTPS Streamable HTTP MCP -> softwiki server
 ```
 
-示例 endpoint：
+Example endpoints:
 
 ```text
 https://kb.example.com/mcp
 https://kb.example.com/mcp/workspaces/chip-kb
 ```
 
-示例配置：
+Example configuration:
 
 ```json
 {
@@ -779,14 +770,14 @@ https://kb.example.com/mcp/workspaces/chip-kb
 
 ## 14.3 Local stdio-to-remote bridge
 
-有些客户端只支持 stdio，但实际需要访问远程 SoftWiki server。
-这种情况下应提供本地 bridge。
+Some clients only support stdio but need to access a remote softwiki server.
+In this case, a local bridge should be provided.
 
 ```text
-client -> stdio -> softwiki bridge -> HTTPS -> SoftWiki server
+client -> stdio -> softwiki bridge -> HTTPS -> softwiki server
 ```
 
-示例配置：
+Example configuration:
 
 ```json
 {
@@ -809,25 +800,25 @@ client -> stdio -> softwiki bridge -> HTTPS -> SoftWiki server
 }
 ```
 
-这个 bridge 对兼容不同 MCP client 很重要。
+This bridge is important for compatibility with different MCP clients.
 
 ---
 
-# 15. Team 部署模型
+# 15. Team Deployment Model
 
-推荐 team 部署：
+Recommended team deployment:
 
 ```text
-Admin 在 cloud 或内网部署 SoftWiki server。
-SoftWiki 暴露 WebUI + MCP + optional HTTP API。
-Team member 用 WebUI 阅读和搜索。
-Power user 用 Shell / TUI。
-外部 client tool 通过 MCP 连接。
+Admin deploys softwiki server on cloud or intranet.
+softwiki exposes WebUI + MCP + optional HTTP API.
+Team members use WebUI for reading and searching.
+Power users use Shell / TUI.
+External client tools connect via MCP.
 ```
 
-不要要求普通用户都 SSH 登录服务器。
+Do not require regular users to SSH into the server.
 
-推荐角色入口：
+Recommended role entry points:
 
 ```text
 Admin:
@@ -845,11 +836,11 @@ Reader:
 
 ---
 
-# 16. WebUI 模块建议
+# 16. WebUI Module Suggestions
 
-SoftWiki WebUI 应该模块化。
+softwiki WebUI should be modular.
 
-MVP 模块：
+MVP modules:
 
 ```text
 /                 Dashboard
@@ -862,7 +853,7 @@ MVP 模块：
 /admin/status     Build / index / publish status
 ```
 
-后续模块：
+Future modules:
 
 ```text
 /entities         Entity browser
@@ -876,21 +867,21 @@ MVP 模块：
 /reports          Report / paper generation tools
 ```
 
-推荐前端组件策略：
+Recommended frontend component strategy:
 
 ```text
 Chat / Ask:
-  assistant-ui 或 Vercel Chatbot 风格组件
+  assistant-ui or Vercel Chatbot style components
 
 Dashboard:
   shadcn/ui + charts
 
 Wiki:
-  自定义 Markdown/MDX renderer + citation/freshness/sidebar
+  Custom Markdown/MDX renderer + citation/freshness/sidebar
 
 Graph:
-  Cytoscape.js 做 entity graph
-  React Flow 做 provenance / pipeline / trace graph
+  Cytoscape.js for entity graph
+  React Flow for provenance / pipeline / trace graph
 
 Tables:
   TanStack Table
@@ -904,20 +895,20 @@ Source viewer:
   CodeMirror / Monaco
 ```
 
-不要 fork 一个完整 RAG/wiki 产品作为主 WebUI。
-应使用 UI library / component，而不是继承别人的信息架构。
+Do not fork a complete RAG/wiki product as the main WebUI.
+Use UI library / components instead of inheriting someone else's information architecture.
 
 ---
 
-# 17. 安全模型
+# 17. Security Model
 
-远程 MCP 必须按生产 API 对待。
+Remote MCP must be treated as a production API.
 
-最低要求：
+Minimum requirements:
 
 ```text
 HTTPS only
-Bearer token 或 OAuth/OIDC
+Bearer token or OAuth/OIDC
 token expiration
 workspace-scoped access
 role-based authorization
@@ -928,22 +919,22 @@ rate limiting
 read/write tool separation
 ```
 
-不要裸露远程 MCP。
+Do not expose raw remote MCP.
 
 ---
 
-# 18. Token 模型
+# 18. Token Model
 
-Token 应代表：
+A token should represent:
 
 ```text
 identity + workspace scope + role + allowed tools + expiration
 ```
 
-概念 schema：
+Concept schema:
 
 ```ts
-type SoftWikiToken = {
+type softwikiToken = {
   id: string
   name: string
   subject: string              // user, service, agent
@@ -960,14 +951,14 @@ type SoftWikiToken = {
 }
 ```
 
-只保存 token hash。
-创建后不要保存明文 token。
+Only store token hash.
+Do not save plaintext tokens after creation.
 
 ---
 
-# 19. Role 模型
+# 19. Role Model
 
-SoftWiki 权限角色：
+softwiki permission roles:
 
 ```text
 wiki-admin  : system god
@@ -980,34 +971,34 @@ wiki-study  : workspace reader
 
 ## 19.1 wiki-admin
 
-Scope：
+Scope:
 
 ```text
 system-wide
 ```
 
-可以：
+Can:
 
 ```text
-管理所有 workspace
-管理 users / tokens
-修改 system config
-访问所有 tools
+manage all workspaces
+manage users / tokens
+modify system config
+access all tools
 ```
 
-应谨慎使用。
+Should be used with caution.
 
 ---
 
 ## 19.2 wiki-manage
 
-Scope：
+Scope:
 
 ```text
 one or more workspaces
 ```
 
-可以：
+Can:
 
 ```text
 register sources
@@ -1021,25 +1012,25 @@ rollback workspace
 view audit
 ```
 
-不能：
+Cannot:
 
 ```text
-管理整个系统
-访问无关 workspace
-修改全局安全配置
+manage the entire system
+access unrelated workspaces
+modify global security configuration
 ```
 
 ---
 
 ## 19.3 wiki-work
 
-Scope：
+Scope:
 
 ```text
 one or more workspaces
 ```
 
-可以：
+Can:
 
 ```text
 read workspace
@@ -1051,7 +1042,7 @@ submit notes / results
 request ingest
 ```
 
-不能：
+Cannot:
 
 ```text
 publish
@@ -1062,23 +1053,23 @@ directly modify published wiki
 directly modify canonical source store
 ```
 
-关键规则：
+Key rule:
 
 ```text
-wiki-work 只能写 staging / upload，不能直接 publish。
+wiki-work can only write to staging / upload, cannot directly publish.
 ```
 
 ---
 
 ## 19.4 wiki-study
 
-Scope：
+Scope:
 
 ```text
 one or more workspaces
 ```
 
-可以：
+Can:
 
 ```text
 ask
@@ -1089,7 +1080,7 @@ query graph / timeline
 view citation snippets
 ```
 
-默认限制：
+Default restrictions:
 
 ```text
 no upload
@@ -1099,19 +1090,19 @@ no workspace export
 no full raw source download unless explicitly allowed
 ```
 
-注意：
+Note:
 
 ```text
-read-only 不等于可以读完整 raw source。
+read-only does not equal being able to read the entire raw source.
 ```
 
-对 cloud-agent clients，默认只暴露必要 snippet。
+For cloud-agent clients, only expose necessary snippets by default.
 
 ---
 
-# 20. Tool 权限映射
+# 20. Tool Permission Mapping
 
-示例 role-to-tool mapping：
+Example role-to-tool mapping:
 
 ```yaml
 roles:
@@ -1167,9 +1158,9 @@ roles:
 
 ---
 
-# 21. 授权流程
+# 21. Authorization Flow
 
-每次 MCP 请求都应经过：
+Every MCP request should go through:
 
 ```text
 1. Validate token.
@@ -1183,22 +1174,22 @@ roles:
 9. Write audit log.
 ```
 
-参数级校验非常重要。
+Parameter-level validation is very important.
 
-例如：
+For example:
 
 ```text
-wiki-work 可以调用 upload.submit，
-但只能写入自己 workspace 内允许的 upload/staging path。
+wiki-work can call upload.submit,
+but can only write to allowed upload/staging paths within their own workspace.
 ```
 
 ---
 
 # 22. Audit Log
 
-远程 MCP 和 WebUI 操作都应可审计。
+Both remote MCP and WebUI operations should be auditable.
 
-Audit record 应包含：
+An audit record should include:
 
 ```text
 timestamp
@@ -1216,11 +1207,11 @@ latency
 error message if any
 ```
 
-不要记录 raw secret 或完整敏感文档。
+Do not record raw secrets or complete sensitive documents.
 
 ---
 
-# 23. 推荐 MCP Tool 分类
+# 23. Recommended MCP Tool Categories
 
 ## 23.1 Read Tools
 
@@ -1283,11 +1274,11 @@ softwiki.system.status
 
 ---
 
-# 24. 推荐部署结构
+# 24. Recommended Deployment Structure
 
 ```text
 softwiki-server:
-  - access SoftWiki Core
+  - access softwiki Core
   - MCP Gateway
   - HTTP API
   - auth / RBAC / audit
@@ -1308,13 +1299,13 @@ softwiki-worker:
   - ingestion / build / publish jobs
 
 storage:
-  - existing SoftWiki core storage
+  - existing softwiki core storage
   - upload / staging folder
   - audit DB
   - token DB
 ```
 
-Docker deployment 可以包括：
+Docker deployment can include:
 
 ```text
 softwiki-server
@@ -1326,7 +1317,7 @@ reverse proxy
 
 ---
 
-# 25. 推荐 CLI 命令
+# 25. Recommended CLI Commands
 
 ```bash
 softwiki server up
@@ -1367,9 +1358,9 @@ softwiki ingest run \
 
 ---
 
-# 26. 项目间依赖规则
+# 26. Inter-Project Dependency Rules
 
-建议依赖方向：
+Suggested dependency direction:
 
 ```text
 web        -> server API
@@ -1382,7 +1373,7 @@ apps       -> MCP / HTTP API
 core       -> no dependency on web/cli/shell/apps
 ```
 
-禁止反向依赖：
+Forbidden reverse dependencies:
 
 ```text
 core must not depend on web
@@ -1394,31 +1385,31 @@ core must not depend on raw data acquisition tools
 
 ---
 
-# 27. 关键设计原则
+# 27. Key Design Principles
 
 ```text
-1. SoftWiki Core 负责知识库领域内的业务闭环。
-2. Core 可以有 internal agent / workflow。
-3. Core 不做通用 Agent Host。
-4. 外部工具拥有自己的 Agent、模型配置和任务编排。
-5. MCP 是 SoftWiki 对外的能力边界。
-6. WebUI 是独立的人类界面客户端。
-7. Shell / TUI 是 maintainer / power user 的官方客户端。
-8. 未来论文、报告、成果提交工具应作为独立 app，通过 MCP 调用 SoftWiki。
-9. raw data acquisition 不属于 SoftWiki。
-10. SoftWiki 的正式 raw data 输入边界是 filesystem。
-11. 外部写入默认进入 staging / upload。
-12. 只有 manager 可以 publish。
-13. Token 必须绑定 workspace、role、tools、expiration。
-14. Remote MCP 必须使用 HTTPS + auth + RBAC + audit。
-15. read-only 用户不默认拥有完整 raw source 访问权。
-16. 同时支持 remote HTTP MCP 和 local stdio bridge。
-17. 不要把完整第三方 RAG/wiki 产品 merge 成 WebUI。
-18. WebUI 可以使用 UI/component library，但 SoftWiki 自己控制信息架构。
+1. softwiki Core handles knowledge base domain business logic.
+2. Core can have internal agent / workflow.
+3. Core does not do general Agent Host.
+4. External tools own their Agents, model configuration, and task orchestration.
+5. MCP is softwiki's external capability boundary.
+6. WebUI is an independent human interface client.
+7. Shell / TUI is the official maintainer / power user client.
+8. Future paper, report, and result submission tools should be independent apps calling softwiki via MCP.
+9. Raw data acquisition does not belong to softwiki.
+10. softwiki's formal raw data input boundary is the filesystem.
+11. External writes default to staging / upload.
+12. Only managers can publish.
+13. Tokens must bind workspace, role, tools, and expiration.
+14. Remote MCP must use HTTPS + auth + RBAC + audit.
+15. Read-only users do not have full raw source access by default.
+16. Support both remote HTTP MCP and local stdio bridge.
+17. Do not merge a complete third-party RAG/wiki product into WebUI.
+18. WebUI can use UI/component libraries, but softwiki controls its own information architecture.
 ```
 
 ---
 
-# 28. 一句话总结
+# 28. Summary in One Sentence
 
-SoftWiki 应拆成多个分离子项目：Core 负责知识库领域内的完整业务逻辑和 internal workflow；Server/MCP 负责安全能力暴露；WebUI/Shell 是独立客户端；外部工具拥有自己的 Agent，并通过 MCP 调用 SoftWiki 的 domain-level capability；raw data acquisition 不属于 SoftWiki，正式输入边界是 filesystem。
+softwiki should be split into multiple separate sub-projects: Core handles complete business logic and internal workflows within the knowledge base domain; Server/MCP handles secure capability exposure; WebUI/Shell are independent clients; external tools own their Agents and call softwiki's domain-level capabilities through MCP; raw data acquisition does not belong to softwiki; the formal input boundary is the filesystem.

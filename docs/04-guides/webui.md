@@ -1,108 +1,108 @@
-# WebUI 使用指南
+# WebUI Guide
 
-## 启动
+## Launch
 
 ```bash
 ./sw api                    # REST API @ :8000
-cd web && npm run dev       # 前端 @ :3000（可选）
+cd web && npm run dev       # Frontend @ :3000 (optional)
 ```
 
-`./sw api` 启动后端 API 服务，同时托管 WebUI 静态页面。访问 `http://localhost:8000` 即可使用。
+`./sw api` starts the backend API service while also hosting the WebUI static pages. Visit `http://localhost:8000` to use.
 
-如需在开发模式下运行前端（热重载），另开终端执行 `npm run dev`，访问 `http://localhost:3000`。
+To run the frontend in development mode (hot reload), open another terminal and run `npm run dev`, then visit `http://localhost:3000`.
 
-## 面板
+## Panels
 
-### ChatPanel — 研究问答
+### ChatPanel — Research QA
 
-RAG（检索增强生成）对话界面。输入研究问题后，系统跨全文搜索、向量检索、声明库和知识图谱进行检索，生成带来源引用的回答。
+RAG (Retrieval-Augmented Generation) chat interface. Enter a research question and the system searches across full-text, vector index, claim database, and knowledge graph to generate an answer with source citations.
 
-- **来源引用**：每条回答底部列出引用来源，点击可展开 SourceDrawer 侧边栏，查看来源元数据、相关摘要和原文链接
-- **建议问题**：空对话时展示预设问题入口，一键提问
-- **会话内操作**：清空对话（Clear session），Enter 发送，Shift+Enter 换行
-- **状态提示**：API 不可用时显示错误指引
+- **Source citations**: Each answer lists citation sources at the bottom; click to expand the SourceDrawer sidebar showing source metadata, relevant excerpts, and original links
+- **Suggested questions**: Pre-defined question entry points on empty chat for one-click asking
+- **Session operations**: Clear session, Enter to send, Shift+Enter for newline
+- **Status display**: Shows error guidance when API is unavailable
 
-### IngestPanel — 来源摄入
+### IngestPanel — Source Ingestion
 
-支持两种摄入模式：
+Supports two ingestion modes:
 
-- **Web URL**：输入网页链接摄入文本内容
-- **PDF 文件**：拖拽或点击上传 PDF 文件
+- **Web URL**: Input a web link to ingest text content
+- **PDF File**: Drag-and-drop or click to upload a PDF file
 
-可选 Source ID 字段匹配 `configs/sources.yaml` 中的来源配置。摄入成功后自动提取声明（claims）。
+Optional Source ID field matches source configuration in `configs/sources.yaml`. Claims are automatically extracted after successful ingestion.
 
-操作按钮：
+Action buttons:
 
-- **⊕ Ingest Document**：执行摄入
-- **⟳ Rebuild Index**：重建向量 + BM25 全文索引（摄入后必须执行才能搜索到新内容）
+- **⊕ Ingest Document**: Execute ingestion
+- **⟳ Rebuild Index**: Rebuild vector + BM25 full-text index (required after ingestion to search new content)
 
-底部 Activity Log 展示所有操作的实时日志。
+The Activity Log at the bottom shows real-time logs of all operations.
 
-### DocumentsPanel — 已摄入文档
+### DocumentsPanel — Ingested Documents
 
-展示所有已摄入文档的表格，包含：
+Displays a table of all ingested documents:
 
-| 字段 | 说明 |
-|------|------|
-| Title | 文档标题，含原文链接（如有） |
-| Source | 来源名称（如 wikipedia, reuters） |
-| Type | 来源类型（web / pdf / manual） |
-| Published | 发布日期 |
-| Trust Level | 信任标识（high / medium / low） |
-| Actions | 删除按钮（确认后级联删除关联的 chunks、claims、events、relationships） |
+| Field | Description |
+|---|---|
+| Title | Document title with original link (if available) |
+| Source | Source name (e.g., wikipedia, reuters) |
+| Type | Source type (web / pdf / manual) |
+| Published | Publication date |
+| Trust Level | Trust indicator (high / medium / low) |
+| Actions | Delete button (cascade deletes associated chunks, claims, events, relationships after confirmation) |
 
-### ClaimsPanel — 声明与断言
+### ClaimsPanel — Claims & Assertions
 
-展示从已摄入文档中自动提取的结构化声明表格：
+Displays structured claims automatically extracted from ingested documents:
 
-| 字段 | 说明 |
-|------|------|
-| Actor | 声明主体（人物/组织） |
-| Topic | 主题标签 |
-| Stance | 立场分类：Supportive / Cautious / Opposed / Unclear |
-| Confidence | 置信度百分比 |
-| Claim Description | 声明原文 |
-| Date | 发表日期 |
+| Field | Description |
+|---|---|
+| Actor | Claim subject (person/organization) |
+| Topic | Topic label |
+| Stance | Stance classification: Supportive / Cautious / Opposed / Unclear |
+| Confidence | Confidence percentage |
+| Claim Description | Original claim text |
+| Date | Publication date |
 
-顶部提供两个筛选器：
+Two filters at the top:
 
-- **Actor**：按主体筛选（下拉菜单，自动聚合所有出现的 actor）
-- **Stance**：按立场筛选（Supportive / Cautious / Opposed / Unclear）
+- **Actor**: Filter by subject (dropdown, auto-aggregates all appearing actors)
+- **Stance**: Filter by stance (Supportive / Cautious / Opposed / Unclear)
 
-### WikiPanel — Wikipedia 风格阅读器
+### WikiPanel — Wikipedia-Style Reader
 
-将知识库内容编译为结构化 Wiki 页面。
+Compiles knowledge base content into structured Wiki pages.
 
-布局分为三栏：
+Three-column layout:
 
-- **左栏 Topics**：所有可用主题列表，点击切换
-- **中栏 Article**：Markdown 渲染的 Wiki 正文，带内嵌目录（Contents）
-- **右栏 TOC**：粘性目录边栏，滚动时自动高亮当前章节
+- **Left column Topics**: List of all available topics, click to switch
+- **Center column Article**: Markdown-rendered Wiki body with inline table of contents
+- **Right column TOC**: Sticky table of contents sidebar, auto-highlights current section on scroll
 
-操作：
+Actions:
 
-- **◆ Compile Wiki Page**：首次编译所选主题
-- **↻ Rebuild**：重新编译（数据更新后使用）
-- 滚动时 IntersectionObserver 自动追踪活动章节
+- **◆ Compile Wiki Page**: First-time compilation of selected topic
+- **↻ Rebuild**: Recompile (use after data updates)
+- IntersectionObserver auto-tracks active sections during scroll
 
-## 会话管理
+## Session Management
 
-左侧边栏 Sessions 区域：
+Left sidebar Sessions area:
 
-- **创建**：点击 `+` 按钮新建会话
-- **切换**：点击会话项激活
-- **删除**：悬停显示 `✕` 按钮
-- **重命名**：双击会话名称编辑，Enter 确认，Escape 取消
-- **自动命名**：发送首条消息后自动以提问内容命名
-- **持久化**：会话数据（含消息历史）自动保存至浏览器 `localStorage`
+- **Create**: Click the `+` button to create a new session
+- **Switch**: Click a session item to activate
+- **Delete**: Hover shows the `✕` button
+- **Rename**: Double-click the session name to edit, Enter to confirm, Escape to cancel
+- **Auto-naming**: Automatically names the session after the first message's question text
+- **Persistence**: Session data (including message history) is auto-saved to browser `localStorage`
 
-侧边栏顶部导航可在 Chat / Ingest / Documents / Claims / Wiki 五个面板间切换，Documents 和 Claims 面板旁显示计数徽章。
+The sidebar top navigation switches between Chat / Ingest / Documents / Claims / Wiki panels. Documents and Claims panels show count badges.
 
-## 主题切换
+## Theme Switching
 
-右上角浮动按钮，依次循环切换：
+Floating button in the top-right corner, cycles through:
 
 Dark（🌙）→ Light（☀️）→ Auto（◐）→ Dark…
 
-- 设置保存至 `localStorage`，刷新后保留
-- Auto 模式下监听系统 `prefers-color-scheme`，实时响应系统主题变化
+- Setting is saved to `localStorage`, persists across refreshes
+- Auto mode listens to system `prefers-color-scheme`, responds to system theme changes in real time

@@ -1,79 +1,79 @@
-# 配置系统参考
+# Configuration System Reference
 
-## 环境变量完整参考
+## Environment Variable Reference
 
-SoftWiki 的配置通过环境变量驱动。加载顺序为：
+softwiki's configuration is driven by environment variables. The loading order is:
 
-1. 进程已有的环境变量（最高优先级）
-2. `.env` 文件（自动从 `$CWD/.env` 或项目根目录 `.env` 加载，仅当环境变量尚未设置时生效）
-3. 代码内硬编码默认值（最低优先级）
+1. Existing process environment variables (highest priority)
+2. `.env` file (auto-loaded from `$CWD/.env` or project root `.env`, only takes effect when the variable is not already set)
+3. Hardcoded defaults in code (lowest priority)
 
-> **注意**：`.env` 文件中的 `export` 或引号可选——`config.py` 的 `load_env()` 会自动去除首尾引号。
+> **Note**: `export` and quotes in `.env` files are optional — `config.py`'s `load_env()` automatically strips surrounding quotes.
 
-### 工作区 (Workspace)
+### Workspace
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `WORKSPACE_DIR` | `string` | `workspace/default` | — | 当前工作区目录（绝对或相对路径），包含 `config/`、`.softwiki/`、`raw/`、`exports/` 子目录 |
-| `SOFTWIKI_MODE` | `string` | `wiki-admin` | — | 运行模式：`wiki-admin`、`wiki-manage`、`wiki-work`、`wiki-study`、`wiki-user` 或短别名 `study`、`work`、`user`。控制 MCP 工具的读写权限和 shell 行为 |
-| `SOFTWIKI_SESSION_ID` | `string` | `default`（非交互模式）或自动生成 `session-{8位随机}` | — | 当前会话标识。当 `SOFTWIKI_MODE` 为 `wiki-study` / `wiki-work` / `wiki-user` / `study` / `work` / `user` 时若未设置则自动生成 |
-| `SOFTWIKI_SESSION_SUFFIX` | `string` | `null` | — | 会话后缀（仅用于 shell 显示，不影响逻辑） |
-| `SOFTWIKI_ENABLE_WEB_SEARCH` | `string` | _(空字符串)_ | — | 设为 `1`、`true` 或 `yes` 启用服务端 `softwiki_web_search` MCP 工具（默认关闭，仅影响通过 MCP 的外部代理调用） |
+| `WORKSPACE_DIR` | `string` | `workspace/default` | — | Current workspace directory (absolute or relative path), containing `config/`, `.softwiki/`, `raw/`, `exports/` subdirectories |
+| `SOFTWIKI_MODE` | `string` | `wiki-admin` | — | Operating mode: `wiki-admin`, `wiki-manage`, `wiki-work`, `wiki-study` or short aliases `study`, `work`. Controls MCP tool read/write permissions and shell behavior |
+| `SOFTWIKI_SESSION_ID` | `string` | `default` (non-interactive) or auto-generated `session-{8-char random}` | — | Current session ID. Auto-generated when `SOFTWIKI_MODE` is `wiki-study` / `wiki-work` / `study` / `work` and not already set |
+| `SOFTWIKI_SESSION_SUFFIX` | `string` | `null` | — | Session suffix (for shell display only, no logic impact) |
+| `SOFTWIKI_ENABLE_WEB_SEARCH` | `string` | _(empty)_ | — | Set to `1`, `true` or `yes` to enable the server-side `softwiki_web_search` MCP tool (default off, only affects external agent calls via MCP) |
 
-### 核心 LLM (Core LLM)
+### Core LLM
 
-由 `softwiki/intelligence/llm_client.py` 读取，配合 `model_profiles.yaml` 使用。
+Read by `softwiki/intelligence/llm_client.py`, used with `model_profiles.yaml`.
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `OPENAI_API_KEY` | `string` | — | — | OpenAI 兼容 API 密钥。所有非 Ollama 提供商的最终回退目标 |
-| `OPENAI_API_BASE` | `string` | — | — | OpenAI 兼容 API 基础 URL。适用于代理、DeepSeek、Groq、Gemini 等 |
-| `EXTRACTION_MODEL` | `string` | `gpt-4o-mini` | — | 实体抽取/低成本的默认模型名（profile `cheap_extraction` 未设置 `model` 时使用） |
-| `ANALYSIS_MODEL` | `string` | `gpt-4o` | — | 高质量分析的默认模型名（profile `high_quality_analysis` 未设置 `model` 时使用） |
-| `WIKI_MODEL` | `string` | `gemini-2.5-pro` | — | 维基页面编译的默认模型名（profile `wiki_compilation` 未设置 `model` 时使用） |
-| `GEMINI_API_KEY` | `string` | — | → `OPENAI_API_KEY` | 当 `provider` 为 `gemini` 或 `google` 时使用。若未设置则回退到 `OPENAI_API_KEY` |
-| `OLLAMA_API_BASE` | `string` | `http://localhost:11434/v1` | — | 当 `provider` 为 `ollama` 时使用。若未设置则使用默认本地地址 |
+| `OPENAI_API_KEY` | `string` | — | — | OpenAI-compatible API key. Final fallback for all non-Ollama providers |
+| `OPENAI_API_BASE` | `string` | — | — | OpenAI-compatible API base URL. Works with proxies, DeepSeek, Groq, Gemini, etc. |
+| `EXTRACTION_MODEL` | `string` | `gpt-4o-mini` | — | Default model for entity extraction / low-cost tasks (used when profile `cheap_extraction` has no `model` set) |
+| `ANALYSIS_MODEL` | `string` | `gpt-4o` | — | Default model for high-quality analysis (used when profile `high_quality_analysis` has no `model` set) |
+| `WIKI_MODEL` | `string` | `gemini-2.5-pro` | — | Default model for wiki page compilation (used when profile `wiki_compilation` has no `model` set) |
+| `GEMINI_API_KEY` | `string` | — | → `OPENAI_API_KEY` | Used when `provider` is `gemini` or `google`. Falls back to `OPENAI_API_KEY` if not set |
+| `OLLAMA_API_BASE` | `string` | `http://localhost:11434/v1` | — | Used when `provider` is `ollama`. Falls back to default local address if not set |
 
-### Shell / TUI 模型 (Shell Model)
+### Shell / TUI Model
 
-独立于 Core LLM，仅由 `softwiki/cli/shell.py` 用于配置 opencode 代理。
+Independent from Core LLM, only used by `softwiki/cli/shell.py` for opencode agent configuration.
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `SHELL_MODEL` | `string` | `gemini-2.5-flash` | `ANALYSIS_MODEL` → `gemini-2.5-flash` | Shell（opencode）代理的模型。若设置则覆盖 Core LLM 的分析模型 |
-| `SHELL_API_BASE` | `string` | `https://generativelanguage.googleapis.com/v1beta/` | `OPENAI_API_BASE` → `https://generativelanguage.googleapis.com/v1beta/` | Shell 代理的 API 基础 URL。允许 Shell 与 Core LLM 使用不同端点 |
-| `SHELL_API_KEY` | `string` | — | → `OPENAI_API_KEY` | Shell 代理的 API 密钥。若未设置则使用 `OPENAI_API_KEY` |
+| `SHELL_MODEL` | `string` | `gemini-2.5-flash` | `ANALYSIS_MODEL` → `gemini-2.5-flash` | Model for Shell (opencode) agent. Overrides Core LLM analysis model if set |
+| `SHELL_API_BASE` | `string` | `https://generativelanguage.googleapis.com/v1beta/` | `OPENAI_API_BASE` → `https://generativelanguage.googleapis.com/v1beta/` | API base URL for Shell agent. Allows Shell to use different endpoints from Core LLM |
+| `SHELL_API_KEY` | `string` | — | → `OPENAI_API_KEY` | API key for Shell agent. Uses `OPENAI_API_KEY` if not set |
 
-### 嵌入 (Embedding)
+### Embedding
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `EMBEDDING_PROVIDER` | `string` | `openai` | — | 嵌入提供商：`openai`（OpenAI API）或 `local`（本地 sentence-transformers 或基于 TF-IDF 的回退） |
-| `EMBEDDING_MODEL` | `string` | `text-embedding-3-small` | — | 嵌入模型名 |
+| `EMBEDDING_PROVIDER` | `string` | `openai` | — | Embedding provider: `openai` (OpenAI API) or `local` (local sentence-transformers or TF-IDF fallback) |
+| `EMBEDDING_MODEL` | `string` | `text-embedding-3-small` | — | Embedding model name |
 
 ### LightRAG — LLM
 
-LightRAG 图数据库的 LLM 配置，独立于 Core LLM。
+LightRAG graph database LLM configuration, independent from Core LLM.
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `LIGHTRAG_LLM_API_KEY` | `string` | — | → `OPENAI_API_KEY` | LightRAG 专用的 API 密钥。若设置则完全独立于 Core LLM |
-| `LIGHTRAG_LLM_API_BASE` | `string` | `https://api.openai.com/v1` | `OPENAI_API_BASE` → `https://api.openai.com/v1` | LightRAG 专用的 API 基础 URL |
-| `LIGHTRAG_LLM_MODEL` | `string` | `gpt-4o-mini` | `EXTRACTION_MODEL` → `gpt-4o-mini` | LightRAG 实体抽取 + 查询合成的模型 |
+| `LIGHTRAG_LLM_API_KEY` | `string` | — | → `OPENAI_API_KEY` | LightRAG-specific API key. Completely independent from Core LLM if set |
+| `LIGHTRAG_LLM_API_BASE` | `string` | `https://api.openai.com/v1` | `OPENAI_API_BASE` → `https://api.openai.com/v1` | LightRAG-specific API base URL |
+| `LIGHTRAG_LLM_MODEL` | `string` | `gpt-4o-mini` | `EXTRACTION_MODEL` → `gpt-4o-mini` | Model for LightRAG entity extraction + query synthesis |
 
-### LightRAG — 嵌入 (Embedding)
+### LightRAG — Embedding
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `LIGHTRAG_EMBED_PROVIDER` | `string` | `openai` | `EMBEDDING_PROVIDER` → `openai` | LightRAG 专用的嵌入提供商 |
-| `LIGHTRAG_EMBED_API_KEY` | `string` | — | → `OPENAI_API_KEY` | LightRAG 专用的嵌入 API 密钥 |
-| `LIGHTRAG_EMBED_API_BASE` | `string` | `https://api.openai.com/v1` | `OPENAI_API_BASE` → `https://api.openai.com/v1` | LightRAG 专用的嵌入 API 基础 URL |
-| `LIGHTRAG_EMBED_MODEL` | `string` | `text-embedding-3-small` | `EMBEDDING_MODEL` → `text-embedding-3-small` | LightRAG 专用的嵌入模型 |
-| `LIGHTRAG_EMBED_DIM` | `int` | 自动检测 | 内置 `KNOWN_EMBED_DIMS` 映射 → `1536` | 嵌入向量维度。若未设置则根据模型名从内置查找表中自动匹配 |
+| `LIGHTRAG_EMBED_PROVIDER` | `string` | `openai` | `EMBEDDING_PROVIDER` → `openai` | LightRAG-specific embedding provider |
+| `LIGHTRAG_EMBED_API_KEY` | `string` | — | → `OPENAI_API_KEY` | LightRAG-specific embedding API key |
+| `LIGHTRAG_EMBED_API_BASE` | `string` | `https://api.openai.com/v1` | `OPENAI_API_BASE` → `https://api.openai.com/v1` | LightRAG-specific embedding API base URL |
+| `LIGHTRAG_EMBED_MODEL` | `string` | `text-embedding-3-small` | `EMBEDDING_MODEL` → `text-embedding-3-small` | LightRAG-specific embedding model |
+| `LIGHTRAG_EMBED_DIM` | `int` | Auto-detect | Built-in `KNOWN_EMBED_DIMS` mapping → `1536` | Embedding vector dimension. Auto-matched from built-in lookup table by model name if not set |
 
-**内建维度查找表**（`softwiki/graph_rag/adapter.py` 中的 `KNOWN_EMBED_DIMS`）：
+**Built-in dimension lookup table** (`KNOWN_EMBED_DIMS` in `softwiki/graph_rag/adapter.py`):
 
-| 模型 | 维度 |
+| Model | Dimension |
 |---|---|
 | `text-embedding-3-small` | 1536 |
 | `text-embedding-3-large` | 3072 |
@@ -84,68 +84,68 @@ LightRAG 图数据库的 LLM 配置，独立于 Core LLM。
 | `bge-m3` | 1024 |
 | `bge-small-zh-v1.5` | 512 |
 | `all-MiniLM-L6-v2` | 384 |
-| _未知模型_ | 1536（回退） |
+| _Unknown model_ | 1536 (fallback) |
 
-### LightRAG — 存储 (Storage)
+### LightRAG — Storage
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `LIGHTRAG_STORAGE` | `string` | `json` | — | 存储后端：`json`（零配置，文件存储）或 `postgres` |
-| `LIGHTRAG_PG_URL` | `string` | `postgresql://localhost:5432/softwiki` | — | PostgreSQL 连接字符串（仅当 `LIGHTRAG_STORAGE=postgres` 时使用） |
+| `LIGHTRAG_STORAGE` | `string` | `json` | — | Storage backend: `json` (zero-config, file storage) or `postgres` |
+| `LIGHTRAG_PG_URL` | `string` | `postgresql://localhost:5432/softwiki` | — | PostgreSQL connection string (only used when `LIGHTRAG_STORAGE=postgres`) |
 
-### 服务端 Web 搜索 (Server Web Search)
+### Server Web Search
 
-由 `softwiki_web_search` MCP 工具使用。仅在 `SOFTWIKI_ENABLE_WEB_SEARCH=true` 时激活。提供商按优先级尝试：Tavily → SerpAPI → Bing。
+Used by the `softwiki_web_search` MCP tool. Only active when `SOFTWIKI_ENABLE_WEB_SEARCH=true`. Providers prioritized: Tavily → SerpAPI → Bing.
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `TAVILY_API_KEY` | `string` | — | — | Tavily API 密钥（推荐，AI 原生搜索，每月 1000 次免费查询） |
-| `SERPAPI_KEY` | `string` | — | — | SerpAPI 密钥（Google/Bing/Baidu 等，每月 100 次免费查询） |
-| `BING_SEARCH_API_KEY` | `string` | — | — | Azure 必应搜索 API 密钥（Azure Cognitive Services，每月 1000 次免费查询） |
+| `TAVILY_API_KEY` | `string` | — | — | Tavily API key (recommended, AI-native search, 1000 free queries/month) |
+| `SERPAPI_KEY` | `string` | — | — | SerpAPI key (Google/Bing/Baidu, 100 free queries/month) |
+| `BING_SEARCH_API_KEY` | `string` | — | — | Azure Bing Search API key (Azure Cognitive Services, 1000 free queries/month) |
 
-### Shell 客户端 Web 搜索 (Shell Client-side Web Search)
+### Shell Client-side Web Search
 
-由 `softwiki/cli/shell.py` 传递给 opencode 配置。不经过 SoftWiki 服务端。
+Passed by `softwiki/cli/shell.py` to opencode configuration. Does not go through the softwiki server.
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `EXA_API_KEY` | `string` | — | — | Exa API 密钥（exa.ai，每月 1000 次免费查询。优先级最高） |
-| `TAVILY_API_KEY` | `string` | — | — | Tavily API 密钥（优先级次之） |
+| `EXA_API_KEY` | `string` | — | — | Exa API key (exa.ai, 1000 free queries/month. Highest priority) |
+| `TAVILY_API_KEY` | `string` | — | — | Tavily API key (second priority) |
 
-> Shell 客户端搜索默认使用 DuckDuckGo（免费，无需密钥）。`EXA_API_KEY` 和 `TAVILY_API_KEY` 是可选的增强选项。
+> Shell client-side search defaults to DuckDuckGo (free, no API key). `EXA_API_KEY` and `TAVILY_API_KEY` are optional enhancements.
 
-### 特性开关 (Feature Flags)
+### Feature Flags
 
-| 变量 | 类型 | 默认值 | 回退链 | 说明 |
+| Variable | Type | Default | Fallback Chain | Description |
 |---|---|---|---|---|
-| `ENABLED_MODULES` | `string`（逗号分隔） | `rag,graph,claimdb,timeline,llmwiki` | — | 启用的知识处理模块列表。可用值：`rag`、`graph`、`claimdb`、`timeline`、`llmwiki`。逗号分隔，大小写不敏感 |
+| `ENABLED_MODULES` | `string` (comma-separated) | `rag,graph,claimdb,timeline,llmwiki` | — | List of enabled knowledge processing modules. Valid values: `rag`, `graph`, `claimdb`, `timeline`, `llmwiki`. Comma-separated, case-insensitive |
 
 ---
 
-## 配置分辨率优先级
+## Configuration Resolution Priority
 
-SoftWiki 采用三层分辨率策略。环境变量的查找顺序为：
+softwiki uses a three-tier resolution strategy. Environment variables are looked up in this order:
 
 ```
-LIGHTRAG_* 专用变量              ← 最高优先级（仅影响 LightRAG 子系统）
-  → 通用环境变量                 ← 中间优先级（Core LLM 与 Shell 共享）
-    → model_profiles.yaml         ← YAML 内定义
-      → 代码内硬编码默认值        ← 最低保障
+LIGHTRAG_* dedicated variables     ← Highest priority (only affects LightRAG subsystem)
+  → General environment variables  ← Mid priority (shared by Core LLM and Shell)
+    → model_profiles.yaml          ← YAML-defined
+      → Hardcoded code defaults    ← Lowest guarantee
 ```
 
-### 具体链示例
+### Specific Fallback Chains
 
 ```
 LIGHTRAG_LLM_API_KEY
   → OPENAI_API_KEY
-    → (无进一步回退，缺失则 LLM 不可用)
+    → (no further fallback, LLM unavailable if missing)
 
 LIGHTRAG_LLM_MODEL
   → EXTRACTION_MODEL
     → "gpt-4o-mini"
 
 LIGHTRAG_EMBED_DIM
-  → KNOWN_EMBED_DIMS[model]（内建查找表）
+  → KNOWN_EMBED_DIMS[model] (built-in lookup table)
     → 1536
 
 SHELL_MODEL
@@ -153,84 +153,84 @@ SHELL_MODEL
     → "gemini-2.5-flash"
 ```
 
-### LLM 客户端最终参数
+### LLM Client Final Parameters
 
-对于每个 `profile_name`（`cheap_extraction`、`high_quality_analysis`、`wiki_compilation`），最终参数解析为：
+For each `profile_name` (`cheap_extraction`, `high_quality_analysis`, `wiki_compilation`), the final parameters resolve to:
 
 ```
-model_name = profile.model  ??  env(对应_MODEL)  ??  硬编码默认
-api_key    = provider 对应密钥               ??  OPENAI_API_KEY
-base_url   = provider 对应 base_url          ??  OPENAI_API_BASE  ??  默认 API URL
+model_name = profile.model  ??  env(corresponding_MODEL)  ??  hardcoded default
+api_key    = provider-specific key                ??  OPENAI_API_KEY
+base_url   = provider-specific base_url           ??  OPENAI_API_BASE  ??  default API URL
 ```
 
 ---
 
-## model_profiles.yaml 格式
+## model_profiles.yaml Format
 
-`model_profiles.yaml` 位于工作区的 `config/` 目录下（`{WORKSPACE_DIR}/config/model_profiles.yaml`），默认模板在 `softwiki/templates/model_profiles.yaml`。
+`model_profiles.yaml` lives in the workspace `config/` directory (`{WORKSPACE_DIR}/config/model_profiles.yaml`), with a default template at `softwiki/templates/model_profiles.yaml`.
 
-用户可覆盖整个文件，系统加载时若文件不存在或解析失败则回退到环境变量 + 硬编码默认值。
+Users can override the entire file. If the file does not exist or fails to parse, the system falls back to environment variables + hardcoded defaults.
 
-### 结构
+### Structure
 
 ```yaml
 profiles:
-  # ── 嵌入 (Embedding) ──
+  # ── Embedding ──
   local_embedding:
     provider: local           # "openai" | "local" | "gemini"/"google" | "ollama"
-    model: bge-m3             # 嵌入模型名
+    model: bge-m3             # Embedding model name
 
-  # ── 低成本实体抽取 ──
+  # ── Low-cost entity extraction ──
   cheap_extraction:
     provider: openai
-    model: gpt-4o-mini        # 未设置时回退到 EXTRACTION_MODEL → "gpt-4o-mini"
-    temperature: 0.0          # 可选，默认 0.0
-    # max_tokens: 2048        # 可选，不设则使用 OpenAI SDK 默认值
+    model: gpt-4o-mini        # Falls back to EXTRACTION_MODEL → "gpt-4o-mini" if not set
+    temperature: 0.0          # Optional, default 0.0
+    # max_tokens: 2048        # Optional, uses OpenAI SDK default if not set
 
-  # ── 高质量分析推理 ──
+  # ── High-quality analysis ──
   high_quality_analysis:
     provider: openai
-    model: gpt-4o             # 未设置时回退到 ANALYSIS_MODEL → "gpt-4o"
+    model: gpt-4o             # Falls back to ANALYSIS_MODEL → "gpt-4o" if not set
     temperature: 0.2
 
-  # ── 维基页面编译 ──
+  # ── Wiki page compilation ──
   wiki_compilation:
     provider: openai
-    model: gemini-2.5-pro     # 未设置时回退到 WIKI_MODEL → "gemini-2.5-pro"
+    model: gemini-2.5-pro     # Falls back to WIKI_MODEL → "gemini-2.5-pro" if not set
     temperature: 0.2
 ```
 
-### 字段说明
+### Field Descriptions
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |---|---|---|---|
-| `provider` | `string` | `openai` | API 提供商：`openai`、`gemini`/`google`、`ollama`、`local`（仅嵌入）。决定 API 密钥和 base URL 的解析方式 |
-| `model` | `string` | 见上方各 profile | 模型标识符。若未设置则回退到对应的环境变量 |
-| `temperature` | `float` | `0.0` | 生成温度（0.0–2.0） |
-| `max_tokens` | `int` | 不设（SDK 默认） | 每次响应的最大 token 数 |
-| `api_base` | `string` | `provider` 对应默认值 | **仅在 `ollama` 提供商时支持**。覆盖 API 基础 URL |
+| `provider` | `string` | `openai` | API provider: `openai`, `gemini`/`google`, `ollama`, `local` (embedding only). Determines API key and base URL resolution |
+| `model` | `string` | See per-profile | Model identifier. Falls back to corresponding environment variable if not set |
+| `temperature` | `float` | `0.0` | Generation temperature (0.0–2.0) |
+| `max_tokens` | `int` | Not set (SDK default) | Maximum tokens per response |
+| `api_base` | `string` | Provider default | **Only supported for `ollama` provider**. Overrides API base URL |
 
-### Provider 密钥解析规则
+### Provider Key Resolution Rules
 
-| provider | API 密钥来源 | API Base 来源 |
+| provider | API Key Source | API Base Source |
 |---|---|---|
-| `openai` | `OPENAI_API_KEY` | `OPENAI_API_BASE`（可空） |
+| `openai` | `OPENAI_API_KEY` | `OPENAI_API_BASE` (can be empty) |
 | `gemini` / `google` | `GEMINI_API_KEY` → `OPENAI_API_KEY` | `OPENAI_API_BASE` → `https://generativelanguage.googleapis.com/v1beta/` |
-| `ollama` | `ollama`（固定占位符） | `profile.api_base` → `OLLAMA_API_BASE` → `http://localhost:11434/v1` |
-| `local` | 无需密钥 | 无需端点 |
+| `ollama` | `ollama` (fixed placeholder) | `profile.api_base` → `OLLAMA_API_BASE` → `http://localhost:11434/v1` |
+| `local` | No key needed | No endpoint needed |
 
-### 工作区覆盖
+### Workspace Override
 
-工作区可在 `{WORKSPACE_DIR}/config/model_profiles.yaml` 中定义自定义 profile，或覆盖默认 profile 的参数。系统加载时会优先读取工作区文件；若文件不存在或解析失败，则完全使用环境变量 + 硬编码默认值。
+Workspaces can define custom profiles or override default profile parameters in `{WORKSPACE_DIR}/config/model_profiles.yaml`. The system reads the workspace file first; if it does not exist or fails to parse, it falls back entirely to environment variables + hardcoded defaults.
 
-### 子项 mermaid 图
+### Resolution Mermaid Diagram
 
 ```mermaid
 flowchart TD
-    ENV["环境变量 (最高优先级)"] --> YAML["model_profiles.yaml"]
-    YAML --> DEFAULT["代码内硬编码默认值"]
+    ENV["Environment Variables (highest priority)"] --> YAML["model_profiles.yaml"]
+    YAML --> DEFAULT["Hardcoded code defaults"]
     
-    ENV -.->|LIGHTRAG_* 覆盖| LR[LightRAG 子系统]
+    ENV -.->|LIGHTRAG_* overrides| LR[LightRAG Subsystem]
     LR --> LR_LLM["LIGHTRAG_LLM_MODEL<br/>→ EXTRACTION_MODEL<br/>→ gpt-4o-mini"]
     LR --> LR_EMB["LIGHTRAG_EMBED_MODEL<br/>→ EMBEDDING_MODEL<br/>→ text-embedding-3-small"]
 

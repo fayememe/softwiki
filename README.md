@@ -1,17 +1,42 @@
-# SoftWiki
+# softwiki
 
 **Multi-Strategy Research Intelligence Engine.** Unifies RAG, GraphRAG, and LLM-Wiki (Karpathy architecture) into a single MCP-powered knowledge platform. Designed for deep research workflows across isolated knowledge bases.
 
-![SoftWiki Chat Interface](docs/screenshot.svg)
+```mermaid
+graph TD
+    RS["Raw Sources<br/>Web / PDFs / APIs / Notes"] --> ING["Ingestion Pipeline<br/>fetch → clean → dedup"]
 
-## Why SoftWiki?
+    ING --> SS["Source Store<br/>SQLite: documents table<br/>canonical evidence"]
+    SS --> RAG["RAG Index<br/>BM25 + Vector (hybrid)<br/>evidence retrieval"]
+    SS --> EX["Extraction Pipeline<br/>LLM + rule-based"]
 
-> **Not another RAG tool.** SoftWiki is a knowledge operating system — orchestrating heterogeneous retrieval strategies, autonomous extraction pipelines, and agentic collaboration through the Model Context Protocol.
+    EX --> CDB["ClaimDB<br/>actor / stance / topic<br/>structured reasoning"]
+    EX --> KG["Knowledge Graph<br/>entities + relations<br/>relationship reasoning"]
+    EX --> TL["Timeline<br/>chronological events<br/>temporal reasoning"]
+
+    RAG --> INTEL["Intelligence Layer<br/>AnswerEngine"]
+    CDB --> INTEL
+    KG --> INTEL
+    TL --> INTEL
+
+    INTEL --> WIKI["LLM Wiki<br/>compounding markdown pages<br/>human-readable synthesis"]
+
+    style SS fill:#4a90d9,color:#fff
+    style RAG fill:#7b68ee,color:#fff
+    style CDB fill:#2ecc71,color:#fff
+    style KG fill:#f39c12,color:#fff
+    style TL fill:#e74c3c,color:#fff
+    style WIKI fill:#9b59b6,color:#fff
+```
+
+## Why softwiki?
+
+> **Not another RAG tool.** softwiki is a knowledge operating system — orchestrating heterogeneous retrieval strategies, autonomous extraction pipelines, and agentic collaboration through the Model Context Protocol.
 
 ### Hybrid Cognitive Architecture
 
 | Strategy | Method | Use Case |
-|----------|--------|----------|
+|---|---|---|
 | **RAG** | Dense + BM25 hybrid, RRF fusion | Factual retrieval, citation-backed answers |
 | **GraphRAG** | LightRAG — BFS subgraph traversal, 6 query modes | Multi-hop reasoning, relational deep-dives |
 | **LLM-Wiki** | Karpathy-style compounding markdown | Persistent knowledge synthesis, human-readable reports |
@@ -34,18 +59,18 @@ One workspace                 → N isolated knowledge bases
 
 One env var changes the storage backend. Zero code changes.
 
-### MCP-Native Agent Ecosystem
+### Multi-Agent Ecosystem
 
-17 tools exposed through the Model Context Protocol — any MCP-compatible agent (Claude, opencode, Cursor) becomes a native knowledge worker:
+softwiki speaks every agent protocol — not locked to one ecosystem:
 
-| Domain | Tools |
-|--------|-------|
-| **Retrieval** | `ask`, `search`, `retrieve` |
-| **Graph** | `lightrag_query`, `lightrag_explore`, `graph_query` |
-| **Ingestion** | `ingest`, `index` |
-| **Synthesis** | `wiki_build`, `wiki_read` |
-| **Temporal** | `timeline_query`, `claim_query` |
-| **Discovery** | `source_list`, `source_preview`, `web_search`, `status` |
+| Interface | Protocol | Compatible With |
+|---|---|---|
+| **MCP (stdio)** | stdin/stdout JSON-RPC | Claude, opencode, Cursor, Zed, Windsurf |
+| **MCP (SSE)** | HTTP SSE transport | Any remote agent (Hermes, custom runners) |
+| **OpenAI API** | `/v1/chat/completions` | LobeChat, Open WebUI, LibreChat, NextChat |
+| **REST API** | FastAPI, JSON | Custom integrations, curl, scripts |
+
+17 MCP tools exposed across retrieval, graph, ingestion, synthesis, and discovery domains — any MCP-compatible agent becomes a native knowledge worker.
 
 ### Multi-Surface Experience
 

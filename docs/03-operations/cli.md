@@ -1,32 +1,32 @@
-# CLI 命令参考
+# CLI Command Reference
 
-> **范围**: SoftWiki CLI 所有命令、选项和示例的完整参考。
-> **适用对象**: 使用终端的操作人员和高级用户。
+> **Scope**: Complete reference for all softwiki CLI commands, options, and examples.
+> **Audience**: Operators and power users working in the terminal.
 
 ---
 
-## 全局选项
+## Global Options
 
-以下选项适用于所有命令，必须在命令之前指定：
+The following options apply to all commands and must be specified before the command:
 
-| 选项 | 简写 | 类型 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` 环境变量或 `workspace/default` | 指定工作区路径（绝对路径或名称） |
-| `--mode` | | `choice` | `wiki-admin` | 执行模式：`wiki-admin`、`wiki-manage`、`wiki-study`、`wiki-work` |
-| `--session-id` | | `str` | `None` | 会话 ID，用于输出路由（仅用户模式使用） |
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` env or `workspace/default` | Specify workspace path (absolute path or name) |
+| `--mode` | | `choice` | `wiki-admin` | Execution mode: `wiki-admin`, `wiki-manage`, `wiki-study`, `wiki-work` |
+| `--session-id` | | `str` | `None` | Session ID for output routing (user modes only) |
 
-**模式说明**:
+**Mode description**:
 
-| 模式 | 权限 | 用途 |
-|------|------|------|
-| `wiki-admin` | 读写 | 完全管理权限，可执行所有操作 |
-| `wiki-manage` | 读写 | 管理工作区内容，无系统级操作 |
-| `wiki-study` | 只读 | 仅查询和分析，禁止写入操作 |
-| `wiki-work` | 只读 | 工作模式，仅查询和分析 |
+| Mode | Permissions | Purpose |
+|---|---|---|
+| `wiki-admin` | Read/write | Full admin access, all operations |
+| `wiki-manage` | Read/write | Manage workspace content, no system-level operations |
+| `wiki-study` | Read-only | Query and analysis only, writes disabled |
+| `wiki-work` | Read-only | Work mode, query and analysis only |
 
-> **注意**: `init`、`ingest`、`index` 在 `wiki-study` 和 `wiki-work` 模式下被禁用。`wiki build` 在 `wiki-study` 模式下被禁用。
+> **Note**: `init`, `ingest`, `index` are disabled in `wiki-study` and `wiki-work` modes. `wiki build` is disabled in `wiki-study` mode.
 
-启动时，CLI 会显示当前激活的工作区和模式：
+On startup, the CLI displays the active workspace and mode:
 
 ```
 [*] Active Workspace: /home/user/softwiki/workspace/my-project
@@ -35,19 +35,19 @@
 
 ---
 
-## 命令参考
+## Command Reference
 
-### `init` — 初始化工作区
+### `init` — Initialize Workspace
 
-初始化文件夹结构、配置文件和数据表。
+Initialize folder structure, configuration files, and database tables.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] init
+softwiki [global options] init
 ```
 
-**说明**: 创建以下目录结构：
+**Description**: Creates the following directory structure:
 
 ```
 workspace/<name>/
@@ -70,66 +70,66 @@ workspace/<name>/
 └── scope.md
 ```
 
-从模板目录复制默认配置文件（`sources.yaml`、`model_profiles.yaml`、`scope.md`），如果模板不存在则创建占位符。初始化数据库表并从 `sources.yaml` 中预填充源配置。
+Copies default config files from templates (`sources.yaml`, `model_profiles.yaml`, `scope.md`), creates placeholders if templates are missing. Initializes database tables and pre-populates source configs from `sources.yaml`.
 
-**示例**:
+**Examples**:
 
 ```bash
-# 初始化默认工作区
+# Initialize default workspace
 softwiki init
 
-# 初始化指定工作区
+# Initialize specific workspace
 softwiki -w ~/research/my-project init
 ```
 
 ---
 
-### `ingest` — 导入文档
+### `ingest` — Import Documents
 
-导入文档，进行清理，提取元数据，运行提取流程（实体、关系、事件、声明），并保存到数据库。
+Import a document, clean it, extract metadata, run extraction pipeline (entities, relationships, events, claims), and save to database.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] ingest --url <URL> [--source-id <ID>]
-softwiki [全局选项] ingest --file <PATH> [--source-id <ID>]
+softwiki [global options] ingest --url <URL> [--source-id <ID>]
+softwiki [global options] ingest --file <PATH> [--source-id <ID>]
 ```
 
-**选项**:
+**Options**:
 
-| 选项 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `--url` | `str` | 见说明 | 从网页 URL 导入内容 |
-| `--file` | `str` | 见说明 | 从本地 PDF 文件导入内容 |
-| `--source-id` | `str` | 否 | 关联 `configs/sources.yaml` 中的预定义源 ID |
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `--url` | `str` | See note | Import content from a web URL |
+| `--file` | `str` | See note | Import content from a local PDF file |
+| `--source-id` | `str` | No | Associate with a predefined source ID from `configs/sources.yaml` |
 
-> `--url` 和 `--file` 必须至少指定一个，不能同时使用。
+> `--url` and `--file` must specify at least one, cannot be used together.
 
-**流程**:
+**Flow**:
 
-1. 获取内容（网页抓取或 PDF 提取）
-2. 通过范围检查（`scope.md`）验证文档是否在范围内
-3. 基于内容哈希和 URL 进行去重
-4. 保存到文档数据库
-5. 运行提取流程：实体、关系、事件、声明
+1. Fetch content (web scraping or PDF extraction)
+2. Validate document is in scope via scope check (`scope.md`)
+3. Deduplicate based on content hash and URL
+4. Save to document database
+5. Run extraction pipeline: entities, relationships, events, claims
 
-**示例**:
+**Examples**:
 
 ```bash
-# 从 URL 导入，不关联来源
+# Import from URL, no source association
 softwiki ingest --url https://example.com/article
 
-# 从 URL 导入，关联来源
+# Import from URL with source association
 softwiki ingest --url https://example.com/report --source-id world-bank
 
-# 从本地 PDF 导入
+# Import from local PDF
 softwiki ingest --file /path/to/document.pdf
 
-# 从 PDF 导入，关联来源
+# Import PDF with source association
 softwiki ingest --file ./paper.pdf --source-id academic-journal
 ```
 
-**输出**:
+**Output**:
 
 ```text
 Ingesting URL: https://example.com/article...
@@ -140,35 +140,35 @@ Extraction complete: 15 claims, 8 entities, 12 relationships, 3 events extracted
 
 ---
 
-### `index` — 重建搜索索引
+### `index` — Rebuild Search Index
 
-为所有文档重建稠密向量索引（嵌入）和稀疏 BM25 关键词索引。
+Rebuild dense vector index (embeddings) and sparse BM25 keyword index for all documents.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] index
+softwiki [global options] index
 ```
 
-**说明**: 对工作区数据库中的每个文档，执行以下操作：
+**Description**: For each document in the workspace database:
 
-1. 删除现有块
-2. 将清洗后的文本分块
-3. 为所有块生成嵌入向量
-4. 更新 FAISS 向量索引
-5. 重建 BM25 关键词索引
+1. Delete existing chunks
+2. Chunk the cleaned text
+3. Generate embedding vectors for all chunks
+4. Update FAISS vector index
+5. Rebuild BM25 keyword index
 
-**示例**:
+**Examples**:
 
 ```bash
-# 重建所有索引
+# Rebuild all indexes
 softwiki index
 
-# 在另一个工作区重建索引
+# Rebuild index in another workspace
 softwiki -w my-project index
 ```
 
-**输出**:
+**Output**:
 
 ```text
 Building search indexes...
@@ -181,70 +181,70 @@ Indexing complete!
 
 ---
 
-### `ask` — 研究问答
+### `ask` — Research Question
 
-使用混合 RAG 检索 + 图上下文 + LLM 综合的智能系统回答研究问题。
+Answer research questions using a hybrid RAG retrieval + graph context + LLM synthesis system.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] ask "<问题>"
+softwiki [global options] ask "<question>"
 ```
 
-**参数**:
+**Parameters**:
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `question` | `str` | 是 | 自然语言研究问题 |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `question` | `str` | Yes | Natural language research question |
 
-**示例**:
+**Examples**:
 
 ```bash
-# 基本研究问题
+# Basic research question
 softwiki ask "What are the key drivers of de-dollarization?"
 
-# 多语言查询
-softwiki ask "各国央行黄金储备变化趋势如何？"
+# Multi-language query
+softwiki ask "What are the trends in central bank gold reserves?"
 
-# 在特定工作区中提问
+# Question in a specific workspace
 softwiki -w geo-economics ask "How has BRICS expansion affected USD reserve share?"
 ```
 
-**输出**: 包含引用的综合回答，源自检索到的块和图上下文。
+**Output**: A comprehensive answer with citations, sourced from retrieved chunks and graph context.
 
 ---
 
-### `wiki` — Wiki 页面管理
+### `wiki` — Wiki Page Management
 
-#### `wiki build` — 构建 Wiki 页面
+#### `wiki build` — Build Wiki Page
 
-为指定主题 ID 编译并生成 Markdown wiki 页面。
+Compile and generate a Markdown wiki page for a topic ID.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] wiki build --topic <TOPIC_ID>
+softwiki [global options] wiki build --topic <TOPIC_ID>
 ```
 
-**选项**:
+**Options**:
 
-| 选项 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `--topic` | `str` | 是 | 要构建页面的主题 ID |
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `--topic` | `str` | Yes | Topic ID to build page for |
 
-> 在 `wiki-study` 模式下禁用。
+> Disabled in `wiki-study` mode.
 
-**示例**:
+**Examples**:
 
 ```bash
-# 构建国家主题的 wiki 页面
+# Build wiki page for a country topic
 softwiki wiki build --topic de-dollarization
 
-# 构建组织主题的 wiki 页面
+# Build wiki page for an organization topic
 softwiki wiki build --topic world-bank
 ```
 
-**输出**:
+**Output**:
 
 ```text
 Generating wiki page for topic: 'de-dollarization'...
@@ -253,86 +253,86 @@ Wiki page successfully written to: /path/to/workspace/export/wiki/topics/de-doll
 
 ---
 
-### `shell` — 启动交互式 TUI
+### `shell` — Launch Interactive TUI
 
-启动交互式研究和管理的终端用户界面（TUI）。
+Launch an interactive research and management terminal user interface (TUI).
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] shell [选项]
+softwiki [global options] shell [options]
 ```
 
-**选项**:
+**Options**:
 
-| 选项 | 简写 | 类型 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` 或 `workspace/default` | 工作区名称或路径 |
-| `--model` | `-m` | `str` | `ANALYSIS_MODEL` 或 `gemini-2.5-flash` | 用于分析的模型 |
-| `--session` | `-s` | `str` | `None` | 自定义会话名称后缀。终端会话 ID = `{workspace}-{mode}-{session}` |
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--workspace` | `-w` | `str` | `WORKSPACE_DIR` or `workspace/default` | Workspace name or path |
+| `--model` | `-m` | `str` | `ANALYSIS_MODEL` or `gemini-2.5-flash` | Model for analysis |
+| `--session` | `-s` | `str` | `None` | Custom session name suffix. Terminal session ID = `{workspace}-{mode}-{session}` |
 
-> **注意**: `--model` 和 `--session` 是 TUI 帮助命令的全局标志。通过 TUI 发出的命令应通过 `open-code` 工作流使用，该工作流使用在 `shell` 启动时注入的上下文调用工具。
+> **Note**: `--model` and `--session` are global flags for the TUI help commands. Commands issued through the TUI should use the `open-code` workflow, which calls tools using the context injected at shell startup.
 
-**示例**:
+**Examples**:
 
 ```bash
-# 启动默认工作区的 TUI
+# Launch TUI with default workspace
 softwiki shell
 
-# 启动特定工作区和模型的 TUI
+# Launch TUI with specific workspace and model
 softwiki -w geo-economics shell -m gemini-2.5-pro
 
-# 启动具有自定义会话名称的 TUI
+# Launch TUI with custom session name
 softwiki shell --workspace my-project --session round-2
 ```
 
 ---
 
-### `api` — 启动 REST API 服务器
+### `api` — Start REST API Server
 
-启动 REST API 服务器。
+Start the REST API server.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] api [选项]
+softwiki [global options] api [options]
 ```
 
-**选项**:
+**Options**:
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `--port` | `int` | `8000` | API 服务器的端口 |
-| `--host` | `str` | `127.0.0.1` | API 服务器绑定的主机 |
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--port` | `int` | `8000` | API server port |
+| `--host` | `str` | `127.0.0.1` | API server bind host |
 
-**示例**:
+**Examples**:
 
 ```bash
-# 在默认地址启动 API 服务器
+# Start API server on default address
 softwiki api
 
-# 在自定义端口启动 API 服务器
+# Start API server on custom port
 softwiki api --port 9000
 
-# 绑定到所有接口
+# Bind to all interfaces
 softwiki api --host 0.0.0.0 --port 8080
 ```
 
 ---
 
-### `graph` — 图谱管理
+### `graph` — Graph Management
 
-#### `graph list` — 列出实体和关系
+#### `graph list` — List Entities and Relationships
 
-列出工作区中所有已提取的实体和关系。
+List all extracted entities and relationships in the workspace.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] graph list
+softwiki [global options] graph list
 ```
 
-**输出**:
+**Output**:
 
 ```text
 === Entities (24) ===
@@ -349,19 +349,19 @@ softwiki [全局选项] graph list
 
 ---
 
-### `timeline` — 时间线管理
+### `timeline` — Timeline Management
 
-#### `timeline list` — 列出时间线事件
+#### `timeline list` — List Timeline Events
 
-按时间顺序列出工作区中所有已提取的事件。
+List all extracted events in chronological order.
 
-**用法**:
+**Usage**:
 
 ```bash
-softwiki [全局选项] timeline list
+softwiki [global options] timeline list
 ```
 
-**输出**:
+**Output**:
 
 ```text
 === Chronological Events (12) ===
@@ -375,44 +375,44 @@ softwiki [全局选项] timeline list
 
 ---
 
-## 退出码
+## Exit Codes
 
-| 退出码 | 含义 |
-|--------|------|
-| `0` | 成功 |
-| `1` | 一般错误（无效参数、操作失败、文档超出范围等） |
+| Exit Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | General error (invalid parameters, operation failure, document out of scope, etc.) |
 
 ---
 
-## 使用模式
+## Usage Patterns
 
-### 管理工作区
+### Managing Workspaces
 
 ```bash
-# 初始化并设置
+# Initialize and setup
 softwiki -w my-research init
 
-# 导入文档
+# Import documents
 softwiki -w my-research ingest --url https://example.com/article --source-id source-1
 softwiki -w my-research ingest --file ./papers/report.pdf
 
-# 重建索引
+# Rebuild index
 softwiki -w my-research index
 ```
 
-### 研究查询
+### Research Queries
 
 ```bash
-# 在只读模式下查询
+# Query in read-only mode
 softwiki -w my-research --mode wiki-work ask "What are the latest developments?"
 
-# 启动 TUI 进行交互式研究
+# Launch TUI for interactive research
 softwiki -w my-research --mode wiki-work shell
 ```
 
-### Wiki 发布
+### Wiki Publishing
 
 ```bash
-# 生成并查看主题页面
+# Generate and view topic page
 softwiki wiki build --topic my-topic
 ```
