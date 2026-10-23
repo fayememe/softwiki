@@ -74,6 +74,7 @@ journalctl -u softwiki-deploy -f
 ```
 
 - 轮询周期：3 分钟；`flock` 防止并发。
+- `softwiki-deploy.service` 默认使用生产端口 `6200/6100/6108`；并行验证时可覆盖环境变量。
 - 状态：`~/softwiki-ci/.deploy/last-deployed-sha`、`last-good-sha`。
 - 强制重跑：`FORCE=1 ~/softwiki-ci/scripts/ci-deploy.sh`。
 
