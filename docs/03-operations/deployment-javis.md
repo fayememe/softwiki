@@ -85,6 +85,26 @@ cd ~/softwiki-ci
 TAG=<sha> docker compose --project-name softwiki up -d --no-build
 ```
 
+## Embedding（OpenAI）
+
+javis 的 `.env` 需要独立的 embedding 凭据（不要和 chat 的 Google/DeepSeek key 混用）：
+
+```env
+EMBEDDING_PROVIDER=openai
+EMBEDDING_API_BASE=https://api.openai.com/v1
+EMBEDDING_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_BATCH_SIZE=100
+```
+
+`text-embedding-3-small` 是 1536 维；切换后必须重建索引：
+
+```bash
+curl -X POST --max-time 900 http://127.0.0.1:6300/api/index
+```
+
+重建会把全部文档重新切块并重新向量化，旧向量索引会被覆盖。
+
 ## 数据与密钥
 
 - `workspace/` 用 bind mount，**不要** `docker compose down -v`。

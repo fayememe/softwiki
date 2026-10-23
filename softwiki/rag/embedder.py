@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 from typing import List
 
@@ -9,8 +10,8 @@ def get_openai_client():
     global _openai_client
     if _openai_client is None:
         from openai import OpenAI
-        api_key = os.getenv("OPENAI_API_KEY")
-        api_base = os.getenv("OPENAI_API_BASE")
+        api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+        api_base = os.getenv("EMBEDDING_API_BASE") or os.getenv("OPENAI_API_BASE")
         _openai_client = OpenAI(api_key=api_key, base_url=api_base)
     return _openai_client
 
@@ -22,8 +23,15 @@ def get_local_model(model_name: str):
             print(f"Loading local embedding model '{model_name}'...")
             _local_model = SentenceTransformer(model_name)
         except ImportError:
-            print("WARNING: 'sentence-transformers' not installed. Falling back to simple TF-IDF mock embeddings.")
-            _local_model = "fallback"
+            if os.getenv("SOFTWIKI_ALLOW_MOCK_EMBEDDINGS", "").lower() in ("1", "true", "yes"):
+                print("WARNING: sentence-transformers missing; using mock random embeddings.")
+                _local_model = "fallback"
+            else:
+                raise RuntimeError(
+                    "sentence-transformers is not installed and EMBEDDING_PROVIDER=local. "
+                    "Install it, switch to EMBEDDING_PROVIDER=openai, or set "
+                    "SOFTWIKI_ALLOW_MOCK_EMBEDDINGS=1 for throwaway testing."
+                )
     return _local_model
 
 class WikiEmbedder:
@@ -48,23 +56,24 @@ class WikiEmbedder:
             except Exception as e:
                 print(f"Error loading embedding profile: {e}")
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        if not texts:
-            return []
+    def _embed_openai(self, texts: List[str]) -> List[List[float]]:
+        client = get_openai_client()
+        batch_size = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "100")))
+        embeddings: List[List[float]] = []
+        for start in range(0, len(texts), batch_size):
+            batch = texts[start:start + batch_size]
+            for attempt in range(3):
+                try:
+                    response = client.embeddings.create(input=batch, model=self.model_name)
+                    embeddings.extend([data.embedding for data in response.data])
+                    break
+                except Exception:
+                    if attempt == 2:
+                        raise
+                    time.sleep(2 ** attempt)
+        return embeddings
 
-        if self.provider == "openai":
-            try:
-                client = get_openai_client()
-                response = client.embeddings.create(
-                    input=texts,
-                    model=self.model_name
-                )
-                return [data.embedding for data in response.data]
-            except Exception as e:
-                print(f"OpenAI embedding failed ({e}). Attempting local fallback...")
-                self.provider = "local"
-                self.model_name = "all-MiniLM-L6-v2"
-
+    def _embed_local(self, texts: List[str]) -> List[List[float]]:
         model = get_local_model(self.model_name)
         if model == "fallback":
             embeddings = []
@@ -75,9 +84,16 @@ class WikiEmbedder:
                 vec = vec / norm if norm > 0 else vec
                 embeddings.append(vec.tolist())
             return embeddings
-        else:
-            vecs = model.encode(texts)
-            return vecs.tolist()
+        return model.encode(texts).tolist()
+
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+        if self.provider == "openai":
+            return self._embed_openai(texts)
+        if self.provider in ("local", "sentence-transformers"):
+            return self._embed_local(texts)
+        raise ValueError(f"Unsupported EMBEDDING_PROVIDER: {self.provider}")
 
     def embed_query(self, text: str) -> List[float]:
         return self.embed_texts([text])[0]
