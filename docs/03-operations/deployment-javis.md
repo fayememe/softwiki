@@ -13,7 +13,7 @@
 
 - 数据：`/opt/aitools/apps/softwiki/workspace` → 容器 `/data/workspace`（SQLite 等仍在其中）。
 - 密钥：`/opt/aitools/apps/softwiki/.env`（不进镜像、不进 git）。
-- 当前活动库：`SOFTWIKI_ACTIVE_WORKSPACE=lsl-kb`。
+- 当前活动库：`SOFTWIKI_ACTIVE_WORKSPACE=armkb`（API 可用 `/api/workspace` 切换；MCP 需重启容器才会跟随）。
 
 ## 前置
 

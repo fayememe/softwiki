@@ -9,7 +9,7 @@ User=faye
 WorkingDirectory=/home/faye/softwiki-ci
 Environment=SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env
 Environment=SOFTWIKI_WORKSPACE=/opt/aitools/apps/softwiki/workspace
-Environment=SOFTWIKI_ACTIVE_WORKSPACE=lsl-kb
+Environment=SOFTWIKI_ACTIVE_WORKSPACE=armkb
 Environment=API_HOST_PORT=6200
 Environment=MCP_HOST_PORT=6100
 Environment=WEB_HOST_PORT=6108
