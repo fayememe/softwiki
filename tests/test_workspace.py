@@ -98,7 +98,7 @@ def test_opencode_config_generation():
         abs_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         runtime_dir = get_workspace_runtime_dir(ws, abs_project_root)
 
-        with patch("os.execvp") as mock_execvp, patch("softwiki.cli.shell._print_banner"), patch("time.sleep"):
+        with patch("os.execvp") as mock_execvp, patch("softwiki.cli.shell._print_banner"), patch("time.sleep"), patch("softwiki.cli.shell.shutil.which", return_value="/usr/bin/opencode"):
             start_shell()
             
             # Verify opencode.json was generated inside the project-level runtime directory

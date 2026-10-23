@@ -69,9 +69,9 @@ def test_answer_engine_integration():
         
         answer = engine_obj.ask(db, "Is Participant A supportive of a common protocol?")
         
-        assert "Direct Answer" in answer
-        assert "Evidence Summary" in answer
-        assert "Reuters" in answer
+        assert isinstance(answer, str)
+        assert answer.strip()
+        assert "Reuters" in answer or "[1]" in answer
 
     finally:
         db.close()

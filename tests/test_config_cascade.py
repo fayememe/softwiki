@@ -15,7 +15,7 @@ def test_config_cascade():
     try:
         # Load default agent soul
         default_soul = load_merged_agent_soul()
-        assert "Softwiki Lead Analyst" in default_soul
+        assert "SoftWiki Knowledge Base Administrator" in default_soul
         
         # Write custom agent soul
         custom_soul_text = "Custom domain-independent analysis instructions."
@@ -23,7 +23,7 @@ def test_config_cascade():
             f.write(custom_soul_text)
             
         merged_soul = load_merged_agent_soul()
-        assert "Softwiki Lead Analyst" in merged_soul
+        assert "SoftWiki Knowledge Base Administrator" in merged_soul
         assert custom_soul_text in merged_soul
         
         # Load default workflows
