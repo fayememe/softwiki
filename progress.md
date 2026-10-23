@@ -72,6 +72,7 @@
 - [ ] **OCR 范围**：扫描版 PDF 是否必须支持？决定 T1 工作量。
 - [ ] **既有未提交改动**：MCP transport 改造需要单独提交/验证，不要与新工作混在一起。
 - [!] **部署方式待确认**：Docker Compose 迁移 vs 保留 systemd；端口/反代；Ollama 是否作为默认 embedding/LLM。
+- [!] **javis 无法拉取 origin**（`git@10.3.9.19: Permission denied (publickey)`）：需在 Forgejo 仓库加 javis 的 deploy key（read-only）；否则 CI 只能跑在工作站。
 
 ## 下一步（NEXT）
 
