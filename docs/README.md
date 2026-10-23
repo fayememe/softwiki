@@ -23,7 +23,7 @@ graph TD
 > 给「下一个 session」看的快照。保持更新。
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
-- **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量向量索引重建中）。
+- **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量索引完成）。
 - **进度台账**：[`../progress.md`](../progress.md)（推进的唯一基准）
 - **试用清单**：[`05-roadmap/trial-readiness.md`](./05-roadmap/trial-readiness.md)（10 步验收 + P0/P1 任务）
 - **长期路线**：[`05-roadmap/status.md`](./05-roadmap/status.md)

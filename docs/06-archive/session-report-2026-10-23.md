@@ -2,7 +2,7 @@
 
 > 范围：试用就绪（Trial Readiness）第一轮落地。
 > 目标：单校、单实例、自部署、试用评估。
-> 结论：**核心链路已通，测试全绿；唯一未完成的是 armkb 全量向量索引（OpenAI TPM 限速，后台进行中）。**
+> 结论：**核心链路已通，测试全绿；armkb 全量索引已完成，`search` / `ask` / `/api/report` 均已验证。**
 
 ---
 
@@ -128,10 +128,17 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 
 ---
 
+### 4.1 验收证据
+
+- `search "PL031 registers"` → PL031 TRM `page_start=5, page_end=7`。
+- `ask "What registers does the PL031 RTC provide?"` → 引用包含 `p.12`、`pp.9-10`、`p.23` 等页码。
+- `/api/report` → `20261023-204514-b20cb2063f91`，`report.md` + `manifest.json` 可下载。
+- `pytest tests -q` → 48 passed。
+
 ## 5. 未完成 / 风险
 
-- [!] **armkb 全量索引进行中**：1M TPM 下最少约 45–60 分钟；完成前只有旧索引，搜索结果可能不完整。
-- [!] **索引完成后必须验收**：`search` 的 page 字段、`ask` 的页码引用、`/api/report`。
+- [x] **armkb 全量索引已完成**：39,870 chunks；2026-10-23 12:50–13:38（约 48 分钟，1M TPM）。
+- [x] **已验证**：`search` 返回 page_start/page_end；`ask` 引用显示 `p.N` / `pp.N-M`；`/api/report` 生成并下载 report.md + manifest.json。
 - [!] **抽取窗口**：`run_extraction_pipeline` 只取每篇前 15k 字符；大手册结构化层只覆盖开头。RAG 覆盖全文。
 - [ ] **认证 UI**：后端已就绪，WebUI 没有登录页；线上 auth 默认关闭。
 - [ ] **TLS/反代**：javis 没有 Caddy/Nginx；试用先用 HTTP 端口。
@@ -143,11 +150,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 
 ## 6. 接手步骤
 
-1. 检查索引：
-   ```bash
-   cat /tmp/armkb-index3.json
-   ```
-   期望 `{"status":"success","indexed_chunks":39870}`。
+1. 索引已完成（`{"status":"success","indexed_chunks":39870}`）。
 2. 验证：
    ```bash
    curl -fsS http://127.0.0.1:6200/api/status
@@ -155,10 +158,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
      -H 'Content-Type: application/json' \
      -d '{"question":"What registers does the PL031 RTC provide?","template":"research-report"}'
    ```
-3. 重开 CI timer：
-   ```bash
-   sudo systemctl start softwiki-deploy.timer
-   ```
+3. CI timer 已重新启用（`systemctl is-active softwiki-deploy.timer` → active）。
 4. 后续优先级：
    - 抽取窗口改成窗口/分块抽取；
    - WebUI 登录页 + 启用 auth；

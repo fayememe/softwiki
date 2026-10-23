@@ -49,7 +49,7 @@
   - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
   - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → javis `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
   - 全量：73 篇文档 / 2122 claims / 835 entities / 1328 relationships / 375 events；81 个 PDF 中 70 success、11 duplicate、0 failed。
-  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`armkb` 39,870 chunks；全量向量索引后台重建中。
+  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`armkb` 39,870 chunks，全量索引已完成。
   - 抽取：`cheap_extraction` / `wiki_compilation` 已切 DeepSeek（Google 402）；抽取窗口仍是每篇前 15k 字符。
   - 旧 clone `~/mydrv/git/softwiki` 的 `84e25ae`（Makefile CI/CD）未推送，但已被 Docker CI 取代。
   - Ollama 仍可用（`nomic-embed-text` 等），但当前不用于 embedding。
@@ -95,9 +95,9 @@
 - [x] javis deploy key 已加入 Forgejo。
 - [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 并发 + TPM 限速。
 - [x] **切流 + CI timer**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
-- [!] **CI timer 暂停中**：索引期间停掉，防止重启 API；索引完成后 `sudo systemctl start softwiki-deploy.timer`。
-- [!] **armkb 全量索引进行中**：`/tmp/armkb-index3.json`；39,870 chunks；1M TPM 下预计 45–60 分钟。
-- [~] **armkb 数据**：73 篇 / 2122 claims / 835 entities / 1328 relationships / 375 events；索引完成前搜索不完整。
+- [x] **CI timer 已重新启用**。
+- [x] **armkb 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
+- [x] **armkb 数据**：73 篇 / 39,870 chunks / 2122 claims / 835 entities / 1328 relationships / 375 events。
 - [!] **抽取窗口限制**：只取每篇前 15k 字符；大手册结构化层不完整，RAG 覆盖全文。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
@@ -105,11 +105,10 @@
 
 ## 下一步（NEXT）
 
-1. **等 armkb 全量索引完成** → 验证 `search` 的 page 字段、`ask` 的页码引用、`/api/report`。
-2. **重开 CI timer** → `sudo systemctl start softwiki-deploy.timer`。
-3. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
-4. **认证 UI + TLS + Postgres**：试用后按学校要求推进。
-5. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
+1. **抽样验收**：用更多 ARM 问题检查页码/引用质量；补充 golden questions。
+2. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
+3. **认证 UI + TLS + Postgres**：试用后按学校要求推进。
+4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
 
 ## 本 session 状态记录（handoff）
 
