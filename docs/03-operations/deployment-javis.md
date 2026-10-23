@@ -1,0 +1,99 @@
+# javis 部署（Docker Compose + CI/CD）
+
+> 目标：把 softwiki 以 Docker Compose 部署到 `javis`（`10.3.9.29`），由 CI 自动构建、启动、健康检查与回滚。
+> 试用阶段与旧 systemd 部署**并行**：旧栈占 `6100/6108/6200`，新栈先用 `6301/6308/6300`，验收后再切。
+
+## 拓扑
+
+| 服务 | 容器端口 | 宿主端口（并行） | 说明 |
+|---|---|---|---|
+| `api` | 6200 | 6300 | FastAPI REST |
+| `mcp` | 6100 | 6301 | MCP（SSE + Streamable HTTP） |
+| `web` | 6108 | 6308 | Next.js，`/api` 反代到 `http://api:6200` |
+
+- 数据：`/opt/aitools/apps/softwiki/workspace` → 容器 `/data/workspace`（SQLite 等仍在其中）。
+- 密钥：`/opt/aitools/apps/softwiki/.env`（不进镜像、不进 git）。
+- 当前活动库：`SOFTWIKI_ACTIVE_WORKSPACE=lsl-kb`。
+
+## 前置
+
+1. javis 已安装 Docker 26 + Compose 2.26。
+2. javis 的 SSH key 已作为 **read-only deploy key** 加入 Forgejo 仓库 `faye/softwiki`。
+3. `/opt/aitools/apps/softwiki/.env` 存在。
+
+验证：
+
+```bash
+ssh faye@javis 'cd ~/mydrv/git/softwiki && git ls-remote origin HEAD'
+```
+
+## 首次部署（并行端口）
+
+```bash
+ssh faye@javis
+git clone ssh://git@10.3.9.19:2222/faye/softwiki.git ~/softwiki-ci
+SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env \
+  ~/softwiki-ci/scripts/ci-deploy.sh
+```
+
+脚本会：拉取 `origin/master` → 按 SHA 构建镜像 → `docker compose up -d` → 健康检查 → 写 `.deploy/last-good-sha`。
+
+验收：
+
+```bash
+curl -fsS http://127.0.0.1:6300/api/status
+curl -fsSI http://127.0.0.1:6308/
+nc -z 127.0.0.1 6301 && echo mcp-ok
+```
+
+## 切流（停旧 systemd）
+
+验收通过后：
+
+```bash
+sudo systemctl stop softwiki-api softwiki-mcp softwiki-web
+sudo systemctl disable softwiki-api softwiki-mcp softwiki-web
+```
+
+然后把 `deploy/softwiki-deploy.service` 里的端口改为 `6200/6100/6108`，或手动执行：
+
+```bash
+API_HOST_PORT=6200 MCP_HOST_PORT=6100 WEB_HOST_PORT=6108 \
+SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env \
+  ~/softwiki-ci/scripts/ci-deploy.sh
+```
+
+## CI 定时器
+
+```bash
+sudo cp ~/softwiki-ci/deploy/softwiki-deploy.service \
+        ~/softwiki-ci/deploy/softwiki-deploy.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now softwiki-deploy.timer
+journalctl -u softwiki-deploy -f
+```
+
+- 轮询周期：3 分钟；`flock` 防止并发。
+- 状态：`~/softwiki-ci/.deploy/last-deployed-sha`、`last-good-sha`。
+- 强制重跑：`FORCE=1 ~/softwiki-ci/scripts/ci-deploy.sh`。
+
+## 回滚
+
+```bash
+cat ~/softwiki-ci/.deploy/last-good-sha
+cd ~/softwiki-ci
+TAG=<sha> docker compose --project-name softwiki up -d --no-build
+```
+
+## 数据与密钥
+
+- `workspace/` 用 bind mount，**不要** `docker compose down -v`。
+- `.env` 只放在宿主；不要 `COPY` 进镜像，也不要提交。
+- 备份：`tar` 打包 `workspace/` 与 `.env`；恢复时停栈后覆盖。
+
+## 注意事项
+
+- 当前镜像只安装基础依赖，**不含 LightRAG**；`graph` 模块会回退到 SQL。需要 LightRAG 时在 `pyproject.toml` 的 `[graph]` extra 里安装并重建。
+- `api` 与 `mcp` 是两个容器，各自持有 `WORKSPACE_DIR`；用 API 切库不会同步到 MCP（与旧 systemd 行为一致）。
+- SQLite 只适合单用户/小规模；多用户试用前应切 PostgreSQL（T12 后续项）。
+- 端口 `6100/6108/6200` 被旧 systemd 占用，切流前不要改默认端口。

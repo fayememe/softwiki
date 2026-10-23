@@ -1,0 +1,70 @@
+x-api-common: &api-common
+  build:
+    context: .
+    target: api
+  image: softwiki-api:${TAG:-latest}
+  env_file:
+    - ${SOFTWIKI_ENV_FILE:-.env}
+  environment:
+    WORKSPACE_DIR: /data/workspace/${SOFTWIKI_ACTIVE_WORKSPACE:-lsl-kb}
+    SOFTWIKI_ENABLE_WEB_SEARCH: "true"
+  volumes:
+    - ${SOFTWIKI_WORKSPACE:-./workspace}:/data/workspace
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  api:
+    <<: *api-common
+    command: ["python", "-m", "softwiki.cli.main", "api", "--host", "0.0.0.0", "--port", "6200"]
+    ports:
+      - "${API_HOST_PORT:-6300}:6200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6200/api/status', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  mcp:
+    <<: *api-common
+    command: ["python", "-m", "softwiki.cli.main", "mcp", "--host", "0.0.0.0", "--port", "6100", "--transport", "both"]
+    ports:
+      - "${MCP_HOST_PORT:-6301}:6100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 6100), 3).close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        API_INTERNAL_URL: http://api:6200
+    image: softwiki-web:${TAG:-latest}
+    environment:
+      API_INTERNAL_URL: http://api:6200
+    ports:
+      - "${WEB_HOST_PORT:-6308}:6108"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6108').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s

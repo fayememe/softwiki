@@ -1,4 +1,4 @@
-.PHONY: install init test clean
+.PHONY: install init test clean docker-build docker-up docker-down docker-logs ci-deploy
 
 install:
 	pip install -e .
@@ -17,3 +17,18 @@ test:
 clean:
 	rm -rf build/ dist/ *.egg-info .pytest_cache
 	find . -type d -name __pycache__ -exec rm -rf {} +
+
+docker-build:
+	TAG=$${TAG:-dev} docker compose build
+
+docker-up:
+	TAG=$${TAG:-dev} docker compose up -d --no-build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f --tail=100
+
+ci-deploy:
+	./scripts/ci-deploy.sh
