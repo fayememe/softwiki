@@ -95,7 +95,9 @@
 - [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 独立凭据；索引重建为 4196 chunks；`search` / `ask` 已验证。
 - [x] **javis 并行栈验收 + 切流 + CI timer**：Docker 接管 `6200`/`6100`/`6108`，旧 systemd 已 stop + disable，timer 已验证 `up to date`。
 - [!] **claims=0 / events=0**：抽取已切 DeepSeek，但历史 820 篇未重新抽取；新文档会正常抽取。
-- [!] **armkb 全量入库进行中**：81 篇；完成后必须 `POST /api/index` 才能检索；日志 `/tmp/armkb-ingest.log`。
+- [!] **armkb 全量入库进行中**：`/tmp/armkb-ingest.log`；完成后必须 `POST /api/index` 才能检索。
+- [!] **CI timer 暂停中**：入库 + 索引期间停掉，防止重启 API 杀掉抽取线程；完成后 `sudo systemctl start softwiki-deploy.timer`。
+- [~] **armkb 进度**：13/81 已上传；claims 263 / entities 173 / relationships 193 / events 50（随入库增长）。
 - [!] **抽取窗口限制**：`run_extraction_pipeline` 只取 `cleaned_text[:15000]`；ARM 大手册只覆盖开头，claims/entities/events 不完整；RAG 覆盖全文。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；建议移到 `.env` / secret store，并轮换聊天中暴露的 OpenAI key。
 - [ ] **TLS/反代**：javis 目前没有 Caddy/Nginx/Traefik；试用先用 HTTP 端口。
