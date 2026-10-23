@@ -16,7 +16,9 @@
   - 落地工作方式：`AGENTS.md`、`progress.md`、`opencode.json`、`docs/README.md` 交接段；
   - **commit/push 策略 A 已确认**：逻辑单元自动 commit + 里程碑 / session 结束自动 push；
   - 修复 `softwiki/config.py` 缺少 `typing.Optional` 导入（javis 的 Python 3.13 会直接 NameError）；
-  - 核查 javis 部署现状（systemd 三服务 + `make deploy`）。
+  - 核查 javis 部署现状（systemd 三服务 + `make deploy`）；
+  - 落地 Docker Compose 栈（API / MCP / Web）+ CI 轮询脚本 + systemd timer；
+  - 本地端到端验证通过：API 健康、Web 200、Web `/api` 反代、MCP 端口。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
@@ -25,13 +27,17 @@
   - `a3d1c9d` feat(mcp): 双传输
   - `fd69c5b` docs(progress): session 交接
   - `6bdb598` fix(config): Optional 导入
-  - 已推送 `origin/master`（`f19c296..6bdb598`）。
+  - `1f9497a` fix(deps): mcp/python-multipart
+  - `b0ac803` feat(web): API_INTERNAL_URL
+  - `563d992` feat(deploy): Docker Compose
+  - `54ba06a` feat(ci): 轮询部署 + timer
+  - 已推送 `origin/master`（`f19c296..54ba06a`）。
 - **部署现状（javis = 10.3.9.29）**：
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
   - 现有：systemd 三服务 `softwiki-api`（6200）/ `softwiki-mcp`（6100）/ `softwiki-web`（6108），运行目录 `/opt/aitools/apps/softwiki`；源码 clone `~/mydrv/git/softwiki`，`make deploy` = 前端 build + rsync + systemctl restart。
   - clone 本地有**未推送**的 `84e25ae`（Makefile CI/CD）；其未提交的 `config.py` / `sse.py` 修复已在本仓库落库。
   - 已装 Ollama（11434），模型含 `nomic-embed-text`、`gemma4:26b`、`mistral-small3.1`、`deepseek-r1`。
-  - **建议（待确认）**：迁移到 Docker Compose；CI/CD 先用 systemd timer 轮询 `origin/master`（无需 runner），后续可换 Forgejo Actions / registry。
+  - **已落地**：Docker Compose（`Dockerfile` / `docker-compose.yml`）+ CI 轮询（`scripts/ci-deploy.sh` + `deploy/softwiki-deploy.timer`），并行端口 6300/6301/6308；本地已端到端验证。
 
 ## 研发计划（checklist）
 
@@ -59,7 +65,7 @@
 ### M3 — 能交付（P1）
 - [ ] T10 模板系统 + `research-report` / `course-qa`
 - [ ] T11 报告异步 + `report.md` + `manifest.json`
-- [ ] T12 Docker Compose + TLS + `/health` + CI/CD（timer 轮询 `origin/master`）
+- [~] T12 Docker Compose + CI/CD（本地验证通过，待 javis 首次部署；TLS/反代未做）
 - [ ] T13 备份 / 恢复脚本
 - [ ] T14 每模板 10 个 golden questions + 验收文档
 
@@ -70,13 +76,16 @@
 - [!] **测试基线不可信**：全量 `pytest` 挂起（>120s），疑似真实网络调用；M0 未完成前，任何“通过”都不可信。
 - [ ] **数据库选择**：试用版 Postgres 还是 SQLite？（建议 Postgres；SQLite 只适合单用户演示）
 - [ ] **OCR 范围**：扫描版 PDF 是否必须支持？决定 T1 工作量。
-- [ ] **既有未提交改动**：MCP transport 改造需要单独提交/验证，不要与新工作混在一起。
-- [!] **部署方式待确认**：Docker Compose 迁移 vs 保留 systemd；端口/反代；Ollama 是否作为默认 embedding/LLM。
-- [!] **javis 无法拉取 origin**（`git@10.3.9.19: Permission denied (publickey)`）：需在 Forgejo 仓库加 javis 的 deploy key（read-only）；否则 CI 只能跑在工作站。
+- [x] javis deploy key 已加入 Forgejo（`git ls-remote` 通过）。
+- [!] **embedding 实际是随机回退**：javis `.env` 为 `EMBEDDING_PROVIDER=local` / `all-MiniLM-L6-v2`，但未安装 `sentence-transformers`；`WikiEmbedder` 会回退到按 `hash(text)` 生成的随机向量，RAG 结果不可信。需装 `sentence-transformers`、改 Ollama embedding，或改云端 embedding，并重建索引。
+- [!] **密钥明文**：`workspace/lsl-kb/config/model_profiles.yaml` 里有明文 API key；建议移到 `.env` / secret store，并轮换已暴露的 key。
+- [ ] **javis 首次构建/并行栈验收**：在 6300/6301/6308 起 Docker 栈，验证后再切流。
+- [ ] **TLS/反代**：javis 目前没有 Caddy/Nginx/Traefik；试用先用 HTTP 端口。
+- [ ] **Ollama 默认策略**：`.env` 当前 `EMBEDDING_PROVIDER=local`，LLM 走 Gemini 兼容接口；是否改为 Ollama 待定。
 
 ## 下一步（NEXT）
 
-1. **部署方案**：确认 Docker Compose vs 保留 systemd；写 Dockerfile / compose + CI timer（javis）。
+1. **javis 首次部署**：clone `~/softwiki-ci` → 跑 `scripts/ci-deploy.sh` → 验收 6300/6301/6308 → 再决定切流与 timer。
 2. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
 3. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
 4. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
@@ -84,15 +93,19 @@
 
 ## 本 session 状态记录（handoff）
 
-- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署与 Docker 可行性。
+- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证。
 - **关键产物**：
   - `AGENTS.md`（项目宪法）
   - `progress.md`（本文件）
   - `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）
+  - `Dockerfile` / `docker-compose.yml` / `scripts/ci-deploy.sh` / `docs/03-operations/deployment-javis.md`
 - **易踩坑**：
   - `venv` 的 editable 安装原本指向 `/home/faye/mydrv/git/softwki`（空壳），导致测试导入错仓库；
   - `tests/__pycache__` 里的旧 `.pyc` 仍带旧路径；
   - 全量 pytest 会挂起，必须先离线 mock；
+  - `mcp>=2` 会把 `FastMCP` 改名并破坏 `softwiki.mcp.sse`，必须 `<2.0.0`；
+  - Next.js 在 Docker 内反代要 `API_INTERNAL_URL=http://api:6200`，不能用 `127.0.0.1`；
+  - `docker compose config` 会把 `.env` 里的真实密钥渲染出来，不要贴日志；
   - `/api/ask` 会重复检索一次，且 `AskRequest` 丢弃 `mode`/`history`；
   - `scope guard` 没有接进 `AnswerEngine.ask`；
   - workspace 切换是全局 `os.environ`，并发用户会互相覆盖。
