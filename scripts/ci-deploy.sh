@@ -49,7 +49,7 @@ echo "[ci] deploying $SHA"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans
 
 health() {
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 90); do
     if curl -fsS -m 3 "http://127.0.0.1:${API_HOST_PORT}/api/status" >/dev/null 2>&1 \
       && curl -fsS -m 3 -o /dev/null "http://127.0.0.1:${WEB_HOST_PORT}/" \
       && (echo > "/dev/tcp/127.0.0.1/${MCP_HOST_PORT}") >/dev/null 2>&1; then
