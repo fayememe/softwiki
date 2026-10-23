@@ -5,6 +5,8 @@ from typing import List, Dict, Any
 from rank_bm25 import BM25Okapi
 from softwiki.config import get_index_path
 
+_BM25_CACHE = {}
+
 def tokenize(text: str) -> List[str]:
     if not text:
         return []
@@ -36,15 +38,26 @@ class Bm25Store:
 
     def load(self):
         current_path = self.get_current_path()
+        cached = _BM25_CACHE.get(current_path)
+        if cached is not None:
+            self.chunk_ids, self.corpus_texts, self.bm25 = cached
+            self.last_loaded_path = current_path
+            return
         if os.path.exists(current_path):
             try:
                 with open(current_path, "rb") as f:
                     data = pickle.load(f)
                     self.chunk_ids = data["chunk_ids"]
                     self.corpus_texts = data["corpus_texts"]
-                if self.corpus_texts:
+                    self.bm25 = data.get("bm25")
+                if self.bm25 is None and self.corpus_texts:
                     tokenized_corpus = [tokenize(t) for t in self.corpus_texts]
                     self.bm25 = BM25Okapi(tokenized_corpus)
+                    self.last_loaded_path = current_path
+                    self.save()
+                _BM25_CACHE[current_path] = (
+                    self.chunk_ids, self.corpus_texts, self.bm25
+                )
                 self.last_loaded_path = current_path
             except Exception as e:
                 print(f"Error loading BM25 index at {current_path}: {e}. Starting fresh.")
@@ -66,11 +79,20 @@ class Bm25Store:
         self._ensure_correct_index_loaded()
         current_path = self.get_current_path()
         os.makedirs(os.path.dirname(current_path), exist_ok=True)
-        with open(current_path, "wb") as f:
-            pickle.dump({
-                "chunk_ids": self.chunk_ids,
-                "corpus_texts": self.corpus_texts
-            }, f)
+        payload = {
+            "chunk_ids": self.chunk_ids,
+            "corpus_texts": self.corpus_texts,
+        }
+        if self.bm25 is not None:
+            payload["bm25"] = self.bm25
+        try:
+            with open(current_path, "wb") as f:
+                pickle.dump(payload, f)
+        except Exception:
+            payload.pop("bm25", None)
+            with open(current_path, "wb") as f:
+                pickle.dump(payload, f)
+        _BM25_CACHE[current_path] = (self.chunk_ids, self.corpus_texts, self.bm25)
         self.last_loaded_path = current_path
 
     def add_documents(self, chunk_id_to_text: Dict[int, str]):

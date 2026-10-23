@@ -92,6 +92,17 @@ class LoginRequest(BaseModel):
     password: str
 
 
+@app.on_event("startup")
+def warm_indexes():
+    try:
+        from softwiki.rag.vector_store import LocalVectorStore
+        from softwiki.rag.bm25_store import Bm25Store
+        LocalVectorStore()
+        Bm25Store()
+    except Exception as e:
+        print(f"Index warmup skipped: {e}")
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
