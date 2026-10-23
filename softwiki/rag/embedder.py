@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 _openai_client = None
@@ -59,19 +60,29 @@ class WikiEmbedder:
     def _embed_openai(self, texts: List[str]) -> List[List[float]]:
         client = get_openai_client()
         batch_size = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "100")))
-        embeddings: List[List[float]] = []
-        for start in range(0, len(texts), batch_size):
-            batch = texts[start:start + batch_size]
+        concurrency = max(1, int(os.getenv("EMBEDDING_CONCURRENCY", "4")))
+        batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+
+        def embed_batch(batch):
             for attempt in range(3):
                 try:
                     response = client.embeddings.create(input=batch, model=self.model_name)
-                    embeddings.extend([data.embedding for data in response.data])
-                    break
+                    return [data.embedding for data in response.data]
                 except Exception:
                     if attempt == 2:
                         raise
                     time.sleep(2 ** attempt)
-        return embeddings
+
+        results: List[List[List[float]] | None] = [None] * len(batches)
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            futures = {
+                pool.submit(embed_batch, batch): index
+                for index, batch in enumerate(batches)
+            }
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
+
+        return [vector for batch in results if batch for vector in batch]
 
     def _embed_local(self, texts: List[str]) -> List[List[float]]:
         model = get_local_model(self.model_name)
