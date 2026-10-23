@@ -1,10 +1,11 @@
+import json
 import os
 import sys
 import shutil
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -266,6 +267,25 @@ def create_report(req: ReportRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+
+@app.get("/api/report/{report_id}")
+def download_report(report_id: str):
+    safe = os.path.basename(report_id)
+    path = os.path.join(get_export_dir("reports"), safe, "report.md")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(path, media_type="text/markdown", filename=f"{safe}.md")
+
+
+@app.get("/api/report/{report_id}/manifest")
+def report_manifest(report_id: str):
+    safe = os.path.basename(report_id)
+    path = os.path.join(get_export_dir("reports"), safe, "manifest.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Report not found")
+    with open(path, encoding="utf-8") as f:
+        return JSONResponse(json.load(f))
 
 
 @app.post("/api/ingest/url")
