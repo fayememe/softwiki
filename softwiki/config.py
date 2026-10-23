@@ -34,6 +34,13 @@ def get_workspace_dir() -> str:
     """Returns the active workspace directory, defaulting to 'workspace/default'."""
     return os.path.abspath(os.getenv("WORKSPACE_DIR", "workspace/default"))
 
+def get_workspaces_root() -> str:
+    """Returns the directory containing all workspaces."""
+    root = os.getenv("WORKSPACES_ROOT")
+    if root:
+        return os.path.abspath(root)
+    return os.path.dirname(get_workspace_dir())
+
 def get_db_url() -> str:
     """Returns the SQLite database URL inside .softwiki/."""
     db_path = os.path.join(get_workspace_dir(), ".softwiki", "processed.db")
@@ -172,9 +179,8 @@ def set_workspace_dir(path: str):
     os.environ["WORKSPACE_DIR"] = os.path.abspath(path)
 
 def list_workspaces() -> list:
-    """Scan the workspace/ directory for available workspaces."""
-    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "workspace")
-    base = os.path.abspath(base)
+    """Scan the workspaces root for available workspaces."""
+    base = get_workspaces_root()
     if not os.path.isdir(base):
         return []
     candidates = []

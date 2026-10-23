@@ -844,9 +844,8 @@ def workspace_set(name: str) -> str:
     Args:
         name: Workspace directory name (e.g. 'eva-kb', 'default').
     """
-    from softwiki.config import set_workspace_dir
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ws_path = os.path.join(project_root, "..", "workspace", name)
+    from softwiki.config import set_workspace_dir, get_workspaces_root
+    ws_path = os.path.join(get_workspaces_root(), name)
     ws_path = os.path.abspath(ws_path)
     if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
         return f"Workspace '{name}' not found or not initialized."

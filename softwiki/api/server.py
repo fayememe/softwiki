@@ -11,7 +11,7 @@ from pydantic import BaseModel
 # Ensure parent directory is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces
+from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces, get_workspaces_root
 from softwiki.source_store.db import SessionLocal
 from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event
 from softwiki.source_store.document_repo import DocumentRepository
@@ -585,8 +585,7 @@ class WorkspaceSwitchRequest(BaseModel):
 @app.post("/api/workspace")
 def switch_workspace(req: WorkspaceSwitchRequest):
     """Switch the active workspace at runtime."""
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ws_path = os.path.join(project_root, "workspace", req.workspace)
+    ws_path = os.path.join(get_workspaces_root(), req.workspace)
     ws_path = os.path.abspath(ws_path)
     if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
         raise HTTPException(status_code=404, detail=f"Workspace '{req.workspace}' not found or not initialized.")
