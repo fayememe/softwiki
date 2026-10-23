@@ -18,7 +18,9 @@
   - 修复 `softwiki/config.py` 缺少 `typing.Optional` 导入（javis 的 Python 3.13 会直接 NameError）；
   - 核查 javis 部署现状（systemd 三服务 + `make deploy`）；
   - 落地 Docker Compose 栈（API / MCP / Web）+ CI 轮询脚本 + systemd timer；
-  - 本地端到端验证通过：API 健康、Web 200、Web `/api` 反代、MCP 端口。
+  - 本地端到端验证通过：API 健康、Web 200、Web `/api` 反代、MCP 端口；
+  - 修复 embedding：OpenAI `text-embedding-3-small`（1536 维）+ 分批；重建索引 4196 chunks；
+  - 切流完成：Docker 接管 6200/6100/6108，旧 systemd 已 stop + disable；CI timer 已安装并验证。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
@@ -31,14 +33,18 @@
   - `b0ac803` feat(web): API_INTERNAL_URL
   - `563d992` feat(deploy): Docker Compose
   - `54ba06a` feat(ci): 轮询部署 + timer
-  - 已推送 `origin/master`（`f19c296..54ba06a`）。
+  - `ae6357e` docs(progress): 并行栈部署
+  - `2bdbbec` feat(embed): 分批 + 独立凭据
+  - `62726c3` fix(chunker): 限制 chunk 大小
+  - `394e858` chore(deploy): 生产端口
+  - 已推送 `origin/master`（`f19c296..394e858`）。
 - **部署现状（javis = 10.3.9.29）**：
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
-  - 现有：systemd 三服务 `softwiki-api`（6200）/ `softwiki-mcp`（6100）/ `softwiki-web`（6108），运行目录 `/opt/aitools/apps/softwiki`；源码 clone `~/mydrv/git/softwiki`，`make deploy` = 前端 build + rsync + systemctl restart。
-  - clone 本地有**未推送**的 `84e25ae`（Makefile CI/CD）；其未提交的 `config.py` / `sse.py` 修复已在本仓库落库。
-  - 已装 Ollama（11434），模型含 `nomic-embed-text`、`gemma4:26b`、`mistral-small3.1`、`deepseek-r1`。
-  - **已落地**：Docker Compose（`Dockerfile` / `docker-compose.yml`）+ CI 轮询（`scripts/ci-deploy.sh` + `deploy/softwiki-deploy.timer`），并行端口 6300/6301/6308；本地已端到端验证。
-  - **2026-10-23 已部署并行栈**：commit `ae6357e`，容器全部 healthy；Web `6308` 200，API `6300/api/status` 200，MCP `6301` 端口通（`/mcp` GET 406 属预期）。旧 systemd（6100/6108/6200）未停，timer 未安装。
+  - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询（已手动验证 `up to date`）。
+  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；索引 4196 chunks；`search` 与 `ask` 已验证。
+  - 抽取：`cheap_extraction` / `wiki_compilation` 已切 DeepSeek（Google 402）；`claims=0` / `events=0` 仍待重新抽取或新文档。
+  - 旧 clone `~/mydrv/git/softwiki` 的 `84e25ae`（Makefile CI/CD）未推送，但已被 Docker CI 取代。
+  - Ollama 仍可用（`nomic-embed-text` 等），但当前不用于 embedding。
 
 ## 研发计划（checklist）
 
@@ -66,7 +72,7 @@
 ### M3 — 能交付（P1）
 - [ ] T10 模板系统 + `research-report` / `course-qa`
 - [ ] T11 报告异步 + `report.md` + `manifest.json`
-- [~] T12 Docker Compose + CI/CD（本地验证通过，待 javis 首次部署；TLS/反代未做）
+- [x] T12 Docker Compose + CI/CD（已切流 6200/6100/6108；TLS/反代未做）
 - [ ] T13 备份 / 恢复脚本
 - [ ] T14 每模板 10 个 golden questions + 验收文档
 
@@ -78,26 +84,24 @@
 - [ ] **数据库选择**：试用版 Postgres 还是 SQLite？（建议 Postgres；SQLite 只适合单用户演示）
 - [ ] **OCR 范围**：扫描版 PDF 是否必须支持？决定 T1 工作量。
 - [x] javis deploy key 已加入 Forgejo（`git ls-remote` 通过）。
-- [!] **embedding 实际是随机回退**：javis `.env` 为 `EMBEDDING_PROVIDER=local` / `all-MiniLM-L6-v2`，但未安装 `sentence-transformers`；`WikiEmbedder` 会回退到按 `hash(text)` 生成的随机向量，RAG 结果不可信。需装 `sentence-transformers`、改 Ollama embedding，或改云端 embedding，并重建索引。
-- [!] **密钥明文**：`workspace/lsl-kb/config/model_profiles.yaml` 里有明文 API key；建议移到 `.env` / secret store，并轮换已暴露的 key。
-- [x] **javis 并行栈验收**：`ae6357e` 已部署；API/Web/MCP 全部 healthy，Web 反代正常。
-- [ ] **切流**：确认后停旧 systemd，Docker 接管 6200/6100/6108。
-- [ ] **CI timer 未安装**：验收后 `systemctl enable --now softwiki-deploy.timer`。
+- [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 独立凭据；索引重建为 4196 chunks；`search` / `ask` 已验证。
+- [x] **javis 并行栈验收 + 切流 + CI timer**：Docker 接管 `6200`/`6100`/`6108`，旧 systemd 已 stop + disable，timer 已验证 `up to date`。
+- [!] **claims=0 / events=0**：抽取已切 DeepSeek，但历史 820 篇未重新抽取；新文档会正常抽取。
+- [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；建议移到 `.env` / secret store，并轮换聊天中暴露的 OpenAI key。
 - [ ] **TLS/反代**：javis 目前没有 Caddy/Nginx/Traefik；试用先用 HTTP 端口。
-- [ ] **Ollama 默认策略**：`.env` 当前 `EMBEDDING_PROVIDER=local`，LLM 走 Gemini 兼容接口；是否改为 Ollama 待定。
 
 ## 下一步（NEXT）
 
-1. **修 embedding**：`sentence-transformers` / Ollama `nomic-embed-text` / 云端 embedding 三选一，并重建索引；否则 RAG 结果不可信。
-2. **切流 + 安装 timer**：并行栈已验收；确认后停旧 systemd，Docker 接管 6200/6100/6108。
-3. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
-4. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
-5. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
+1. **抽取补齐**：用 DeepSeek 重新抽取 lsl-kb，或只对新语料抽取，让 claims/events 有数据。
+2. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
+3. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
+4. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
+5. **TLS/反代**：试用后加 Caddy，收口 6108/6200。
 6. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
 
 ## 本 session 状态记录（handoff）
 
-- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证。
+- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证；完成 javis 切流；修复 OpenAI embedding 与 chunk 上限，重建索引并验证 `search`/`ask`。
 - **关键产物**：
   - `AGENTS.md`（项目宪法）
   - `progress.md`（本文件）
@@ -108,6 +112,7 @@
   - `tests/__pycache__` 里的旧 `.pyc` 仍带旧路径；
   - 全量 pytest 会挂起，必须先离线 mock；
   - `mcp>=2` 会把 `FastMCP` 改名并破坏 `softwiki.mcp.sse`，必须 `<2.0.0`；
+  - OpenAI embedding 单条上限 8192 tokens；旧 `chunk_text` 在无标点长段落上产出过 56k 字符 chunk，必须在 chunker 层限长；
   - Next.js 在 Docker 内反代要 `API_INTERNAL_URL=http://api:6200`，不能用 `127.0.0.1`；
   - `docker compose config` 会把 `.env` 里的真实密钥渲染出来，不要贴日志；
   - `/api/ask` 会重复检索一次，且 `AskRequest` 丢弃 `mode`/`history`；
