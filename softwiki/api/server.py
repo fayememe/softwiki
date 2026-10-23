@@ -465,8 +465,8 @@ def rebuild_index():
         embeddings = embedder.embed_texts(chunk_texts)
         if os.path.exists(vector_store.get_current_path()):
             os.remove(vector_store.get_current_path())
-            vector_store.load()
-            
+        vector_store.reset()
+
         vector_store.add_vectors(chunk_ids, embeddings)
         
         bm25_store = Bm25Store()

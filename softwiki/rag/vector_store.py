@@ -45,6 +45,13 @@ class LocalVectorStore:
         if self.get_current_path() != self.last_loaded_path:
             self.load()
 
+    def reset(self):
+        current_path = self.get_current_path()
+        self.chunk_ids = []
+        self.embeddings = np.empty((0, 0), dtype=np.float64)
+        _VECTOR_CACHE.pop(current_path, None)
+        self.last_loaded_path = current_path
+
     def save(self):
         self._ensure_correct_index_loaded()
         if not self.chunk_ids:
