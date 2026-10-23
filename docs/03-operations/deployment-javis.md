@@ -41,7 +41,7 @@ SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env \
 验收：
 
 ```bash
-curl -fsS http://127.0.0.1:6300/api/status
+curl -fsS http://127.0.0.1:6300/api/health
 curl -fsSI http://127.0.0.1:6308/
 nc -z 127.0.0.1 6301 && echo mcp-ok
 ```
@@ -111,6 +111,40 @@ curl -X POST --max-time 900 http://127.0.0.1:6300/api/index
 - `workspace/` 用 bind mount，**不要** `docker compose down -v`。
 - `.env` 只放在宿主；不要 `COPY` 进镜像，也不要提交。
 - 备份：`tar` 打包 `workspace/` 与 `.env`；恢复时停栈后覆盖。
+
+## 认证（可选）
+
+默认关闭。开启前先准备 secret 和管理员：
+
+```env
+SOFTWIKI_AUTH_ENABLED=1
+SOFTWIKI_SECRET_KEY=<random-long-string>
+```
+
+```bash
+docker exec -it -e WORKSPACE_DIR=/data/workspace/armkb softwiki-api-1 \
+  python scripts/create_admin.py --username admin --workspace armkb
+```
+
+登录后使用 cookie 或 Bearer token：
+
+```bash
+curl -c cookies.txt -X POST http://127.0.0.1:6200/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"..."}'
+curl -b cookies.txt http://127.0.0.1:6200/api/me
+```
+
+WebUI 目前没有登录页；开启认证后 UI 会收到 401。试用阶段建议保持关闭。
+
+## 备份 / 恢复
+
+```bash
+scripts/backup.sh /opt/aitools/apps/softwiki/backups
+scripts/restore.sh /opt/aitools/apps/softwiki/backups/softwiki-armkb-YYYYmmdd-HHMMSS.tar.gz
+```
+
+归档只包含 workspace；`.env` 单独备份，绝不进归档。
 
 ## 注意事项
 

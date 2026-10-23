@@ -1,4 +1,5 @@
 from typing import Optional
+import contextvars
 import os
 
 def load_env():
@@ -30,9 +31,19 @@ def load_env():
 # Automatically load environment variables on import
 load_env()
 
+_request_workspace = contextvars.ContextVar("request_workspace", default=None)
+
+
 def get_workspace_dir() -> str:
     """Returns the active workspace directory, defaulting to 'workspace/default'."""
+    override = _request_workspace.get()
+    if override:
+        return override
     return os.path.abspath(os.getenv("WORKSPACE_DIR", "workspace/default"))
+
+
+def set_request_workspace(path: Optional[str]) -> None:
+    _request_workspace.set(os.path.abspath(path) if path else None)
 
 def get_workspaces_root() -> str:
     """Returns the directory containing all workspaces."""
@@ -176,7 +187,9 @@ def is_module_enabled(module_name: str) -> bool:
 
 def set_workspace_dir(path: str):
     """Switch the active workspace at runtime by setting WORKSPACE_DIR env var."""
-    os.environ["WORKSPACE_DIR"] = os.path.abspath(path)
+    absolute = os.path.abspath(path)
+    os.environ["WORKSPACE_DIR"] = absolute
+    _request_workspace.set(absolute)
 
 def list_workspaces() -> list:
     """Scan the workspaces root for available workspaces."""

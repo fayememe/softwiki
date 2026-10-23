@@ -3,17 +3,19 @@ import sys
 import shutil
 from datetime import datetime
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Ensure parent directory is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces, get_workspaces_root
+from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces, get_workspaces_root, set_request_workspace
 from softwiki.source_store.db import SessionLocal
-from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event
+from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event, User, WorkspaceMember
+from softwiki.auth import auth_enabled, create_token, verify_password, verify_token
+from softwiki.auth_db import get_auth_session
 from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.ingestion.web_loader import extract_web_content
 from softwiki.ingestion.pdf_loader import extract_pdf_content
@@ -42,6 +44,103 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_AUTH_EXEMPT = {"/api/login", "/api/health", "/health", "/docs", "/openapi.json", "/redoc"}
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if not auth_enabled():
+        return await call_next(request)
+    if request.url.path in _AUTH_EXEMPT:
+        return await call_next(request)
+
+    token = request.cookies.get("softwiki_session")
+    header = request.headers.get("Authorization", "")
+    if not token and header.startswith("Bearer "):
+        token = header[7:]
+    username = verify_token(token) if token else None
+    if not username:
+        return JSONResponse({"detail": "Authentication required"}, status_code=401)
+
+    db = get_auth_session()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            return JSONResponse({"detail": "Authentication required"}, status_code=401)
+
+        workspace = user.active_workspace or os.path.basename(get_workspace_dir())
+        ws_path = os.path.join(get_workspaces_root(), workspace)
+        if os.path.isdir(os.path.join(ws_path, ".softwiki")):
+            set_request_workspace(ws_path)
+
+        if user.role != "admin":
+            member = db.query(WorkspaceMember).filter_by(
+                username=username, workspace=workspace
+            ).first()
+            if member is None and db.query(WorkspaceMember).count() > 0:
+                return JSONResponse({"detail": "Workspace access denied"}, status_code=403)
+
+        request.state.user = user
+        return await call_next(request)
+    finally:
+        db.close()
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/api/login")
+def login(req: LoginRequest):
+    db = get_auth_session()
+    try:
+        user = db.query(User).filter(User.username == req.username).first()
+        if not user or not verify_password(req.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        token = create_token(user.username)
+        response = JSONResponse({
+            "token": token,
+            "username": user.username,
+            "role": user.role,
+            "workspace": user.active_workspace,
+        })
+        response.set_cookie("softwiki_session", token, httponly=True, samesite="lax")
+        return response
+    finally:
+        db.close()
+
+
+@app.post("/api/logout")
+def logout():
+    response = JSONResponse({"status": "ok"})
+    response.delete_cookie("softwiki_session")
+    return response
+
+
+@app.get("/api/me")
+def me(request: Request):
+    if not auth_enabled():
+        return {
+            "auth": False,
+            "username": None,
+            "role": "anonymous",
+            "workspace": os.path.basename(get_workspace_dir()),
+        }
+    user = getattr(request.state, "user", None)
+    return {
+        "auth": True,
+        "username": user.username if user else None,
+        "role": user.role if user else None,
+        "workspace": user.active_workspace if user else None,
+    }
+
 
 class AskRequest(BaseModel):
     question: str
@@ -112,7 +211,9 @@ def ask_question(req: AskRequest):
                 "title": doc.title,
                 "url": doc.url,
                 "source_name": doc.source_name,
-                "published_at": doc.published_at
+                "published_at": doc.published_at,
+                "page_start": getattr(chunk, "page_start", None),
+                "page_end": getattr(chunk, "page_end", None),
             }
             cit_num = citation_manager.get_citation_num(doc.id, meta)
             sources.append({
@@ -121,6 +222,8 @@ def ask_question(req: AskRequest):
                 "url": doc.url,
                 "source_name": doc.source_name,
                 "published_at": doc.published_at.strftime('%Y-%m-%d') if doc.published_at else "Unknown",
+                "page_start": getattr(chunk, "page_start", None),
+                "page_end": getattr(chunk, "page_end", None),
                 "text": chunk.text,
                 "score": float(res["score"])
             })
@@ -133,6 +236,26 @@ def ask_question(req: AskRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+class ReportRequest(BaseModel):
+    question: str
+    template: str = "research-report"
+
+
+@app.post("/api/report")
+def create_report(req: ReportRequest):
+    check_read_only()
+    from softwiki.intelligence.report import generate_report
+    db = SessionLocal()
+    try:
+        return generate_report(db, req.question, req.template)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 
 @app.post("/api/ingest/url")
 def ingest_url(req: IngestUrlRequest):
@@ -574,13 +697,35 @@ class WorkspaceSwitchRequest(BaseModel):
     workspace: str
 
 @app.post("/api/workspace")
-def switch_workspace(req: WorkspaceSwitchRequest):
+def switch_workspace(req: WorkspaceSwitchRequest, request: Request):
     """Switch the active workspace at runtime."""
     ws_path = os.path.join(get_workspaces_root(), req.workspace)
     ws_path = os.path.abspath(ws_path)
     if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
         raise HTTPException(status_code=404, detail=f"Workspace '{req.workspace}' not found or not initialized.")
-    set_workspace_dir(ws_path)
+
+    if auth_enabled():
+        user = getattr(request.state, "user", None)
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        db = get_auth_session()
+        try:
+            if user.role != "admin":
+                member = db.query(WorkspaceMember).filter_by(
+                    username=user.username, workspace=req.workspace
+                ).first()
+                if member is None and db.query(WorkspaceMember).count() > 0:
+                    raise HTTPException(status_code=403, detail="Workspace access denied")
+            db.query(User).filter(User.id == user.id).update(
+                {"active_workspace": req.workspace}
+            )
+            db.commit()
+        finally:
+            db.close()
+        set_request_workspace(ws_path)
+    else:
+        set_workspace_dir(ws_path)
+
     return {"status": "ok", "workspace": get_workspace_dir()}
 
 # ── Standalone Wiki (no dashboard required) ──

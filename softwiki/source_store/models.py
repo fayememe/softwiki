@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from softwiki.source_store.db import Base
 
@@ -105,3 +105,23 @@ class Event(Base):
 
     document = relationship("Document", back_populates="events")
 
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(80), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="editor")
+    active_workspace = Column(String(120), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(80), nullable=False)
+    workspace = Column(String(120), nullable=False)
+    role = Column(String(20), nullable=False, default="viewer")
+
+    __table_args__ = (UniqueConstraint("username", "workspace", name="uq_workspace_member"),)
