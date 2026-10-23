@@ -297,6 +297,14 @@ class AnswerEngine:
     def ask(self, db: Session, question: str, history: Optional[List[Dict[str, str]]] = None, mode: str = "normal") -> str:
         self.load_configs()
 
+        try:
+            from softwiki.intelligence.scope_guard import check_scope
+            in_scope, reason = check_scope(f"Question: {question}", item_type="query")
+            if not in_scope:
+                return f"Reject: this question is out of scope. {reason}"
+        except Exception as e:
+            logger.debug(f"Scope check skipped: {e}")
+
         qtype = _classify_question(question)
 
         if qtype == "casual":
