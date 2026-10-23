@@ -822,6 +822,8 @@ def wiki_read(topic: str) -> str:
 softwiki_status = status
 softwiki_ingest = ingest
 softwiki_index = index
+softwiki_search = search
+softwiki_ask = ask
 # ── Workspace management tools ──
 
 @mcp.tool()
