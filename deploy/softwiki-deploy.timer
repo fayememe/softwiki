@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll softwiki origin/master and deploy
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+Unit=softwiki-deploy.service
+
+[Install]
+WantedBy=timers.target
