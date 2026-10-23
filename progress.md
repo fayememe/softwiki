@@ -38,6 +38,7 @@
   - clone 本地有**未推送**的 `84e25ae`（Makefile CI/CD）；其未提交的 `config.py` / `sse.py` 修复已在本仓库落库。
   - 已装 Ollama（11434），模型含 `nomic-embed-text`、`gemma4:26b`、`mistral-small3.1`、`deepseek-r1`。
   - **已落地**：Docker Compose（`Dockerfile` / `docker-compose.yml`）+ CI 轮询（`scripts/ci-deploy.sh` + `deploy/softwiki-deploy.timer`），并行端口 6300/6301/6308；本地已端到端验证。
+  - **2026-10-23 已部署并行栈**：commit `ae6357e`，容器全部 healthy；Web `6308` 200，API `6300/api/status` 200，MCP `6301` 端口通（`/mcp` GET 406 属预期）。旧 systemd（6100/6108/6200）未停，timer 未安装。
 
 ## 研发计划（checklist）
 
@@ -79,17 +80,20 @@
 - [x] javis deploy key 已加入 Forgejo（`git ls-remote` 通过）。
 - [!] **embedding 实际是随机回退**：javis `.env` 为 `EMBEDDING_PROVIDER=local` / `all-MiniLM-L6-v2`，但未安装 `sentence-transformers`；`WikiEmbedder` 会回退到按 `hash(text)` 生成的随机向量，RAG 结果不可信。需装 `sentence-transformers`、改 Ollama embedding，或改云端 embedding，并重建索引。
 - [!] **密钥明文**：`workspace/lsl-kb/config/model_profiles.yaml` 里有明文 API key；建议移到 `.env` / secret store，并轮换已暴露的 key。
-- [ ] **javis 首次构建/并行栈验收**：在 6300/6301/6308 起 Docker 栈，验证后再切流。
+- [x] **javis 并行栈验收**：`ae6357e` 已部署；API/Web/MCP 全部 healthy，Web 反代正常。
+- [ ] **切流**：确认后停旧 systemd，Docker 接管 6200/6100/6108。
+- [ ] **CI timer 未安装**：验收后 `systemctl enable --now softwiki-deploy.timer`。
 - [ ] **TLS/反代**：javis 目前没有 Caddy/Nginx/Traefik；试用先用 HTTP 端口。
 - [ ] **Ollama 默认策略**：`.env` 当前 `EMBEDDING_PROVIDER=local`，LLM 走 Gemini 兼容接口；是否改为 Ollama 待定。
 
 ## 下一步（NEXT）
 
-1. **javis 首次部署**：clone `~/softwiki-ci` → 跑 `scripts/ci-deploy.sh` → 验收 6300/6301/6308 → 再决定切流与 timer。
-2. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
-3. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
-4. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
-5. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
+1. **修 embedding**：`sentence-transformers` / Ollama `nomic-embed-text` / 云端 embedding 三选一，并重建索引；否则 RAG 结果不可信。
+2. **切流 + 安装 timer**：并行栈已验收；确认后停旧 systemd，Docker 接管 6200/6100/6108。
+3. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
+4. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
+5. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
+6. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
 
 ## 本 session 状态记录（handoff）
 
