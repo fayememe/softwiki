@@ -49,6 +49,10 @@ class Chunk(Base):
     title = Column(String(500), nullable=True)
     section = Column(String(200), nullable=True)
     published_at = Column(DateTime, nullable=True)
+    page_start = Column(Integer, nullable=True)
+    page_end = Column(Integer, nullable=True)
+    char_start = Column(Integer, nullable=True)
+    char_end = Column(Integer, nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 

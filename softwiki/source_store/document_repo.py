@@ -27,6 +27,24 @@ class DocumentRepository:
         return db.query(Document).all()
 
     @staticmethod
+    def build_chunk_models(chunks_data: List[dict]) -> List[Chunk]:
+        return [
+            Chunk(
+                document_id=cd["document_id"],
+                chunk_index=cd["chunk_index"],
+                text=cd["text"],
+                title=cd["title"],
+                section=cd["section"],
+                published_at=cd["published_at"],
+                page_start=cd.get("page_start"),
+                page_end=cd.get("page_end"),
+                char_start=cd.get("char_start"),
+                char_end=cd.get("char_end"),
+            )
+            for cd in chunks_data
+        ]
+
+    @staticmethod
     def create_chunks(db: Session, chunks: List[Chunk]) -> List[Chunk]:
         db.add_all(chunks)
         db.commit()

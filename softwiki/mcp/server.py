@@ -162,11 +162,7 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
             from softwiki.ingestion.file_store import save_chunks
             meta = {"title": title, "source_name": source_meta.get("source_name", "Manual Import"), "published_at": published_at}
             chunks_data = build_document_chunks(doc_id, cleaned_text, meta)
-            db_chunks = [Chunk(
-                document_id=cd["document_id"], chunk_index=cd["chunk_index"],
-                text=cd["text"], title=cd["title"], section=cd["section"],
-                published_at=cd["published_at"]
-            ) for cd in chunks_data]
+            db_chunks = DocumentRepository.build_chunk_models(chunks_data)
             DocumentRepository.create_chunks(db, db_chunks)
             save_chunks(doc_id, chunks_data)
 
@@ -213,16 +209,7 @@ def index() -> str:
             }
             chunks_data = build_document_chunks(doc.id, doc.cleaned_text, meta)
 
-            db_chunks = []
-            for cd in chunks_data:
-                db_chunks.append(Chunk(
-                    document_id=cd["document_id"],
-                    chunk_index=cd["chunk_index"],
-                    text=cd["text"],
-                    title=cd["title"],
-                    section=cd["section"],
-                    published_at=cd["published_at"]
-                ))
+            db_chunks = DocumentRepository.build_chunk_models(chunks_data)
             DocumentRepository.create_chunks(db, db_chunks)
 
             # Stage 3: save chunks JSON to disk

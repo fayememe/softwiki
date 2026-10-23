@@ -36,20 +36,27 @@ def get_db():
     finally:
         db.close()
 
+def _ensure_columns(engine, table, columns):
+    from sqlalchemy import inspect, text
+    existing = {c["name"] for c in inspect(engine).get_columns(table)}
+    for name, ddl in columns:
+        if name not in existing:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+
 def init_tables():
     """Utility to create tables in the active workspace database."""
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
-    
-    # Check if 'status' column exists in 'documents' (migration for existing database schemas)
     try:
-        from sqlalchemy import inspect
-        inspector = inspect(engine)
-        columns = [c["name"] for c in inspector.get_columns("documents")]
-        if "status" not in columns:
-            with engine.begin() as conn:
-                from sqlalchemy import text
-                conn.execute(text("ALTER TABLE documents ADD COLUMN status VARCHAR(50) DEFAULT 'completed'"))
+        _ensure_columns(engine, "documents", [("status", "VARCHAR(50) DEFAULT 'completed'")])
+        _ensure_columns(engine, "chunks", [
+            ("page_start", "INTEGER"),
+            ("page_end", "INTEGER"),
+            ("char_start", "INTEGER"),
+            ("char_end", "INTEGER"),
+        ])
     except Exception as e:
         print(f"Database migration failed: {e}")
 

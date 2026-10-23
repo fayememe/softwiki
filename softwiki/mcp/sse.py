@@ -182,9 +182,7 @@ def create_mcp_server():
                 DocumentRepository.delete_document_chunks(db, doc.id)
                 meta = {"title": doc.title, "source_name": doc.source_name, "published_at": doc.published_at}
                 chunks_data = build_document_chunks(doc.id, doc.cleaned_text, meta)
-                db_chunks = [Chunk(document_id=c["document_id"], chunk_index=c["chunk_index"],
-                    text=c["text"], title=c["title"], section=c["section"], published_at=c["published_at"])
-                    for c in chunks_data]
+                db_chunks = DocumentRepository.build_chunk_models(chunks_data)
                 DocumentRepository.create_chunks(db, db_chunks)
             all_chunks = DocumentRepository.get_all_chunks(db)
             embedder = WikiEmbedder()

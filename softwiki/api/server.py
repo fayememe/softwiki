@@ -318,16 +318,7 @@ def rebuild_index():
             }
             chunks_data = build_document_chunks(doc.id, doc.cleaned_text, meta)
             
-            db_chunks = []
-            for cd in chunks_data:
-                db_chunks.append(Chunk(
-                    document_id=cd["document_id"],
-                    chunk_index=cd["chunk_index"],
-                    text=cd["text"],
-                    title=cd["title"],
-                    section=cd["section"],
-                    published_at=cd["published_at"]
-                ))
+            db_chunks = DocumentRepository.build_chunk_models(chunks_data)
             DocumentRepository.create_chunks(db, db_chunks)
             
         all_chunks = DocumentRepository.get_all_chunks(db)
