@@ -379,17 +379,27 @@ def api(port, host):
     uvicorn.run("softwiki.api.server:app", host=host, port=port, reload=False)
 
 @cli.command()
-@click.option('--port', type=int, default=None, help='Port to run the MCP SSE server on.')
+@click.option('--port', type=int, default=None, help='Port to run the MCP server on.')
 @click.option('--host', type=str, default=None, help='Host to bind the MCP server to.')
-def mcp(port, host):
-    """Start the MCP server in SSE mode (for agent integration)."""
+@click.option('--transport', type=click.Choice(['sse', 'streamable-http', 'both']), default='both',
+              help='MCP transport to serve (default: both).')
+def mcp(port, host, transport):
+    """Start the MCP server (for agent integration)."""
     from softwiki.config import get_mcp_port, get_host
     port = port or get_mcp_port()
     host = host or get_host()
     import uvicorn
-    from softwiki.mcp.sse import create_sse_app
-    app = create_sse_app()
-    click.echo(f"Starting MCP SSE server on http://{host}:{port}...")
+    from softwiki.mcp.sse import create_sse_app, create_streamable_http_app, create_combined_app
+    if transport == 'sse':
+        app = create_sse_app()
+        paths = '/sse'
+    elif transport == 'streamable-http':
+        app = create_streamable_http_app()
+        paths = '/mcp'
+    else:
+        app = create_combined_app()
+        paths = '/sse, /mcp'
+    click.echo(f"Starting MCP server ({transport}) on http://{host}:{port} [{paths}]...")
     uvicorn.run(app, host=host, port=port, reload=False)
 
 @cli.group()

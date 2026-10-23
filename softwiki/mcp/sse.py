@@ -5,13 +5,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from softwiki.config import get_workspace_dir
 
-def create_sse_app():
-    """Create a FastMCP SSE app with all SoftWiki tools."""
+def create_mcp_server():
+    """Build the FastMCP server with all SoftWiki tools registered (transport-agnostic)."""
     from mcp.server.fastmcp import FastMCP
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
 
-    mcp = FastMCP("SoftWiki", instructions="SoftWiki knowledge base MCP server")
+    from mcp.server.transport_security import TransportSecuritySettings
+    mcp = FastMCP("SoftWiki", instructions="SoftWiki knowledge base MCP server",
+                  transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False))
 
     # ── Register all tools ──
     # We import and replicate the tool registration from server.py
@@ -397,6 +397,30 @@ def create_sse_app():
             set_enabled_modules(modules)
         return modules_list()
 
-    # ── Get the SSE app ──
-    sse = mcp.sse_app()
-    return sse
+    return mcp
+
+
+def create_sse_app():
+    """Create a FastMCP app using the legacy HTTP+SSE transport (two endpoints: GET /sse, POST /messages)."""
+    return create_mcp_server().sse_app()
+
+
+def create_streamable_http_app():
+    """Create a FastMCP app using the Streamable HTTP transport (single /mcp endpoint)."""
+    return create_mcp_server().streamable_http_app()
+
+
+def create_combined_app():
+    """Serve both transports on one app: legacy /sse + /messages, and /mcp (Streamable HTTP).
+
+    Lets existing SSE clients keep working while newer clients use Streamable HTTP.
+    """
+    from starlette.applications import Starlette
+
+    mcp = create_mcp_server()
+    sse_app = mcp.sse_app()
+    http_app = mcp.streamable_http_app()
+    return Starlette(
+        routes=[*sse_app.routes, *http_app.routes],
+        lifespan=http_app.router.lifespan_context,
+    )
