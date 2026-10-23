@@ -17,6 +17,8 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "pyyaml>=6.0",
     "numpy>=1.24.0",
+    "mcp>=1.27.0,<2.0.0",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
@@ -37,3 +39,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["softwiki*"]
 namespaces = true
+
+[tool.setuptools.package-data]
+softwiki = ["templates/*.md", "templates/*.yaml"]
