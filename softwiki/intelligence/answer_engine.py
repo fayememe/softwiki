@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.rag.citations import CitationManager
 from softwiki.config import get_config_path, is_module_enabled, get_export_dir, get_session_id
-from softwiki.source_store.models import Claim, Entity, Relationship, Event
+from softwiki.source_store.models import Claim, Entity, Relationship, Event, Document
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +270,8 @@ def _admin_answer(db: Session, question: str) -> str:
 def _try_lightrag_query(question: str, mode: str = "local") -> Optional[List[str]]:
     """Try querying LightRAG for graph context. Returns None if unavailable."""
     global _lightrag_warned
+    if os.getenv("SOFTWIKI_DISABLE_LIGHTRAG", "").lower() in ("1", "true", "yes"):
+        return None
     try:
         from softwiki.graph_rag.adapter import has_lightrag_credentials
         if not has_lightrag_credentials():
@@ -281,8 +283,10 @@ def _try_lightrag_query(question: str, mode: str = "local") -> Optional[List[str
         adapter = LightRAGAdapter.get_instance()
         context = adapter.sync_query_context(question, mode=mode, top_k=20)
         if context and context.strip():
-            lines = context.strip().split("\n")
-            return [f"(LightRAG) {line}" for line in lines if line.strip()]
+            lines = [line.strip() for line in context.strip().split("\n")]
+            lines = [line for line in lines if line and line.lower() not in ("none", "null")]
+            if lines:
+                return [f"(LightRAG) {line}" for line in lines]
     except Exception as e:
         logger.debug(f"LightRAG query failed (non-critical): {e}")
     return None
@@ -327,10 +331,27 @@ class AnswerEngine:
                     search_query = h["content"]
                     break
 
+        citation_manager = CitationManager()
+        doc_cache = {}
+
+        def cite_doc(doc_id):
+            if not doc_id:
+                return None
+            if doc_id not in doc_cache:
+                doc_cache[doc_id] = db.query(Document).filter(Document.id == doc_id).first()
+            doc = doc_cache[doc_id]
+            if not doc:
+                return None
+            return citation_manager.get_citation_num(doc.id, {
+                "title": doc.title,
+                "url": doc.url,
+                "source_name": doc.source_name,
+                "published_at": doc.published_at,
+            })
+
         # 1. RAG Retrieve
         search_results = []
         context_str = ""
-        citation_manager = CitationManager()
         if is_module_enabled("rag"):
             search_results = self.searcher.search(db, search_query, top_k=mode_config["top_k"])
             if search_results:
@@ -342,7 +363,9 @@ class AnswerEngine:
                         "title": doc.title,
                         "url": doc.url,
                         "source_name": doc.source_name,
-                        "published_at": doc.published_at
+                        "published_at": doc.published_at,
+                        "page_start": getattr(chunk, "page_start", None),
+                        "page_end": getattr(chunk, "page_end", None),
                     }
                     cit_num = citation_manager.get_citation_num(doc.id, doc_meta)
                     entry = f"--- Source [{cit_num}] ({doc.source_name} - {doc.source_type or 'Unknown'}) ---\n{chunk.text}"
@@ -360,7 +383,9 @@ class AnswerEngine:
             claims = query.limit(10).all()
             for c in claims:
                 date_str = c.published_at.strftime('%Y-%m-%d') if c.published_at else 'unknown'
-                claims_context.append(f"- Actor: {c.actor} | Stance: {c.stance} | Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f})")
+                doc_cit = cite_doc(c.document_id)
+                prefix = f"[{doc_cit}] " if doc_cit else ""
+                claims_context.append(f"- {prefix}Actor: {c.actor} | Stance: {c.stance} | Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f})")
 
         # 3. Graph Retrieve — try LightRAG first, fallback to SQL LIKE
         graph_context = []
@@ -377,7 +402,9 @@ class AnswerEngine:
                     query = query.filter(or_(*filters))
                 rels = query.limit(10).all()
                 for r in rels:
-                    graph_context.append(f"- Relationship: {r.source_name} --({r.relation_type})--> {r.target_name} ({r.description or ''})")
+                    doc_cit = cite_doc(r.document_id)
+                    prefix = f"[{doc_cit}] " if doc_cit else ""
+                    graph_context.append(f"- {prefix}Relationship: {r.source_name} --({r.relation_type})--> {r.target_name} ({r.description or ''})")
 
         # 4. Timeline Retrieve
         timeline_context = []
@@ -390,7 +417,9 @@ class AnswerEngine:
             events = query.order_by(Event.event_date.asc()).limit(10).all()
             for ev in events:
                 date_str = ev.event_date.strftime("%Y-%m-%d")
-                timeline_context.append(f"- Event [{date_str}]: {ev.title} - {ev.description or ''}")
+                doc_cit = cite_doc(ev.document_id)
+                prefix = f"[{doc_cit}] " if doc_cit else ""
+                timeline_context.append(f"- {prefix}Event [{date_str}]: {ev.title} - {ev.description or ''}")
 
         # 5. LLM Wiki Retrieve
         wiki_context = []
@@ -468,7 +497,7 @@ Context:
                 )
                 
                 answer = response.choices[0].message.content
-                if is_module_enabled("rag") and search_results:
+                if citation_manager.citations:
                     answer += "\n" + citation_manager.render_citations()
                 
             except Exception as e:
@@ -523,7 +552,7 @@ Context:
         elif not (is_module_enabled("rag") and search_results):
             output.append("\n\n(Note: LLM is not connected — showing local search results. Set up an API key for more natural answers.)")
             
-        if is_module_enabled("rag") and search_results:
+        if citation_manager.citations:
             output.append("\n\n---\n" + citation_manager.render_citations())
             
         return "\n".join(output)
