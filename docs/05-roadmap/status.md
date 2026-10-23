@@ -1,3 +1,20 @@
+# System Inputs / Considerations
+
+> **Non-deliverable.** These are system-level inputs (constraints, directions, ideas) that inform design decisions and roadmap trade-offs. They are **not** committed work items and must not be tracked as ✅/☐ tasks. An input becomes a Phase deliverable only through an explicit decision.
+
+## SI-1 — Wiki Generation Prompt System
+
+**Input:** Let managers supply prompts that drive Wiki generation, including content-organization logic (coarse- or fine-grained: homepage, sub-pages, etc.), so users can deeply define the wiki. As the knowledge base updates over time, the wiki must stably conform to the user's definition via those prompts.
+
+**Type:** Direction / architecture input
+
+**Impact:**
+- **Gap — not yet covered.** `softwiki/wiki/page_generator.py` hardcodes both system prompts (first-time compiler, incremental updater) and a fixed section layout; there is no per-workspace or per-topic prompt override.
+- **Reuse existing mechanism:** workspace-scoped overrides already exist for `scope.md`, `agent_soul.md`/`config/agents.md`, and `workflows.yaml` (deep-merged with `softwiki/templates/`). A wiki prompt/layout config should follow the same template + workspace-override pattern.
+- **Touches:** Phase 5 (Wiki manual editing / hybrid mode), incremental Wiki compilation (see `work-log.md` Decision 5), and `docs/02-design/extension-points.md`.
+
+---
+
 # Project Status
 
 ## Sprint — Chat-Style QA + WebUI Workspace Switching
