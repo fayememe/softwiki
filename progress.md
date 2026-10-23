@@ -48,8 +48,8 @@
   - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询（已手动验证 `up to date`）。
   - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
   - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → javis `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
-  - 试点：3 篇 → 454 chunks / 101 claims / 39 entities / 17 events；`search` + `ask` 已验证；全量 81 篇入库中。
-  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`lsl-kb` 索引 4196 chunks；`armkb` 试点索引 454 chunks（全量待索引）。
+  - 全量：73 篇文档 / 2122 claims / 835 entities / 1328 relationships / 375 events；81 个 PDF 中 70 success、11 duplicate、0 failed。
+  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`armkb` 39,870 chunks；全量向量索引后台重建中。
   - 抽取：`cheap_extraction` / `wiki_compilation` 已切 DeepSeek（Google 402）；抽取窗口仍是每篇前 15k 字符。
   - 旧 clone `~/mydrv/git/softwiki` 的 `84e25ae`（Makefile CI/CD）未推送，但已被 Docker CI 取代。
   - Ollama 仍可用（`nomic-embed-text` 等），但当前不用于 embedding。
@@ -59,57 +59,57 @@
 ### M0 — 基线（试用前置）
 - [x] 修正 venv editable 指向本仓库
 - [x] 补 `softwiki_search` / `softwiki_ask` 别名
-- [ ] 清理 `tests/__pycache__`（旧 `.pyc` 的 `co_filename` 仍指向 `softwki`）
-- [ ] 测试离线化：embedding / LLM / LightRAG 不发真实网络请求
-- [ ] 修 `tests/test_answer_engine.py` 的陈旧断言（`Direct Answer` / `Evidence Summary` 已不存在）
-- [ ] `pytest tests -q` 无网络下 60 秒内完成，0 error
+- [x] 清理 `tests/__pycache__`
+- [x] 测试离线化（mock embedding / 禁用 LightRAG / Web）
+- [x] 修 `test_answer_engine` / `test_config_cascade` / `test_workspace` 陈旧断言
+- [x] `pytest tests -q`：**48 passed，约 1.7s**
 
 ### M1 — 能信（P0）
-- [ ] T1 PDF 页码/段落：`pdf_loader` 返回 `pages[{page_no,text}]`，空页显式记录
-- [ ] T2 Chunk 元数据：`page_start/page_end/char_start/char_end` + 幂等迁移脚本
-- [ ] T3 统一 chunk 创建（现在 5 处重复）
-- [ ] T4 RAG 引用带页码/span
-- [ ] T5 全层引用（claim / graph / timeline / wiki）
-- [ ] T6 弃权 + 问答时 scope 强制
+- [x] T1 PDF 页码/段落（`--- Page Break ---` → page ranges）
+- [x] T2 Chunk 元数据 + 幂等迁移
+- [x] T3 统一 chunk 创建（`DocumentRepository.build_chunk_models`）
+- [x] T4 RAG 引用带页码/span
+- [x] T5 全层引用（claim / graph / timeline）
+- [x] T6 弃权 + ask-time scope
 
 ### M2 — 能隔离（P0）
-- [ ] T7 认证（本地账号 + 会话；API/MCP 拒绝匿名）
-- [ ] T8 按用户 workspace（去掉全局 `WORKSPACE_DIR` 切换）
-- [ ] T9 库级 ACL（owner / editor / viewer）
+- [x] T7 认证（PBKDF2 + HMAC token + `/api/login`）
+- [x] T8 按请求 workspace（contextvar）
+- [x] T9 库级 ACL（`workspace_members`）
+- 注：线上 `SOFTWIKI_AUTH_ENABLED` **默认关闭**；WebUI 暂无登录页
 
 ### M3 — 能交付（P1）
-- [ ] T10 模板系统 + `research-report` / `course-qa`
-- [ ] T11 报告异步 + `report.md` + `manifest.json`
-- [x] T12 Docker Compose + CI/CD（已切流 6200/6100/6108；TLS/反代未做）
-- [ ] T13 备份 / 恢复脚本
-- [ ] T14 每模板 10 个 golden questions + 验收文档
+- [x] T10 模板系统（`research-report` / `course-qa`）
+- [~] T11 报告 + manifest（同步版已通；异步任务未做）
+- [x] T12 Docker Compose + CI/CD（TLS/反代未做）
+- [x] T13 备份 / 恢复脚本
+- [~] T14 golden questions（未做）
 
 ## Pending issues / Blocker
 
-- [!] **20 篇真实 PDF**：未提供；没有样本无法做抽取质量验收。
-- [!] **出站 LLM/embedding 是否允许**：未确认；若学校内网不允许，需要校内模型（vLLM/Ollama），Docker 方案会变。
-- [!] **测试基线不可信**：全量 `pytest` 挂起（>120s），疑似真实网络调用；M0 未完成前，任何“通过”都不可信。
-- [ ] **数据库选择**：试用版 Postgres 还是 SQLite？（建议 Postgres；SQLite 只适合单用户演示）
-- [ ] **OCR 范围**：扫描版 PDF 是否必须支持？决定 T1 工作量。
-- [x] javis deploy key 已加入 Forgejo（`git ls-remote` 通过）。
-- [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 独立凭据；索引重建为 4196 chunks；`search` / `ask` 已验证。
-- [x] **javis 并行栈验收 + 切流 + CI timer**：Docker 接管 `6200`/`6100`/`6108`，旧 systemd 已 stop + disable，timer 已验证 `up to date`。
-- [!] **claims=0 / events=0**：抽取已切 DeepSeek，但历史 820 篇未重新抽取；新文档会正常抽取。
-- [!] **armkb 全量入库进行中**：`/tmp/armkb-ingest.log`；完成后必须 `POST /api/index` 才能检索。
-- [!] **CI timer 暂停中**：入库 + 索引期间停掉，防止重启 API 杀掉抽取线程；完成后 `sudo systemctl start softwiki-deploy.timer`。
-- [~] **armkb 进度**：13/81 已上传；claims 263 / entities 173 / relationships 193 / events 50（随入库增长）。
-- [!] **抽取窗口限制**：`run_extraction_pipeline` 只取 `cleaned_text[:15000]`；ARM 大手册只覆盖开头，claims/entities/events 不完整；RAG 覆盖全文。
-- [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；建议移到 `.env` / secret store，并轮换聊天中暴露的 OpenAI key。
-- [ ] **TLS/反代**：javis 目前没有 Caddy/Nginx/Traefik；试用先用 HTTP 端口。
+- [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
+- [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
+- [x] **测试基线**：48 passed（离线）。
+- [ ] **数据库选择**：试用版仍 SQLite；多用户前建议 Postgres。
+- [ ] **OCR 范围**：扫描版 PDF 未支持。
+- [x] javis deploy key 已加入 Forgejo。
+- [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 并发 + TPM 限速。
+- [x] **切流 + CI timer**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
+- [!] **CI timer 暂停中**：索引期间停掉，防止重启 API；索引完成后 `sudo systemctl start softwiki-deploy.timer`。
+- [!] **armkb 全量索引进行中**：`/tmp/armkb-index3.json`；39,870 chunks；1M TPM 下预计 45–60 分钟。
+- [~] **armkb 数据**：73 篇 / 2122 claims / 835 entities / 1328 relationships / 375 events；索引完成前搜索不完整。
+- [!] **抽取窗口限制**：只取每篇前 15k 字符；大手册结构化层不完整，RAG 覆盖全文。
+- [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
+- [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
+- [ ] **认证 UI**：后端就绪，WebUI 未接。
 
 ## 下一步（NEXT）
 
-1. **armkb 全量入库**：等后台脚本完成 → `POST /api/index` → `search`/`ask` 验收，检查失败/跳过。
-2. **抽取覆盖**：评估 15k 字符窗口对 ARM 大手册的影响；需要时改为分块/窗口抽取。
-3. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
-4. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
-5. **TLS/反代**：试用后加 Caddy，收口 6108/6200。
-6. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
+1. **等 armkb 全量索引完成** → 验证 `search` 的 page 字段、`ask` 的页码引用、`/api/report`。
+2. **重开 CI timer** → `sudo systemctl start softwiki-deploy.timer`。
+3. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
+4. **认证 UI + TLS + Postgres**：试用后按学校要求推进。
+5. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
 
 ## 本 session 状态记录（handoff）
 
@@ -119,12 +119,15 @@
   - `progress.md`（本文件）
   - `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）
   - `Dockerfile` / `docker-compose.yml` / `scripts/ci-deploy.sh` / `docs/03-operations/deployment-javis.md`
+  - `docs/06-archive/session-report-2026-10-23.md`（本轮完整报告）
 - **易踩坑**：
   - `venv` 的 editable 安装原本指向 `/home/faye/mydrv/git/softwki`（空壳），导致测试导入错仓库；
   - `tests/__pycache__` 里的旧 `.pyc` 仍带旧路径；
   - 全量 pytest 会挂起，必须先离线 mock；
   - `mcp>=2` 会把 `FastMCP` 改名并破坏 `softwiki.mcp.sse`，必须 `<2.0.0`；
   - OpenAI embedding 单条上限 8192 tokens；旧 `chunk_text` 在无标点长段落上产出过 56k 字符 chunk，必须在 chunker 层限长；
+  - OpenAI 账户 TPM 只有 1M；40M 字符语料至少要 45–60 分钟，batch=500+4 并发会 429；必须用 `EMBEDDING_TPM` 限速器；
+  - `/api/index` 重建 chunk 会换 ID；向量索引必须先 `reset()`，否则索引指向已删除的 chunk，搜索返回空；
   - `/api/ingest/file` 只建 Document + 后台抽取，不切块/不向量化；必须再调 `/api/index`；
   - `run_extraction_pipeline` 只取前 15k 字符，大手册结构化层不完整；
   - `switch_workspace` 是进程级；容器重启后以 `SOFTWIKI_ACTIVE_WORKSPACE` 为准（已设 armkb）；
