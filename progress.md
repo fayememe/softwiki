@@ -14,14 +14,24 @@
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
   - 落地 `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）；
   - 落地工作方式：`AGENTS.md`、`progress.md`、`opencode.json`、`docs/README.md` 交接段；
-  - **commit/push 策略 A 已确认**：逻辑单元自动 commit + 里程碑 / session 结束自动 push。
+  - **commit/push 策略 A 已确认**：逻辑单元自动 commit + 里程碑 / session 结束自动 push；
+  - 修复 `softwiki/config.py` 缺少 `typing.Optional` 导入（javis 的 Python 3.13 会直接 NameError）；
+  - 核查 javis 部署现状（systemd 三服务 + `make deploy`）。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
   - `e853318` docs(roadmap): SI-1
   - `7645e5e` fix(mcp): 兼容别名
   - `a3d1c9d` feat(mcp): 双传输
-  - 已推送 `origin/master`（`f19c296..a3d1c9d`）。
+  - `fd69c5b` docs(progress): session 交接
+  - `6bdb598` fix(config): Optional 导入
+  - 已推送 `origin/master`（`f19c296..6bdb598`）。
+- **部署现状（javis = 10.3.9.29）**：
+  - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
+  - 现有：systemd 三服务 `softwiki-api`（6200）/ `softwiki-mcp`（6100）/ `softwiki-web`（6108），运行目录 `/opt/aitools/apps/softwiki`；源码 clone `~/mydrv/git/softwiki`，`make deploy` = 前端 build + rsync + systemctl restart。
+  - clone 本地有**未推送**的 `84e25ae`（Makefile CI/CD）；其未提交的 `config.py` / `sse.py` 修复已在本仓库落库。
+  - 已装 Ollama（11434），模型含 `nomic-embed-text`、`gemma4:26b`、`mistral-small3.1`、`deepseek-r1`。
+  - **建议（待确认）**：迁移到 Docker Compose；CI/CD 先用 systemd timer 轮询 `origin/master`（无需 runner），后续可换 Forgejo Actions / registry。
 
 ## 研发计划（checklist）
 
@@ -49,7 +59,7 @@
 ### M3 — 能交付（P1）
 - [ ] T10 模板系统 + `research-report` / `course-qa`
 - [ ] T11 报告异步 + `report.md` + `manifest.json`
-- [ ] T12 Docker Compose + TLS + `/health`
+- [ ] T12 Docker Compose + TLS + `/health` + CI/CD（timer 轮询 `origin/master`）
 - [ ] T13 备份 / 恢复脚本
 - [ ] T14 每模板 10 个 golden questions + 验收文档
 
@@ -61,17 +71,19 @@
 - [ ] **数据库选择**：试用版 Postgres 还是 SQLite？（建议 Postgres；SQLite 只适合单用户演示）
 - [ ] **OCR 范围**：扫描版 PDF 是否必须支持？决定 T1 工作量。
 - [ ] **既有未提交改动**：MCP transport 改造需要单独提交/验证，不要与新工作混在一起。
+- [!] **部署方式待确认**：Docker Compose 迁移 vs 保留 systemd；端口/反代；Ollama 是否作为默认 embedding/LLM。
 
 ## 下一步（NEXT）
 
-1. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
-2. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
-3. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
-4. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
+1. **部署方案**：确认 Docker Compose vs 保留 systemd；写 Dockerfile / compose + CI timer（javis）。
+2. **T0 收尾**：清 `tests/__pycache__` → 加离线 mock → 修陈旧断言 → 拿到可信的 `pytest` 基线。
+3. **T1/T2**：PDF 页码/段落 + Chunk offsets + 迁移脚本；先用生成的测试 PDF 跑通代码路径。
+4. 等用户提供 20 篇 PDF 与出站 LLM 结论后，做抽取质量验收。
+5. 决定 Postgres/SQLite 与 OCR 范围后，进入 M2（认证/隔离）。
 
 ## 本 session 状态记录（handoff）
 
-- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单。
+- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署与 Docker 可行性。
 - **关键产物**：
   - `AGENTS.md`（项目宪法）
   - `progress.md`（本文件）
