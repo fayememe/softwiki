@@ -1,11 +1,37 @@
 import os
 import time
+import threading
 import numpy as np
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 _openai_client = None
 _local_model = None
+
+
+class _TokenRateLimiter:
+    def __init__(self):
+        self._events = deque()
+        self._lock = threading.Lock()
+        self._tpm = max(1, int(os.getenv("EMBEDDING_TPM", "900000")))
+
+    def acquire(self, tokens: int) -> None:
+        tokens = max(1, tokens)
+        while True:
+            with self._lock:
+                now = time.time()
+                while self._events and now - self._events[0][0] >= 60:
+                    self._events.popleft()
+                used = sum(item[1] for item in self._events)
+                if used + tokens <= self._tpm:
+                    self._events.append((now, tokens))
+                    return
+                wait = 60 - (now - self._events[0][0]) if self._events else 1
+            time.sleep(max(0.5, wait))
+
+
+_RATE_LIMITER = _TokenRateLimiter()
 
 def get_openai_client():
     global _openai_client
@@ -64,14 +90,15 @@ class WikiEmbedder:
         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
 
         def embed_batch(batch):
-            for attempt in range(3):
+            _RATE_LIMITER.acquire(sum(len(text) for text in batch))
+            for attempt in range(5):
                 try:
                     response = client.embeddings.create(input=batch, model=self.model_name)
                     return [data.embedding for data in response.data]
                 except Exception:
-                    if attempt == 2:
+                    if attempt == 4:
                         raise
-                    time.sleep(2 ** attempt)
+                    time.sleep(min(60, 5 * (attempt + 1)))
 
         results: List[List[List[float]] | None] = [None] * len(batches)
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
