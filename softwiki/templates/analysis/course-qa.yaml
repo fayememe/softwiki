@@ -1,0 +1,11 @@
+id: course-qa
+title: Course Q&A
+sections:
+  - id: answer
+    title: Answer
+  - id: prerequisites
+    title: Prerequisites
+  - id: misconceptions
+    title: Common Misconceptions
+  - id: sources
+    title: Sources

@@ -1,0 +1,15 @@
+id: research-report
+title: Research Report
+sections:
+  - id: summary
+    title: Summary
+  - id: evidence
+    title: Key Evidence
+  - id: analysis
+    title: Analysis
+  - id: disagreements
+    title: Disagreements
+  - id: limitations
+    title: Limitations
+  - id: sources
+    title: Sources
