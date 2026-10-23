@@ -173,16 +173,22 @@ Sources:
 
 Please compile the initial Markdown Wiki Page:"""
 
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content}
-                ],
-                temperature=temperature,
-                **extra_params
-            )
-            markdown_content = response.choices[0].message.content
+            try:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content}
+                    ],
+                    temperature=temperature,
+                    **extra_params
+                )
+                markdown_content = response.choices[0].message.content
+            except Exception as e:
+                print(f"Wiki compilation LLM failed: {e}. Falling back to template generation.")
+                return self._fallback_generate_topic_page(
+                    db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
+                )
         else:
             print(f"Incrementally updating Wiki page for topic: '{topic_id}' using {model_name}...")
             new_claims_data = [
@@ -229,16 +235,22 @@ New Sources to Integrate:
 
 Please generate the updated full Markdown Wiki Page:"""
 
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content}
-                ],
-                temperature=temperature,
-                **extra_params
-            )
-            markdown_content = response.choices[0].message.content
+            try:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content}
+                    ],
+                    temperature=temperature,
+                    **extra_params
+                )
+                markdown_content = response.choices[0].message.content
+            except Exception as e:
+                print(f"Wiki compilation LLM failed: {e}. Falling back to template generation.")
+                return self._fallback_generate_topic_page(
+                    db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
+                )
 
         # 4. Save results to disk
         with open(output_filepath, "w", encoding="utf-8") as f:
