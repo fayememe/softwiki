@@ -2,6 +2,19 @@ import re
 from datetime import datetime
 from typing import List, Dict, Any
 
+def _split_oversized(text: str, size: int, overlap: int) -> List[str]:
+    overlap = max(0, min(overlap, size // 4))
+    pieces = []
+    start = 0
+    while start < len(text):
+        end = min(start + size, len(text))
+        pieces.append(text[start:end])
+        if end == len(text):
+            break
+        start = end - overlap
+    return pieces
+
+
 def chunk_text(
     text: str,
     chunk_size: int = 1000,
@@ -9,78 +22,52 @@ def chunk_text(
 ) -> List[Dict[str, Any]]:
     if not text:
         return []
+    if chunk_size <= 0:
+        chunk_size = 1000
+    chunk_overlap = max(0, min(chunk_overlap, chunk_size // 4))
 
     paragraphs = text.split("\n\n")
     chunks = []
     current_chunk = []
     current_length = 0
     current_section = "General"
-
     header_pattern = re.compile(r'^#+\s+(.+)$')
+
+    def flush():
+        nonlocal current_chunk, current_length
+        if current_chunk:
+            chunks.append({"text": "\n\n".join(current_chunk), "section": current_section})
+            current_chunk = []
+            current_length = 0
+
+    def add_piece(piece: str):
+        nonlocal current_chunk, current_length
+        if len(piece) > chunk_size:
+            flush()
+            for part in _split_oversized(piece, chunk_size, chunk_overlap):
+                chunks.append({"text": part, "section": current_section})
+            return
+        if current_chunk and current_length + 2 + len(piece) > chunk_size:
+            flush()
+        separator = 2 if current_chunk else 0
+        current_chunk.append(piece)
+        current_length += separator + len(piece)
 
     for para in paragraphs:
         para = para.strip()
         if not para:
             continue
-            
         header_match = header_pattern.match(para)
         if header_match:
             current_section = header_match.group(1)
-            
-        para_len = len(para)
-        
-        if para_len > chunk_size:
-            if current_chunk:
-                chunks.append({
-                    "text": "\n\n".join(current_chunk),
-                    "section": current_section
-                })
-                current_chunk = []
-                current_length = 0
-                
-            sentences = re.split(r'(?<=[.!?]) +', para)
-            for sentence in sentences:
-                sentence_len = len(sentence)
-                if current_length + sentence_len > chunk_size and current_chunk:
-                    chunks.append({
-                        "text": " ".join(current_chunk),
-                        "section": current_section
-                    })
-                    overlap_chunk = []
-                    overlap_len = 0
-                    for s in reversed(current_chunk):
-                        if overlap_len + len(s) < chunk_overlap:
-                            overlap_chunk.insert(0, s)
-                            overlap_len += len(s)
-                        else:
-                            break
-                    current_chunk = overlap_chunk
-                    current_length = overlap_len
-                
-                current_chunk.append(sentence)
-                current_length += sentence_len
-        else:
-            if current_length + para_len > chunk_size and current_chunk:
-                chunks.append({
-                    "text": "\n\n".join(current_chunk),
-                    "section": current_section
-                })
-                if para_len < chunk_overlap:
-                    current_chunk = [current_chunk[-1]] if current_chunk else []
-                    current_length = len(current_chunk[0]) if current_chunk else 0
-                else:
-                    current_chunk = []
-                    current_length = 0
-            
-            current_chunk.append(para)
-            current_length += para_len
-
-    if current_chunk:
-        chunks.append({
-            "text": "\n\n".join(current_chunk),
-            "section": current_section
-        })
-
+        if len(para) <= chunk_size:
+            add_piece(para)
+            continue
+        flush()
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?。！？])\s*', para) if s.strip()]
+        for sentence in sentences:
+            add_piece(sentence)
+    flush()
     return chunks
 
 def build_document_chunks(
