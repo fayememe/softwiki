@@ -15,9 +15,13 @@
   - 落地 `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）；
   - 落地工作方式：`AGENTS.md`、`progress.md`、`opencode.json`、`docs/README.md` 交接段；
   - **commit/push 策略 A 已确认**：逻辑单元自动 commit + 里程碑 / session 结束自动 push。
-- **当前工作区未提交**：
-  - 既有：MCP transport（`softwiki/mcp/sse.py`、`softwiki/cli/main.py`）改造；`docs/05-roadmap/status.md` 的 SI-1；
-  - 本次：`softwiki/mcp/server.py` 别名、`AGENTS.md`、`progress.md`、`opencode.json`、`docs/05-roadmap/trial-readiness.md`。
+- **本 session 提交 / 推送（策略 A）**：
+  - `eb6f98d` docs(agents): 项目宪法与进度台账
+  - `ae067eb` docs(roadmap): 试用就绪清单
+  - `e853318` docs(roadmap): SI-1
+  - `7645e5e` fix(mcp): 兼容别名
+  - `a3d1c9d` feat(mcp): 双传输
+  - 已推送 `origin/master`（`f19c296..a3d1c9d`）。
 
 ## 研发计划（checklist）
 
