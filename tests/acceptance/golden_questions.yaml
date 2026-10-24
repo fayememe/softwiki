@@ -1,0 +1,45 @@
+questions:
+  - id: pl031-registers
+    question: "What registers does the PL031 RTC provide?"
+    expect_keywords: ["RTCDR", "RTCMR", "RTCLR"]
+    require_pages: true
+  - id: pl031-match
+    question: "What is the purpose of the RTCMR register?"
+    expect_keywords: ["match", "alarm"]
+    require_pages: true
+  - id: axi-handshake
+    question: "How does the AXI handshake work?"
+    expect_keywords: ["VALID", "READY"]
+    require_pages: true
+  - id: axi5-signals
+    question: "What are the main AXI5 handshake signals?"
+    expect_keywords: ["VALID", "READY"]
+    require_pages: true
+  - id: ethos-u55
+    question: "What is the Ethos-U55 NPU used for?"
+    expect_keywords: ["neural", "NPU"]
+    require_pages: true
+  - id: coresight-daplite
+    question: "What is the role of CoreSight DAP-Lite2?"
+    expect_keywords: ["debug", "access port"]
+    require_pages: true
+  - id: coresight-base
+    question: "What are the main components of the CoreSight base system?"
+    expect_keywords: ["trace", "debug"]
+    require_pages: true
+  - id: axi-version
+    question: "What is the difference between AXI3 and AXI5?"
+    expect_keywords: ["AXI3", "AXI5"]
+    require_pages: true
+  - id: cortex-m55
+    question: "What does the Cortex-M55 processor integrate?"
+    expect_keywords: ["M-profile", "DSP"]
+    require_pages: true
+  - id: academic-workflow
+    question: "Compare the PL031 register model with the AXI handshake model."
+    workflow: academic-analysis
+    expect_keywords: ["PL031", "AXI"]
+    require_pages: true
+  - id: out-of-scope
+    question: "What is the capital of France?"
+    expect_refusal: true
