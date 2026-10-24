@@ -11,6 +11,9 @@ x-api-common: &api-common
   volumes:
     - ${SOFTWIKI_WORKSPACE:-./workspace}:/data/workspace
   restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
   logging:
     driver: json-file
     options:
@@ -18,6 +21,26 @@ x-api-common: &api-common
       max-file: "3"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: softwiki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-softwiki}
+      POSTGRES_DB: softwiki_armkb
+    volumes:
+      - softwiki_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U softwiki -d softwiki_armkb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     <<: *api-common
     command: ["python", "-m", "softwiki.cli.main", "api", "--host", "0.0.0.0", "--port", "6200"]
@@ -68,3 +91,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+
+volumes:
+  softwiki_pg:

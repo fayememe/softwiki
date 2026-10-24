@@ -53,7 +53,15 @@ def get_workspaces_root() -> str:
     return os.path.dirname(get_workspace_dir())
 
 def get_db_url() -> str:
-    """Returns the SQLite database URL inside .softwiki/."""
+    """Returns the database URL for the active workspace."""
+    template = os.getenv("DATABASE_URL_TEMPLATE")
+    if template:
+        workspace = os.path.basename(get_workspace_dir())
+        safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in workspace)
+        return template.replace("{workspace}", safe)
+    explicit = os.getenv("DATABASE_URL")
+    if explicit and not explicit.startswith("sqlite:///data/"):
+        return explicit
     db_path = os.path.join(get_workspace_dir(), ".softwiki", "processed.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     return f"sqlite:///{db_path}"

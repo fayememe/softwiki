@@ -13,7 +13,6 @@ output
 docs
 tests
 deploy
-scripts
 web/node_modules
 web/.next
 .env
