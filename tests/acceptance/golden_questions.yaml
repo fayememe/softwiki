@@ -24,16 +24,16 @@ questions:
     expect_keywords: ["debug", "access port"]
     require_pages: true
   - id: coresight-base
-    question: "What are the main components of the CoreSight base system?"
-    expect_keywords: ["trace", "debug"]
+    question: "What are the three layers of the CoreSight architecture?"
+    expect_keywords: ["visible component architecture", "reusable component architecture", "system architecture"]
     require_pages: true
   - id: axi-version
     question: "What is the difference between AXI3 and AXI5?"
     expect_keywords: ["AXI3", "AXI5"]
     require_pages: true
   - id: cortex-m55
-    question: "What does the Cortex-M55 processor integrate?"
-    expect_keywords: ["M-profile", "DSP"]
+    question: "What compute features does the Cortex-M55 processor integrate?"
+    expect_keywords: ["MVE", "SIMD"]
     require_pages: true
   - id: academic-workflow
     question: "Compare the PL031 register model with the AXI handshake model."
