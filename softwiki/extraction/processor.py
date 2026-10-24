@@ -2,6 +2,7 @@ import os
 import threading
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy.orm import Session
 from datetime import datetime
 from softwiki.config import is_module_enabled
@@ -71,15 +72,32 @@ def _extract_document(db, doc_id: int, cleaned_text: str, published_at: datetime
     graph_extractor = GraphExtractor() if is_module_enabled("graph") else None
     timeline_extractor = TimelineExtractor() if is_module_enabled("timeline") else None
 
-    for index, window in enumerate(windows):
-        if claim_extractor:
-            claims = claim_extractor.extract_claims(doc_id, window, published_at)
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for index, window in enumerate(windows):
+            claim_future = graph_future = timeline_future = None
+            if claim_extractor:
+                claim_future = pool.submit(
+                    claim_extractor.extract_claims, doc_id, window, published_at
+                )
+            if graph_extractor:
+                graph_future = pool.submit(
+                    graph_extractor.extract_graph, doc_id, window, published_at
+                )
+            if timeline_extractor:
+                timeline_future = pool.submit(
+                    timeline_extractor.extract_events, doc_id, window, published_at
+                )
+
+            claims = claim_future.result() if claim_future else []
+            graph_data = graph_future.result() if graph_future else {
+                "entities": [], "relationships": []
+            }
+            events = timeline_future.result() if timeline_future else []
+
             for claim in claims:
                 DocumentRepository.create_claim(db, claim)
             results["claims"] += len(claims)
 
-        if graph_extractor:
-            graph_data = graph_extractor.extract_graph(doc_id, window, published_at)
             for entity in graph_data["entities"]:
                 DocumentRepository.create_entity(db, entity)
             for relationship in graph_data["relationships"]:
@@ -88,14 +106,14 @@ def _extract_document(db, doc_id: int, cleaned_text: str, published_at: datetime
             results["relationships"] += len(graph_data["relationships"])
 
             lightrag = _get_lightrag_adapter()
-            if lightrag is not None:
+            if graph_extractor and lightrag is not None:
                 try:
                     lightrag.sync_insert_text(window, source_id=f"doc_{doc_id}_w{index}")
                 except Exception as exc:
-                    logger.warning(f"LightRAG insert failed for doc {doc_id} window {index}: {exc}")
+                    logger.warning(
+                        f"LightRAG insert failed for doc {doc_id} window {index}: {exc}"
+                    )
 
-        if timeline_extractor:
-            events = timeline_extractor.extract_events(doc_id, window, published_at)
             for event in events:
                 DocumentRepository.create_event(db, event)
             results["events"] += len(events)
