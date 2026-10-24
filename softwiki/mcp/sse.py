@@ -23,7 +23,7 @@ def create_mcp_server():
 
     # ── Ask tool ──
     @mcp.tool()
-    def ask(query: str, mode: str = "normal") -> str:
+    def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
         """Ask a research question against the active workspace.
         Args:
             query: Your research question in natural language.
@@ -33,7 +33,7 @@ def create_mcp_server():
         db = SessionLocal()
         try:
             engine = AnswerEngine()
-            return engine.ask(db, query, mode=mode)
+            return engine.ask(db, query, workflow=workflow, mode=mode)
         except Exception as e:
             return f"Ask failed: {e}"
         finally:

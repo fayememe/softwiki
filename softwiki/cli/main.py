@@ -291,13 +291,14 @@ def index():
 
 @cli.command()
 @click.argument('question', type=str)
-def ask(question):
+@click.option('--workflow', type=str, default=None, help='Workflow ID from workflows.yaml')
+def ask(question, workflow):
     """Query the intelligence system with a research question."""
     db = SessionLocal()
     try:
         engine = AnswerEngine()
         click.echo(f"Researching: \"{question}\"...\n")
-        answer = engine.ask(db, question)
+        answer = engine.ask(db, question, workflow=workflow)
         click.echo(answer)
     except Exception as e:
         click.echo(f"Failed to retrieve answer: {e}", err=True)

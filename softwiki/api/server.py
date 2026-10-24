@@ -163,6 +163,7 @@ def me(request: Request):
 
 class AskRequest(BaseModel):
     question: str
+    workflow: Optional[str] = None
 
 class IngestUrlRequest(BaseModel):
     url: str
@@ -215,7 +216,7 @@ def ask_question(req: AskRequest):
     db = SessionLocal()
     try:
         engine = AnswerEngine()
-        answer = engine.ask(db, req.question)
+        answer = engine.ask(db, req.question, workflow=req.workflow)
         
         # Also return search results so the UI can show citation metadata in the side drawer
         searcher = HybridSearcher()
@@ -259,6 +260,7 @@ def ask_question(req: AskRequest):
 class ReportRequest(BaseModel):
     question: str
     template: str = "research-report"
+    workflow: Optional[str] = None
 
 
 @app.post("/api/report")
@@ -267,7 +269,7 @@ def create_report(req: ReportRequest):
     from softwiki.intelligence.report import generate_report
     db = SessionLocal()
     try:
-        return generate_report(db, req.question, req.template)
+        return generate_report(db, req.question, req.template, workflow=req.workflow)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -723,6 +725,12 @@ def list_modules():
     }
 
 # ── Workspace management ──
+
+@app.get("/api/workflows")
+def list_workflows():
+    from softwiki.intelligence.workflows import load_workflows
+    return {"workflows": load_workflows()}
+
 
 @app.get("/api/workspaces")
 def get_workspaces():

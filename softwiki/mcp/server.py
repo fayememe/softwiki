@@ -295,7 +295,7 @@ def wiki_build(topic: str) -> str:
         db.close()
 
 @mcp.tool()
-def ask(query: str, mode: str = "normal") -> str:
+def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
     """Ask a research question against the active workspace knowledge base.
 
     Uses hybrid RAG retrieval, graph context, claims, timeline, and LLM synthesis
@@ -309,7 +309,7 @@ def ask(query: str, mode: str = "normal") -> str:
     try:
         from softwiki.intelligence.answer_engine import AnswerEngine
         engine = AnswerEngine()
-        return engine.ask(db, query, mode=mode)
+        return engine.ask(db, query, workflow=workflow, mode=mode)
     except Exception as e:
         return f"Ask failed: {e}"
     finally:

@@ -43,6 +43,17 @@ workflows:
       4: "Inform the user that the submission is staged and awaiting review by a wiki-manage or wiki-admin user."
       5: "Do NOT call softwiki_ingest. Do NOT modify the knowledge base directly."
 
+  academic-analysis:
+    name: "Academic Analysis"
+    description: "Structured, source-critical analysis for research questions."
+    modes: [wiki-admin, wiki-manage, wiki-work, wiki-study]
+    steps:
+      1: "Decompose the question into explicit sub-questions and key terms."
+      2: "For each claim, distinguish primary vs secondary sources and note provenance."
+      3: "Reconstruct the chronology with explicit dates and flag inconsistencies."
+      4: "Present competing interpretations and the evidence for each."
+      5: "State limitations, missing evidence, and confidence; abstain where evidence is insufficient."
+
   simple-q&a:
     name: "Simple Q&A"
     description: "Answer a quick question using native reasoning and websearch."

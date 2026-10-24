@@ -298,7 +298,7 @@ class AnswerEngine:
     def load_configs(self):
         pass
 
-    def ask(self, db: Session, question: str, history: Optional[List[Dict[str, str]]] = None, mode: str = "normal") -> str:
+    def ask(self, db: Session, question: str, history: Optional[List[Dict[str, str]]] = None, workflow: Optional[str] = None, mode: str = "normal") -> str:
         self.load_configs()
 
         try:
@@ -321,6 +321,15 @@ class AnswerEngine:
             return answer
 
         mode_config = ANSWER_MODES.get(mode, ANSWER_MODES["normal"])
+        workflow_prompt = ""
+        if workflow:
+            try:
+                from softwiki.intelligence.workflows import get_workflow, render_workflow
+                selected = get_workflow(workflow)
+                if selected:
+                    workflow_prompt = "\n\n" + render_workflow(selected)
+            except Exception as e:
+                logger.warning(f"Workflow {workflow} not applied: {e}")
 
         # If there's conversation history, use the original topic from history
         # as the RAG search query — current message is almost always a follow-up.
@@ -472,7 +481,7 @@ class AnswerEngine:
             print("No valid LLM client found. Generating answer using local fallback mode.")
             answer = self._generate_fallback_answer_modular(question, search_results, claims_context, graph_context, timeline_context, wiki_context, citation_manager)
         else:
-            system_prompt = mode_config["system_prompt"]
+            system_prompt = mode_config["system_prompt"] + workflow_prompt
 
             user_content = f"""Question: {question}
 
