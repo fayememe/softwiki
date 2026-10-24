@@ -1,4 +1,5 @@
 import os
+import hashlib
 import json
 import yaml
 from typing import List, Dict, Any
@@ -88,7 +89,8 @@ Example Output:
             
             claims = []
             for i, c in enumerate(extracted):
-                claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{i+1}"
+                base = f"{doc_id}|{c.get('actor', 'Unknown')}|{c.get('stance', 'unclear')}|{c.get('topic', 'general')}|{c.get('text', '')}"
+                claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
                 claims.append(Claim(
                     id=claim_id,
                     document_id=doc_id,
@@ -156,7 +158,8 @@ Example Output:
                         elif any(w in claim_text.lower() for w in ["oppose", "reject", "against"]):
                             stance = "opposed"
                             
-                        claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{claim_index}"
+                        base = f"{doc_id}|{actor}|{stance}|{topic}|{claim_text}"
+                        claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
                         claims.append(Claim(
                              id=claim_id,
                              document_id=doc_id,

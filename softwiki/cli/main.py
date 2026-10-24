@@ -5,7 +5,7 @@ import shutil
 import yaml
 from datetime import datetime
 from softwiki.source_store.db import SessionLocal, init_tables
-from softwiki.source_store.models import Document, Chunk, SourceConfig
+from softwiki.source_store.models import Document, Chunk, SourceConfig, Claim, Relationship, Event
 from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.ingestion.web_loader import extract_web_content
 from softwiki.ingestion.pdf_loader import extract_pdf_content
@@ -444,6 +444,40 @@ def timeline_list():
         click.echo(f"Failed to query timeline: {e}", err=True)
     finally:
         db.close()
+@cli.command()
+@click.option('--doc-id', type=int, default=None, help='Re-extract only this document ID.')
+@click.option('--limit', type=int, default=None, help='Limit number of documents.')
+@click.option('--windows', type=int, default=None, help='Override EXTRACTION_MAX_WINDOWS.')
+def reextract(doc_id, limit, windows):
+    """Re-run windowed extraction, replacing claims/relationships/events per document."""
+    if windows:
+        os.environ["EXTRACTION_MAX_WINDOWS"] = str(windows)
+    db = SessionLocal()
+    try:
+        query = db.query(Document)
+        if doc_id:
+            query = query.filter(Document.id == doc_id)
+        if limit:
+            query = query.limit(limit)
+        docs = query.all()
+        max_windows = os.getenv("EXTRACTION_MAX_WINDOWS", "8")
+        click.echo(f"Re-extracting {len(docs)} documents (max_windows={max_windows})...")
+        for index, doc in enumerate(docs, 1):
+            db.query(Claim).filter(Claim.document_id == doc.id).delete()
+            db.query(Relationship).filter(Relationship.document_id == doc.id).delete()
+            db.query(Event).filter(Event.document_id == doc.id).delete()
+            db.commit()
+            published = doc.published_at or datetime.utcnow()
+            result = run_extraction_pipeline(
+                db, doc.id, doc.cleaned_text, published, background=False
+            )
+            click.echo(f"[{index}/{len(docs)}] doc {doc.id}: {result}")
+    except Exception as e:
+        click.echo(f"Re-extraction failed: {e}", err=True)
+        raise
+    finally:
+        db.close()
+
 
 if __name__ == '__main__':
     cli()

@@ -151,6 +151,20 @@ class DocumentRepository:
     # --- Relationship operations ---
     @staticmethod
     def create_relationship(db: Session, rel: Relationship) -> Relationship:
+        existing = db.query(Relationship).filter(
+            Relationship.document_id == rel.document_id,
+            Relationship.source_name == rel.source_name,
+            Relationship.target_name == rel.target_name,
+            Relationship.relation_type == rel.relation_type,
+        ).first()
+        if existing:
+            if rel.description:
+                existing.description = rel.description
+            if rel.confidence is not None:
+                existing.confidence = max(existing.confidence or 0.0, rel.confidence)
+            db.commit()
+            db.refresh(existing)
+            return existing
         db.add(rel)
         db.commit()
         db.refresh(rel)
@@ -167,6 +181,19 @@ class DocumentRepository:
     # --- Event operations ---
     @staticmethod
     def create_event(db: Session, event: Event) -> Event:
+        existing = db.query(Event).filter(
+            Event.document_id == event.document_id,
+            Event.title == event.title,
+            Event.event_date == event.event_date,
+        ).first()
+        if existing:
+            if event.description:
+                existing.description = event.description
+            if event.confidence is not None:
+                existing.confidence = max(existing.confidence or 0.0, event.confidence)
+            db.commit()
+            db.refresh(existing)
+            return existing
         db.add(event)
         db.commit()
         db.refresh(event)

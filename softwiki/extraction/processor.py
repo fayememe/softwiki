@@ -41,6 +41,88 @@ def _get_lightrag_adapter():
         logger.warning(f"Failed to initialize LightRAG adapter: {e}")
         return None
 
+def _extraction_windows(text: str) -> list:
+    window_chars = int(os.getenv("EXTRACTION_WINDOW_CHARS", "12000"))
+    overlap = int(os.getenv("EXTRACTION_WINDOW_OVERLAP", "1000"))
+    max_windows = max(1, int(os.getenv("EXTRACTION_MAX_WINDOWS", "8")))
+    if not text:
+        return []
+    if len(text) <= window_chars:
+        return [text]
+    overlap = max(0, min(overlap, window_chars // 4))
+    stride = max(1, window_chars - overlap)
+    total = max(1, (len(text) - overlap + stride - 1) // stride)
+    if total <= max_windows:
+        starts = [i * stride for i in range(total)]
+    elif max_windows == 1:
+        starts = [0]
+    else:
+        starts = [
+            round(i * (len(text) - window_chars) / (max_windows - 1))
+            for i in range(max_windows)
+        ]
+    return [text[start:start + window_chars] for start in starts]
+
+
+def _extract_document(db, doc_id: int, cleaned_text: str, published_at: datetime) -> dict:
+    windows = _extraction_windows(cleaned_text)
+    results = {"claims": 0, "entities": 0, "relationships": 0, "events": 0}
+    claim_extractor = ClaimExtractor() if is_module_enabled("claimdb") else None
+    graph_extractor = GraphExtractor() if is_module_enabled("graph") else None
+    timeline_extractor = TimelineExtractor() if is_module_enabled("timeline") else None
+
+    for index, window in enumerate(windows):
+        if claim_extractor:
+            claims = claim_extractor.extract_claims(doc_id, window, published_at)
+            for claim in claims:
+                DocumentRepository.create_claim(db, claim)
+            results["claims"] += len(claims)
+
+        if graph_extractor:
+            graph_data = graph_extractor.extract_graph(doc_id, window, published_at)
+            for entity in graph_data["entities"]:
+                DocumentRepository.create_entity(db, entity)
+            for relationship in graph_data["relationships"]:
+                DocumentRepository.create_relationship(db, relationship)
+            results["entities"] += len(graph_data["entities"])
+            results["relationships"] += len(graph_data["relationships"])
+
+            lightrag = _get_lightrag_adapter()
+            if lightrag is not None:
+                try:
+                    lightrag.sync_insert_text(window, source_id=f"doc_{doc_id}_w{index}")
+                except Exception as exc:
+                    logger.warning(f"LightRAG insert failed for doc {doc_id} window {index}: {exc}")
+
+        if timeline_extractor:
+            events = timeline_extractor.extract_events(doc_id, window, published_at)
+            for event in events:
+                DocumentRepository.create_event(db, event)
+            results["events"] += len(events)
+
+    return results
+
+
+def _save_extraction_artifacts(db, doc_id: int) -> None:
+    try:
+        from softwiki.ingestion.file_store import save_extraction
+        doc_claims = [
+            claim for claim in DocumentRepository.get_all_claims(db)
+            if claim.document_id == doc_id
+        ]
+        doc_relationships = DocumentRepository.get_relationships_by_document(db, doc_id)
+        doc_events = DocumentRepository.get_events_by_document(db, doc_id)
+        entity_names = {rel.source_name for rel in doc_relationships}
+        entity_names |= {rel.target_name for rel in doc_relationships}
+        doc_entities = [
+            entity for entity in DocumentRepository.get_all_entities(db)
+            if entity.name in entity_names
+        ]
+        save_extraction(doc_id, doc_claims, doc_entities, doc_relationships, doc_events)
+    except Exception as exc:
+        logger.warning(f"Extraction artifact save failed for doc {doc_id}: {exc}")
+
+
 def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime):
     """Background thread worker to perform NLP extraction on a document."""
     from softwiki.source_store.db import SessionLocal
@@ -58,56 +140,14 @@ def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime
         doc.status = "extracting"
         db.commit()
         print(f"[Worker] Starting background extraction for Document ID {doc_id}...")
-        
-        extraction_text = cleaned_text[:15000]
-        
-        # 1. Claim DB Module
-        if is_module_enabled("claimdb"):
-            extractor = ClaimExtractor()
-            claims = extractor.extract_claims(doc_id, extraction_text, published_at)
-            for c in claims:
-                DocumentRepository.create_claim(db, c)
-                
-        # 2. Graph Module (SQLite + optional LightRAG)
-        if is_module_enabled("graph"):
-            graph_extractor = GraphExtractor()
-            graph_data = graph_extractor.extract_graph(doc_id, extraction_text, published_at)
-            for entity in graph_data["entities"]:
-                DocumentRepository.create_entity(db, entity)
-            for rel in graph_data["relationships"]:
-                DocumentRepository.create_relationship(db, rel)
 
-            # Also insert into LightRAG if available
-            lr = _get_lightrag_adapter()
-            if lr is not None:
-                try:
-                    lr.sync_insert_text(extraction_text, source_id=f"doc_{doc_id}")
-                    logger.info(f"LightRAG: inserted doc {doc_id}")
-                except Exception as lr_err:
-                    logger.warning(f"LightRAG insert failed for doc {doc_id}: {lr_err}")
-                
-        # 3. Timeline Module
-        if is_module_enabled("timeline"):
-            timeline_extractor = TimelineExtractor()
-            events = timeline_extractor.extract_events(doc_id, extraction_text, published_at)
-            for ev in events:
-                DocumentRepository.create_event(db, ev)
-                
-        doc.status = "completed"
-        db.commit()
+        _extract_document(db, doc_id, cleaned_text, published_at)
 
-        # Stage 4: save extraction artifacts to disk
-        try:
-            from softwiki.ingestion.file_store import save_extraction
-            from softwiki.source_store.document_repo import DocumentRepository as DR
-            doc_claims = [c for c in DR.get_all_claims(db) if c.document_id == doc_id]
-            doc_rels = [r for r in DR.get_all_relationships(db) if r.document_id == doc_id]
-            doc_events = DR.get_events_by_document(db, doc_id)
-            doc_entity_names = {r.source_name for r in doc_rels} | {r.target_name for r in doc_rels}
-            doc_entities = [e for e in DR.get_all_entities(db) if e.name in doc_entity_names]
-            save_extraction(doc_id, doc_claims, doc_entities, doc_rels, doc_events)
-        except Exception as fe:
-            print(f"[Worker] file_store extraction save failed for doc {doc_id}: {fe}")
+        doc = DocumentRepository.get_document(db, doc_id)
+        if doc:
+            doc.status = "completed"
+            db.commit()
+        _save_extraction_artifacts(db, doc_id)
 
         print(f"[Worker] Background extraction completed successfully for Document ID {doc_id}.")
     except Exception as e:
@@ -157,67 +197,12 @@ def run_extraction_pipeline(db: Session, doc_id: int, cleaned_text: str, publish
         doc.status = "extracting"
         db.commit()
         
-    results = {}
-    extraction_text = cleaned_text[:15000]
-    
-    # 1. Claim DB Module
-    if is_module_enabled("claimdb"):
-        extractor = ClaimExtractor()
-        claims = extractor.extract_claims(doc_id, extraction_text, published_at)
-        for c in claims:
-            DocumentRepository.create_claim(db, c)
-        results["claims"] = len(claims)
-    else:
-        results["claims"] = 0
+    results = _extract_document(db, doc_id, cleaned_text, published_at)
 
-    # 2. Graph Module (SQLite + optional LightRAG)
-    if is_module_enabled("graph"):
-        graph_extractor = GraphExtractor()
-        graph_data = graph_extractor.extract_graph(doc_id, extraction_text, published_at)
-        for entity in graph_data["entities"]:
-            DocumentRepository.create_entity(db, entity)
-        for rel in graph_data["relationships"]:
-            DocumentRepository.create_relationship(db, rel)
-        results["entities"] = len(graph_data["entities"])
-        results["relationships"] = len(graph_data["relationships"])
-
-        lr = _get_lightrag_adapter()
-        if lr is not None:
-            try:
-                lr.sync_insert_text(extraction_text, source_id=f"doc_{doc_id}")
-                logger.info(f"LightRAG: inserted doc {doc_id}")
-            except Exception as lr_err:
-                logger.warning(f"LightRAG insert failed for doc {doc_id}: {lr_err}")
-    else:
-        results["entities"] = 0
-        results["relationships"] = 0
-
-    # 3. Timeline Module
-    if is_module_enabled("timeline"):
-        timeline_extractor = TimelineExtractor()
-        events = timeline_extractor.extract_events(doc_id, extraction_text, published_at)
-        for ev in events:
-            DocumentRepository.create_event(db, ev)
-        results["events"] = len(events)
-    else:
-        results["events"] = 0
-
+    doc = DocumentRepository.get_document(db, doc_id)
     if doc:
         doc.status = "completed"
         db.commit()
-
-    # Stage 4: save extraction artifacts to disk
-    try:
-        from softwiki.ingestion.file_store import save_extraction
-        doc_claims = [c for c in DocumentRepository.get_all_claims(db) if c.document_id == doc_id]
-        doc_rels = [r for r in DocumentRepository.get_all_relationships(db) if r.document_id == doc_id]
-        doc_events = DocumentRepository.get_events_by_document(db, doc_id)
-        # Filter entities to those referenced by this document's relationships
-        doc_entity_names = {r.source_name for r in doc_rels} | {r.target_name for r in doc_rels}
-        all_entities = DocumentRepository.get_all_entities(db)
-        doc_entities = [e for e in all_entities if e.name in doc_entity_names]
-        save_extraction(doc_id, doc_claims, doc_entities, doc_rels, doc_events)
-    except Exception as e:
-        pass  # non-fatal, DB is source of truth
+    _save_extraction_artifacts(db, doc_id)
 
     return results
