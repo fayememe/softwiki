@@ -239,3 +239,13 @@ c8bcb4e fix(answer): enforce scope before retrieval
 3. Phase 5 Wiki 手工编辑 / 混合模式 / 页面编辑器 / 独立站 / 静态导出。
 4. Phase 6 响应式、web_loader 升级、测试覆盖扩展。
 5. TLS/反代：按你的要求暂不做。
+
+
+---
+
+## 9. Demo 范围决策（2026-10-23）
+
+- 现阶段以 **demo** 为主；**权限 / 用户系统不作为当期目标**。
+- 不做：登录页、users 表使用、RBAC 强制、ACL 强制、审计日志。
+- 4 种身份（`wiki-admin` / `wiki-manage` / `wiki-work` / `wiki-study`）继续作为文档/模式概念保留；当前实例按 `wiki-admin` 使用。
+- 认证代码保留在仓库，但 `SOFTWIKI_AUTH_ENABLED` 保持关闭，不参与 demo 流程。

@@ -47,6 +47,7 @@
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
   - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询（已手动验证 `up to date`）。
   - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
+- **Demo 范围（2026-10-23 确认）**：权限/用户系统（登录、RBAC、ACL 强制、审计）**不在当期目标**；当前实例按 `wiki-admin` 使用，4 种身份仅作概念/文档保留。
   - **数据库**：PostgreSQL `softwiki_armkb`；SQLite 数据已迁移；vector/BM25 文件仍在 workspace。
   - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → javis `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
   - 全量：73 篇文档 / 2122 claims / 835 entities / 1328 relationships / 375 events；81 个 PDF 中 70 success、11 duplicate、0 failed。
@@ -75,10 +76,8 @@
 - [x] T15 抽取窗口化（`EXTRACTION_MAX_WINDOWS=6` spread）+ hash claim id + 关系/事件去重；`softwiki reextract` 运行中
 
 ### M2 — 能隔离（P0）
-- [x] T7 认证（PBKDF2 + HMAC token + `/api/login`）
-- [x] T8 按请求 workspace（contextvar）
-- [x] T9 库级 ACL（`workspace_members`）
-- 注：线上 `SOFTWIKI_AUTH_ENABLED` **默认关闭**；WebUI 暂无登录页
+- [~] T7–T9 认证/ACL：代码在，但 **demo 阶段不启用**；不接 WebUI 登录、不做权限强制
+- 注：当前实例按 `wiki-admin` 使用；`SOFTWIKI_AUTH_ENABLED` 保持关闭
 
 ### M3 — 能交付（P1）
 - [x] T10 模板系统（`research-report` / `course-qa`）
@@ -111,13 +110,13 @@
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
-- [ ] **认证 UI**：后端就绪，WebUI 未接。
+- [x] **认证/权限**：demo 阶段明确不做（代码保留，默认关闭）。
 
 ## 下一步（NEXT）
 
 1. **抽样验收**：用更多 ARM 问题检查页码/引用质量；补充 golden questions。
 2. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
-3. **认证 UI + TLS + Postgres**：试用后按学校要求推进。
+3. **Demo 体验**：Chat/Report/Workflow 的 UI 串联、API `mode`/`history` 修复。
 4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
 
 ## 本 session 状态记录（handoff）
