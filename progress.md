@@ -85,9 +85,11 @@
 - [~] T11 报告 + manifest（同步版已通；异步任务未做）
 - [x] T12 Docker Compose + CI/CD（TLS/反代未做）
 - [x] T13 备份 / 恢复脚本（workspace + `pg_dump` 文档）
-- [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移）
+- [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移；armkb 已迁移 73 docs / 39,870 chunks）
 - [x] T17 基础 workflow 选择（API/MCP/CLI/report，prompt 注入 `academic-analysis`）
 - [ ] T18 Workflow 高级：自动路由、BM25/timeline verifier、可视化编辑
+- [ ] T19 Golden questions / 验收评测
+- [ ] T20 WebUI 登录页（auth 后端就绪）
 - [~] T14 golden questions（未做）
 
 ## Pending issues / Blocker
@@ -99,11 +101,12 @@
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
 - [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 并发 + TPM 限速。
-- [x] **切流 + CI timer**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
+- [x] **切流**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
+- [!] **CI timer 暂停中**：窗口化重抽期间停掉，完成后重新 enable。
 - [x] **CI timer 已重新启用**。
 - [x] **armkb 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
 - [x] **armkb 数据**：73 篇 / 39,870 chunks / 2122 claims / 835 entities / 1328 relationships / 375 events。
-- [!] **armkb 正在窗口化重抽**：日志 `/tmp/armkb-reextract.log`；已处理 doc 1（168 claims / 95 entities / 106 relationships / 3 events），其余 72 篇进行中。
+- [!] **armkb 正在窗口化重抽**：日志 `/tmp/armkb-reextract2.log`；`--windows 4`；doc 3 已完成（102 claims / 66 entities / 81 relationships / 7 events），其余进行中；CI timer 暂停。
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。

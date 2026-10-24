@@ -198,3 +198,44 @@ f94be45 feat(citations): page-level and all-layer citations
 ca92ee6 fix(wiki): fall back to template when LLM compilation fails
 c8bcb4e fix(answer): enforce scope before retrieval
 ```
+
+---
+
+## 8. 主线 TODO 审计（2026-10-23）
+
+### 已完成
+
+- M0 测试基线：53 passed。
+- M1 回答可信：页码/偏移、页码引用、全层引用、弃权、scope。
+- M2 隔离基础：认证/ACL 代码（默认关闭）。
+- M3 交付基础：Docker/CI、模板、报告、备份、Postgres。
+- 抽取窗口化 + hash claim id + 关系/事件去重 + 并行抽取器。
+- 基础 workflow 选择：模板 + workspace override + `academic-analysis`；API/MCP/CLI/report 可按请求选择。
+
+### 仍未做（按优先级）
+
+**P0（试用前应完成）**
+
+1. 等窗口化重抽完成并验收 claims/entities/events（`/tmp/armkb-reextract2.log`）。
+2. Golden questions / 验收评测：每模板 10 题，记录 recall、引用准确率、弃权率、延迟。
+3. WebUI 登录页：后端 auth 已就绪，前端未接；当前 auth 默认关闭。
+4. API `mode`/`history` plumbing：`/api/ask` 仍未接收这两个字段；REST 永远 normal。
+5. API sources 与答案引用的一致性：`/api/ask` 会二次检索，引用编号可能不一致。
+6. Postgres 备份脚本：文档已写 `pg_dump`，`scripts/backup.sh` 尚未包含。
+
+**P1（产品深度）**
+
+1. **Workflow 高级**：当前只是 prompt 注入；缺自动路由、BM25 事实校验、timeline 时序校验、失败降级策略、可视化/受约束的模板编辑。
+2. **SI-1 Wiki 提示词系统**：`page_generator.py` 仍硬编码 system prompt + 固定章节；未支持 workspace/topic 覆盖。
+3. **增量索引**：`/api/index` 仍全量重切/重嵌；1M TPM 下每次约 50 分钟，应做缺失 chunk 的增量索引。
+4. **抽取覆盖/质量**：窗口是采样（默认 6 → 本次 4），不是全文档；需要评估哪些文档/章节值得全量抽取。
+5. **lsl-kb 回填**：历史 820 篇 claims/events 仍为 0；决定重抽或迁移到 armkb 流程。
+6. **审计日志**：auth/ACL 有角色，但没有操作审计。
+
+**P2（路线图后续）**
+
+1. Phase 2 图像系统：上传、服务、图表 OCR、图搜。
+2. Phase 3 远程 MCP HTTPS + Bearer、swshell 独立客户端。
+3. Phase 5 Wiki 手工编辑 / 混合模式 / 页面编辑器 / 独立站 / 静态导出。
+4. Phase 6 响应式、web_loader 升级、测试覆盖扩展。
+5. TLS/反代：按你的要求暂不做。
