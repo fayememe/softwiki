@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import os
 import sys
 import shutil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
