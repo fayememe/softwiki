@@ -32,9 +32,9 @@ def load_template(template_id):
     return template
 
 
-def generate_report(db, question, template_id="research-report"):
+def generate_report(db, question, template_id="research-report", workflow=None):
     template = load_template(template_id)
-    answer = AnswerEngine().ask(db, question)
+    answer = AnswerEngine().ask(db, question, workflow=workflow)
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     digest = hashlib.sha256(f"{question}\n{answer}".encode()).hexdigest()[:12]
     report_id = f"{time.strftime('%Y%m%d-%H%M%S')}-{digest}"
@@ -73,6 +73,7 @@ def generate_report(db, question, template_id="research-report"):
         "report_id": report_id,
         "question": question,
         "template": template_id,
+        "workflow": workflow,
         "workspace": os.path.basename(get_workspace_dir()),
         "created_at": created_at,
         "answer_sha256": hashlib.sha256(answer.encode()).hexdigest(),
