@@ -2,7 +2,7 @@
 
 > 范围：试用就绪（Trial Readiness）第一轮落地。
 > 目标：单校、单实例、自部署、试用评估。
-> 结论：**核心链路已通，测试全绿；armkb 全量索引已完成并迁移到 PostgreSQL；窗口化重抽进行中；workflow 选择已接入（prompt 级）。**
+> 结论：**核心链路已通，测试全绿；armkb 已完成全量索引、PostgreSQL 迁移和窗口化重抽（10,573 claims）；workflow/API/UI demo 链路已打通；acceptance 11/11。**
 
 ---
 
@@ -115,7 +115,7 @@
 | MCP | `10.3.9.29:6100`（SSE + Streamable HTTP） |
 | 活动库 | `armkb` |
 | 容器 | `softwiki-api-1` / `softwiki-mcp-1` / `softwiki-web-1`，全部 healthy |
-| CI timer | **暂停中**（入库/索引期间） |
+| CI timer | **active** |
 | 最新 commit | 见 `git log -1` |
 
 `.env` 关键项（不记录值）：
@@ -142,7 +142,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 
 - [x] **armkb 全量索引已完成**：39,870 chunks；2026-10-23 12:50–13:38（约 48 分钟，1M TPM）。
 - [x] **已验证**：`search` 返回 page_start/page_end；`ask` 引用显示 `p.N` / `pp.N-M`；`/api/report` 生成并下载 report.md + manifest.json。
-- [!] **抽取窗口**：`run_extraction_pipeline` 只取每篇前 15k 字符；大手册结构化层只覆盖开头。RAG 覆盖全文。
+- [x] **抽取窗口**：已改为窗口采样（本次 4 窗口/篇）+ hash claim id + 去重；73/73 重抽完成。
 - [ ] **认证 UI**：后端已就绪，WebUI 没有登录页；线上 auth 默认关闭。
 - [ ] **TLS/反代**：javis 没有 Caddy/Nginx；试用先用 HTTP 端口。
 - [x] **数据库**：已切 PostgreSQL；SQLite 数据已迁移。
@@ -161,13 +161,12 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
      -H 'Content-Type: application/json' \
      -d '{"question":"What registers does the PL031 RTC provide?","template":"research-report"}'
    ```
-3. CI timer 已重新启用（`systemctl is-active softwiki-deploy.timer` → active）。
+3. CI timer 已重新启用；acceptance：`python scripts/run_acceptance.py --api http://10.3.9.29:6200` → 11/11。
 4. 后续优先级：
-   - 抽取窗口改成窗口/分块抽取；
-   - WebUI 登录页 + 启用 auth；
-   - Caddy TLS；
-   - Postgres；
-   - lsl-kb 重抽或迁移到 armkb 流程。
+   - Workflow 高级（verifier/自动路由）；
+   - 增量索引；
+   - lsl-kb 重抽；
+   - 权限/登录（demo 后再做）。
 
 ---
 
@@ -216,12 +215,12 @@ c8bcb4e fix(answer): enforce scope before retrieval
 
 **P0（试用前应完成）**
 
-1. 等窗口化重抽完成并验收 claims/entities/events（`/tmp/armkb-reextract2.log`）。
-2. Golden questions / 验收评测：每模板 10 题，记录 recall、引用准确率、弃权率、延迟。
-3. WebUI 登录页：后端 auth 已就绪，前端未接；当前 auth 默认关闭。
-4. API `mode`/`history` plumbing：`/api/ask` 仍未接收这两个字段；REST 永远 normal。
-5. API sources 与答案引用的一致性：`/api/ask` 会二次检索，引用编号可能不一致。
-6. Postgres 备份脚本：文档已写 `pg_dump`，`scripts/backup.sh` 尚未包含。
+1. [x] 窗口化重抽完成：73/73，10,573 claims。
+2. [x] Golden questions：11/11 passed。
+3. [x] API `mode`/`history` 与 sources 引用一致性已修复。
+4. [x] WebUI workflow/页码/Report 已接入。
+5. [ ] Postgres 备份脚本：文档已写 `pg_dump`，`scripts/backup.sh` 尚未包含。
+6. [ ] 权限/登录：demo 阶段明确不做。
 
 **P1（产品深度）**
 

@@ -73,7 +73,7 @@
 - [x] T4 RAG 引用带页码/span
 - [x] T5 全层引用（claim / graph / timeline）
 - [x] T6 弃权 + ask-time scope
-- [x] T15 抽取窗口化（`EXTRACTION_MAX_WINDOWS=6` spread）+ hash claim id + 关系/事件去重；`softwiki reextract` 运行中
+- [x] T15 抽取窗口化（`EXTRACTION_MAX_WINDOWS=6` spread）+ hash claim id + 关系/事件去重；`softwiki reextract` 已完成 73/73
 
 ### M2 — 能隔离（P0）
 - [~] T7–T9 认证/ACL：代码在，但 **demo 阶段不启用**；不接 WebUI 登录、不做权限强制
@@ -86,26 +86,25 @@
 - [x] T13 备份 / 恢复脚本（workspace + `pg_dump` 文档）
 - [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移；armkb 已迁移 73 docs / 39,870 chunks）
 - [x] T17 基础 workflow 选择（API/MCP/CLI/report，prompt 注入 `academic-analysis`）
+- [x] T21 `/api/ask` 接 `mode`/`history`；sources 与答案引用编号对齐
+- [x] T22 WebUI：workflow 选择、页码展示、Report 下载
+- [x] T23 Golden questions + `scripts/run_acceptance.py`（11/11 passed）
 - [ ] T18 Workflow 高级：自动路由、BM25/timeline verifier、可视化编辑
-- [ ] T19 Golden questions / 验收评测
-- [ ] T20 WebUI 登录页（auth 后端就绪）
-- [~] T14 golden questions（未做）
 
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
-- [x] **测试基线**：48 passed（离线）。
-- [ ] **数据库选择**：试用版仍 SQLite；多用户前建议 Postgres。
+- [x] **测试基线**：54 passed（离线）。
+- [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
 - [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 并发 + TPM 限速。
 - [x] **切流**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
-- [!] **CI timer 暂停中**：窗口化重抽期间停掉，完成后重新 enable。
 - [x] **CI timer 已重新启用**。
 - [x] **armkb 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
-- [x] **armkb 数据**：73 篇 / 39,870 chunks / 2122 claims / 835 entities / 1328 relationships / 375 events。
-- [!] **armkb 正在窗口化重抽**：日志 `/tmp/armkb-reextract2.log`；`--windows 4`；doc 3 已完成（102 claims / 66 entities / 81 relationships / 7 events），其余进行中；CI timer 暂停。
+- [x] **armkb 数据**：73 篇 / 39,870 chunks / 10,573 claims / 4,165 entities / 7,211 relationships / 639 events。
+- [x] **armkb 窗口化重抽完成**：73/73；最终 10,573 claims / 4,165 entities / 7,211 relationships / 639 events；acceptance **11/11**。
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
@@ -114,7 +113,7 @@
 
 ## 下一步（NEXT）
 
-1. **抽样验收**：用更多 ARM 问题检查页码/引用质量；补充 golden questions。
+1. **Demo 验收**：`scripts/run_acceptance.py` 11/11；继续补更多 golden questions。
 2. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
 3. **Demo 体验**：Chat/Report/Workflow 的 UI 串联、API `mode`/`history` 修复。
 4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
