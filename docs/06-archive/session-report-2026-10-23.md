@@ -36,7 +36,7 @@
 - `AnswerEngine.ask` 检索前执行 scope；库外问题直接拒绝。
 - 空库/无证据时显式弃权，不再调用 LLM 编答案。
 - wiki 编译遇到 LLM 失败时回退到模板页，不再整体失败。
-- 测试基线：全量离线，**48 passed**。
+- 测试基线：全量离线，**54 passed**。
 
 ### 1.4 认证 / 报告 / 运维
 
@@ -89,7 +89,7 @@
 
 ```bash
 ./venv/bin/python -m pytest tests -q
-# 48 passed in ~1.7s
+# 54 passed in ~2s
 ```
 
 新增/修复的测试：
@@ -136,7 +136,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 - `search "PL031 registers"` → PL031 TRM `page_start=5, page_end=7`。
 - `ask "What registers does the PL031 RTC provide?"` → 引用包含 `p.12`、`pp.9-10`、`p.23` 等页码。
 - `/api/report` → `20261023-204514-b20cb2063f91`，`report.md` + `manifest.json` 可下载。
-- `pytest tests -q` → 48 passed。
+- `pytest tests -q` → 54 passed。
 
 ## 5. 未完成 / 风险
 

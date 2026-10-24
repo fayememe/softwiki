@@ -64,7 +64,7 @@
 - [x] 清理 `tests/__pycache__`
 - [x] 测试离线化（mock embedding / 禁用 LightRAG / Web）
 - [x] 修 `test_answer_engine` / `test_config_cascade` / `test_workspace` 陈旧断言
-- [x] `pytest tests -q`：**48 passed，约 1.7s**
+- [x] `pytest tests -q`：**54 passed，约 2s**
 
 ### M1 — 能信（P0）
 - [x] T1 PDF 页码/段落（`--- Page Break ---` → page ranges）
