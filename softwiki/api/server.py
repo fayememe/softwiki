@@ -8,6 +8,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.engine import make_url
 
 # Ensure parent directory is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -32,6 +33,12 @@ from softwiki.intelligence.answer_engine import AnswerEngine
 from softwiki.wiki.page_generator import WikiPageGenerator
 
 app = FastAPI(title="Softwiki REST API", version="0.1.0")
+
+def _safe_db_url():
+    try:
+        return make_url(get_db_url()).render_as_string(hide_password=True)
+    except Exception:
+        return "unknown"
 
 def check_read_only():
     if os.getenv("SOFTWIKI_MODE") in ["study", "work", "wiki-study", "wiki-work"]:
@@ -186,7 +193,7 @@ def get_status():
         
         return {
             "workspace": get_workspace_dir(),
-            "database_url": get_db_url(),
+            "database_url": _safe_db_url(),
             "counts": {
                 "documents": doc_count,
                 "chunks": chunk_count,
