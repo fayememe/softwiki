@@ -6,6 +6,7 @@ from softwiki.source_store.db import Base
 from softwiki.source_store import models
 
 TABLES = ["documents", "chunks", "claims", "entities", "relationships", "events"]
+SERIAL_TABLES = ["documents", "chunks", "entities", "relationships", "events"]
 
 
 def main():
@@ -37,7 +38,7 @@ def main():
             print(f"{name}: {len(rows)}")
 
         if target.dialect.name == "postgresql":
-            for name in TABLES:
+            for name in SERIAL_TABLES:
                 dst.execute(text(
                     f"SELECT setval(pg_get_serial_sequence('{name}','id'), "
                     f"COALESCE((SELECT MAX(id) FROM \"{name}\"), 1), true)"
