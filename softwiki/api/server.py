@@ -164,6 +164,8 @@ def me(request: Request):
 class AskRequest(BaseModel):
     question: str
     workflow: Optional[str] = None
+    mode: Optional[str] = None
+    history: Optional[List[Dict[str, str]]] = None
 
 class IngestUrlRequest(BaseModel):
     url: str
@@ -210,47 +212,58 @@ def get_status():
     finally:
         db.close()
 
+def _build_sources(engine):
+    rag_map = {}
+    for result in getattr(engine, "last_search_results", []):
+        doc = result.get("document")
+        chunk = result.get("chunk")
+        key = (
+            getattr(doc, "id", None),
+            getattr(chunk, "page_start", None),
+            getattr(chunk, "page_end", None),
+        )
+        rag_map.setdefault(key, result)
+
+    sources = []
+    for citation in getattr(engine, "last_citations", []):
+        key = (
+            citation.get("doc_id"),
+            citation.get("page_start"),
+            citation.get("page_end"),
+        )
+        result = rag_map.get(key)
+        sources.append({
+            "citation_num": citation.get("num"),
+            "title": citation.get("title"),
+            "url": citation.get("url"),
+            "source_name": citation.get("source_name"),
+            "published_at": citation.get("published_at") or "Unknown",
+            "page_start": citation.get("page_start"),
+            "page_end": citation.get("page_end"),
+            "text": result["chunk"].text if result else citation.get("text", ""),
+            "score": float(result["score"]) if result else 0.0,
+        })
+    return sources
+
+
 @app.post("/api/ask")
 def ask_question(req: AskRequest):
     """Executes CJK-aware hybrid search and synthesizes an answer using LLM."""
     db = SessionLocal()
     try:
         engine = AnswerEngine()
-        answer = engine.ask(db, req.question, workflow=req.workflow)
-        
-        # Also return search results so the UI can show citation metadata in the side drawer
-        searcher = HybridSearcher()
-        results = searcher.search(db, req.question, top_k=5)
-        
-        sources = []
-        citation_manager = CitationManager()
-        for res in results:
-            chunk = res["chunk"]
-            doc = res["document"]
-            meta = {
-                "title": doc.title,
-                "url": doc.url,
-                "source_name": doc.source_name,
-                "published_at": doc.published_at,
-                "page_start": getattr(chunk, "page_start", None),
-                "page_end": getattr(chunk, "page_end", None),
-            }
-            cit_num = citation_manager.get_citation_num(doc.id, meta)
-            sources.append({
-                "citation_num": cit_num,
-                "title": doc.title,
-                "url": doc.url,
-                "source_name": doc.source_name,
-                "published_at": doc.published_at.strftime('%Y-%m-%d') if doc.published_at else "Unknown",
-                "page_start": getattr(chunk, "page_start", None),
-                "page_end": getattr(chunk, "page_end", None),
-                "text": chunk.text,
-                "score": float(res["score"])
-            })
-            
+        answer = engine.ask(
+            db,
+            req.question,
+            history=req.history,
+            workflow=req.workflow,
+            mode=req.mode or "normal",
+        )
         return {
             "answer": answer,
-            "sources": sources
+            "sources": _build_sources(engine),
+            "mode": req.mode or "normal",
+            "workflow": req.workflow,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

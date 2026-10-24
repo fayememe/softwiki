@@ -72,6 +72,8 @@ def test_answer_engine_integration():
         assert isinstance(answer, str)
         assert answer.strip()
         assert "Reuters" in answer or "[1]" in answer
+        assert engine_obj.last_citations
+        assert engine_obj.last_search_results
 
     finally:
         db.close()

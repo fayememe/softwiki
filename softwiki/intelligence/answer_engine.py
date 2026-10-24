@@ -294,12 +294,16 @@ def _try_lightrag_query(question: str, mode: str = "local") -> Optional[List[str
 class AnswerEngine:
     def __init__(self):
         self.searcher = HybridSearcher()
+        self.last_citations = []
+        self.last_search_results = []
 
     def load_configs(self):
         pass
 
     def ask(self, db: Session, question: str, history: Optional[List[Dict[str, str]]] = None, workflow: Optional[str] = None, mode: str = "normal") -> str:
         self.load_configs()
+        self.last_citations = []
+        self.last_search_results = []
 
         try:
             from softwiki.intelligence.scope_guard import check_scope
@@ -457,6 +461,9 @@ class AnswerEngine:
             prompt_parts.append("### Chronological Events (Timeline):\n" + "\n".join(timeline_context))
         if wiki_context:
             prompt_parts.append("### Existing Topic Synthesis (llm-wiki):\n" + "\n\n".join(wiki_context))
+
+        self.last_citations = citation_manager.citations
+        self.last_search_results = search_results
 
         consolidated_context = "\n\n".join(prompt_parts)
 
