@@ -118,7 +118,43 @@
   max-width: var(--chat-max-width, 800px);
   margin: 0 auto;
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.modeRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflowSelect {
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  max-width: 160px;
+}
+
+.reportBtn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(85,136,255,0.25);
+  background: rgba(85,136,255,0.08);
+  color: var(--accent-blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.reportBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .modeBtn {

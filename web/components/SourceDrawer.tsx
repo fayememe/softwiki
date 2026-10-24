@@ -49,6 +49,16 @@ export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
                 <span className={styles.metaValue}>{source.published_at}</span>
               </div>
             )}
+            {source.page_start != null && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Pages</span>
+                <span className={styles.metaValue}>
+                  {source.page_end != null && source.page_end !== source.page_start
+                    ? `${source.page_start}–${source.page_end}`
+                    : source.page_start}
+                </span>
+              </div>
+            )}
             <div className={styles.metaItem}>
               <span className={styles.metaLabel}>Relevance</span>
               <div className={styles.scoreBar}>

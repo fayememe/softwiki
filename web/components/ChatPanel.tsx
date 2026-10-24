@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { apiAsk } from '@/lib/api';
-import type { Source } from '@/lib/api';
+import { apiAsk, apiReport, apiReportDownloadUrl, apiWorkflows } from '@/lib/api';
+import type { Source, Workflow } from '@/lib/api';
 import ChatMessage, { type Message } from './ChatMessage';
 import SourceDrawer from './SourceDrawer';
 import styles from './ChatPanel.module.css';
@@ -32,6 +32,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   const [isLoading, setIsLoading] = useState(false);
   const [drawerSource, setDrawerSource] = useState<Source | null>(null);
   const [mode, setMode] = useState('normal');
+  const [workflow, setWorkflow] = useState('');
+  const [workflows, setWorkflows] = useState<Record<string, Workflow>>({});
+  const [isReporting, setIsReporting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -56,6 +59,12 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   useEffect(() => {
     inputRef.current?.focus();
   }, [sessionId]);
+
+  useEffect(() => {
+    apiWorkflows()
+      .then(data => setWorkflows(data.workflows))
+      .catch(() => {});
+  }, []);
 
   const genId = () =>
     crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -89,7 +98,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
         .filter(m => !m.isLoading)
         .slice(-20) // last 20 messages
         .map(m => ({ role: m.role, content: m.content }));
-      const response = await apiAsk(question, history, mode);
+      const response = await apiAsk(question, history, mode, workflow || undefined);
       const assistantMsg: Message = {
         id: genId(),
         role: 'assistant',
@@ -119,7 +128,25 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, isLoading, messages, sessionId, onMessagesChange]);
+  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow]);
+
+  const handleReport = async () => {
+    const question = (
+      input.trim() ||
+      [...messages].reverse().find(m => m.role === 'user' && !m.isLoading)?.content ||
+      ''
+    ).trim();
+    if (!question || isReporting) return;
+    setIsReporting(true);
+    try {
+      const report = await apiReport(question, 'research-report', workflow || undefined);
+      window.open(apiReportDownloadUrl(report.report_id), '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Report generation failed');
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -193,7 +220,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
         </div>
       </div>
 
-      {/* Mode selector */}
+      {/* Mode / workflow / report bar */}
       <div className={styles.modeBar}>
         <div className={styles.modeInner}>
           {MODES.map(m => (
@@ -205,6 +232,28 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               {m.label}
             </button>
           ))}
+          <div className={styles.modeRight}>
+            <select
+              className={styles.workflowSelect}
+              value={workflow}
+              onChange={e => setWorkflow(e.target.value)}
+              aria-label="Workflow"
+              disabled={isLoading}
+            >
+              <option value="">No workflow</option>
+              {Object.entries(workflows).map(([id, wf]) => (
+                <option key={id} value={id}>{wf.name || id}</option>
+              ))}
+            </select>
+            <button
+              className={styles.reportBtn}
+              onClick={handleReport}
+              disabled={isReporting || isLoading}
+              title="Generate a research report with citations"
+            >
+              {isReporting ? 'Generating…' : 'Report'}
+            </button>
+          </div>
         </div>
       </div>
 

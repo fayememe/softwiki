@@ -187,6 +187,14 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                                     {src.published_at && src.published_at !== 'Unknown' && (
                                       <span>· {src.published_at}</span>
                                     )}
+                                    {src.page_start != null && (
+                                      <span>
+                                        · p.{src.page_start}
+                                        {src.page_end != null && src.page_end !== src.page_start
+                                          ? `-${src.page_end}`
+                                          : ''}
+                                      </span>
+                                    )}
                                     <span className={styles.sourceScore}>
                                       {(src.score * 100).toFixed(0)}%
                                     </span>

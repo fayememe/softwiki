@@ -51,6 +51,8 @@ export interface Source {
   url: string | null;
   source_name: string;
   published_at: string;
+  page_start: number | null;
+  page_end: number | null;
   text: string;
   score: number;
 }
@@ -63,6 +65,27 @@ export interface HistoryMessage {
 export interface AskResponse {
   answer: string;
   sources: Source[];
+  mode?: string;
+  workflow?: string | null;
+}
+
+export interface Workflow {
+  name: string;
+  description?: string;
+  modes?: string[];
+  steps?: Record<string, string>;
+}
+
+export interface WorkflowsResponse {
+  workflows: Record<string, Workflow>;
+}
+
+export interface ReportResponse {
+  status: string;
+  report_id: string;
+  report_path: string;
+  manifest_path: string;
+  manifest: Record<string, unknown>;
 }
 
 export interface Document {
@@ -154,11 +177,11 @@ export async function apiStatus(workspace?: string): Promise<StatusResponse> {
   return res.json();
 }
 
-export async function apiAsk(question: string, history?: HistoryMessage[], mode?: string): Promise<AskResponse> {
+export async function apiAsk(question: string, history?: HistoryMessage[], mode?: string, workflow?: string): Promise<AskResponse> {
   const res = await fetch(`${API_BASE}/api/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, history, mode }),
+    body: JSON.stringify({ question, history, mode, workflow: workflow || null }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
@@ -266,4 +289,32 @@ export async function apiListTimeline(): Promise<TimelineEvent[]> {
   const res = await fetch(`${API_BASE}/api/timeline`);
   if (!res.ok) throw new Error(`Failed to list timeline: ${res.status}`);
   return res.json();
+}
+
+
+export async function apiWorkflows(): Promise<WorkflowsResponse> {
+  const res = await fetch(`${API_BASE}/api/workflows`);
+  if (!res.ok) throw new Error(`Workflows failed: ${res.status}`);
+  return res.json();
+}
+
+export async function apiReport(
+  question: string,
+  template: string = 'research-report',
+  workflow?: string,
+): Promise<ReportResponse> {
+  const res = await fetch(`${API_BASE}/api/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, template, workflow: workflow || null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Report failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export function apiReportDownloadUrl(reportId: string): string {
+  return `${API_BASE}/api/report/${encodeURIComponent(reportId)}`;
 }
