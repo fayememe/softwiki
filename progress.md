@@ -47,6 +47,7 @@
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
   - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询（已手动验证 `up to date`）。
   - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
+  - **数据库**：PostgreSQL `softwiki_armkb`；SQLite 数据已迁移；vector/BM25 文件仍在 workspace。
   - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → javis `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
   - 全量：73 篇文档 / 2122 claims / 835 entities / 1328 relationships / 375 events；81 个 PDF 中 70 success、11 duplicate、0 failed。
   - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`armkb` 39,870 chunks，全量索引已完成。
@@ -71,6 +72,7 @@
 - [x] T4 RAG 引用带页码/span
 - [x] T5 全层引用（claim / graph / timeline）
 - [x] T6 弃权 + ask-time scope
+- [x] T15 抽取窗口化（`EXTRACTION_MAX_WINDOWS=6` spread）+ hash claim id + 关系/事件去重；`softwiki reextract` 运行中
 
 ### M2 — 能隔离（P0）
 - [x] T7 认证（PBKDF2 + HMAC token + `/api/login`）
@@ -82,7 +84,10 @@
 - [x] T10 模板系统（`research-report` / `course-qa`）
 - [~] T11 报告 + manifest（同步版已通；异步任务未做）
 - [x] T12 Docker Compose + CI/CD（TLS/反代未做）
-- [x] T13 备份 / 恢复脚本
+- [x] T13 备份 / 恢复脚本（workspace + `pg_dump` 文档）
+- [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移）
+- [x] T17 基础 workflow 选择（API/MCP/CLI/report，prompt 注入 `academic-analysis`）
+- [ ] T18 Workflow 高级：自动路由、BM25/timeline verifier、可视化编辑
 - [~] T14 golden questions（未做）
 
 ## Pending issues / Blocker
@@ -98,7 +103,9 @@
 - [x] **CI timer 已重新启用**。
 - [x] **armkb 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
 - [x] **armkb 数据**：73 篇 / 39,870 chunks / 2122 claims / 835 entities / 1328 relationships / 375 events。
-- [!] **抽取窗口限制**：只取每篇前 15k 字符；大手册结构化层不完整，RAG 覆盖全文。
+- [!] **armkb 正在窗口化重抽**：日志 `/tmp/armkb-reextract.log`；已处理 doc 1（168 claims / 95 entities / 106 relationships / 3 events），其余 72 篇进行中。
+- [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
+- [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
 - [ ] **认证 UI**：后端就绪，WebUI 未接。

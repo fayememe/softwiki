@@ -2,7 +2,7 @@
 
 > 范围：试用就绪（Trial Readiness）第一轮落地。
 > 目标：单校、单实例、自部署、试用评估。
-> 结论：**核心链路已通，测试全绿；armkb 全量索引已完成，`search` / `ask` / `/api/report` 均已验证。**
+> 结论：**核心链路已通，测试全绿；armkb 全量索引已完成并迁移到 PostgreSQL；窗口化重抽进行中；workflow 选择已接入（prompt 级）。**
 
 ---
 
@@ -54,6 +54,9 @@
   - 独立 `EMBEDDING_API_KEY/BASE`，不污染 chat 的 Google/DeepSeek 配置。
   - `EMBEDDING_TPM` 限速器，避免撞 1M TPM。
 - 抽取：`cheap_extraction` / `wiki_compilation` 从 Google（402）切到 DeepSeek。
+- 抽取窗口：每篇按 `EXTRACTION_MAX_WINDOWS` 采样窗口（默认 6）；claim id 改 hash，关系/事件去重；`softwiki reextract` 回填。
+- PostgreSQL：`DATABASE_URL_TEMPLATE` + compose `postgres:16` + SQLite→PG 迁移；armkb 已迁移（73 docs / 39,870 chunks）。
+- Workflow：模板 + workspace override；`academic-analysis`；API/MCP/CLI/report 可按请求选择，注入 answer prompt。
 
 ### 1.5 ARM 知识库 armkb
 
@@ -142,7 +145,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 - [!] **抽取窗口**：`run_extraction_pipeline` 只取每篇前 15k 字符；大手册结构化层只覆盖开头。RAG 覆盖全文。
 - [ ] **认证 UI**：后端已就绪，WebUI 没有登录页；线上 auth 默认关闭。
 - [ ] **TLS/反代**：javis 没有 Caddy/Nginx；试用先用 HTTP 端口。
-- [ ] **数据库**：仍用 SQLite；多用户前建议 Postgres。
+- [x] **数据库**：已切 PostgreSQL；SQLite 数据已迁移。
 - [!] **密钥**：OpenAI key 曾出现在聊天；建议轮换。`model_profiles.yaml` 仍有明文 DeepSeek key，建议移到 `.env` / secret store。
 - [ ] **lsl-kb**：历史 820 篇 claims/events 仍为 0（未重抽）。
 
@@ -169,6 +172,16 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 ---
 
 ## 7. 本 session 关键提交
+
+```
+e42ef5a feat(workflows): per-request workflow selection
+9889b1a fix(api): redact credentials in status response
+db200e5 fix(db): skip text primary keys when resetting Postgres sequences
+370844d feat(db): support PostgreSQL per workspace
+8ec4d7f feat(extraction): window documents instead of first 15k chars
+```
+
+早期提交：
 
 ```
 274b21d fix(index): reset vector cache before rebuilding

@@ -106,11 +106,38 @@ curl -X POST --max-time 900 http://127.0.0.1:6300/api/index
 
 重建会把全部文档重新切块并重新向量化，旧向量索引会被覆盖。
 
+## PostgreSQL
+
+Compose 自带 `postgres:16-alpine`，每个 workspace 一个库：
+
+```env
+DATABASE_URL_TEMPLATE=postgresql+psycopg2://softwiki:<password>@postgres:5432/softwiki_{workspace}
+```
+
+`POSTGRES_PASSWORD` 放在 `~/softwiki-ci/.env`（Compose 插值用），与模板密码一致。当前库：`softwiki_armkb`。
+
+一次性迁移：
+
+```bash
+PW=$(grep '^POSTGRES_PASSWORD=' ~/softwiki-ci/.env | cut -d= -f2)
+docker exec -e WORKSPACE_DIR=/data/workspace/armkb softwiki-api-1 \
+  python scripts/migrate_sqlite_to_postgres.py \
+  --source /data/workspace/armkb/.softwiki/processed.db \
+  --target "postgresql+psycopg2://softwiki:${PW}@postgres:5432/softwiki_armkb" \
+  --replace
+```
+
+注意：`claims.id` 是字符串主键，迁移脚本只重置整型序列。
+
 ## 数据与密钥
 
 - `workspace/` 用 bind mount，**不要** `docker compose down -v`。
 - `.env` 只放在宿主；不要 `COPY` 进镜像，也不要提交。
-- 备份：`tar` 打包 `workspace/` 与 `.env`；恢复时停栈后覆盖。
+- 备份：`tar` 打包 `workspace/` 与 `.env`；Postgres 另用 `pg_dump`：
+  ```bash
+  docker exec softwiki-postgres-1 pg_dump -U softwiki softwiki_armkb | gzip > softwiki_armkb.sql.gz
+  ```
+- 恢复：停栈后恢复 `workspace/`，再把 SQL dump 导入 Postgres。
 
 ## 认证（可选）
 
