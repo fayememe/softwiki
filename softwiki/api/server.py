@@ -476,9 +476,10 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
             "page_start": start,
             "page_end": end,
             "text": (match or meta or {}).get("text", ""),
-            # No retrieval score exists for a citation parsed from the
-            # answer text; the UI hides the percentage instead of lying 0%.
-            "score": (match or {}).get("score"),
+            # Agent citations are not ranked results. A retrieval score here
+            # would be misleading as a confidence percentage, so the UI hides
+            # it for every answer-parsed source.
+            "score": None,
         })
     return result
 
