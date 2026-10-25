@@ -133,3 +133,21 @@ def test_agent_sources_singular_page():
     assert len(sources) == 1
     assert sources[0]["page_start"] == 23
     assert sources[0]["page_end"] == 23
+
+
+def test_agent_sources_enrich_from_kb(monkeypatch):
+    import softwiki.api.server as server
+    monkeypatch.setattr(server, "_lookup_doc_meta", lambda title, start, end: {
+        "title": title,
+        "source_name": "ARM",
+        "published_at": "2023-02-06",
+        "url": None,
+        "text": "excerpt",
+    })
+    answer = "See [1] (Power Control System Architecture, pp. 137-138)."
+    sources = server._agent_sources([], answer)
+    assert len(sources) == 1
+    assert sources[0]["source_name"] == "ARM"
+    assert sources[0]["published_at"] == "2023-02-06"
+    assert sources[0]["text"] == "excerpt"
+    assert sources[0]["score"] is None

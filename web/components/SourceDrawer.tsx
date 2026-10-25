@@ -59,16 +59,18 @@ export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
                 </span>
               </div>
             )}
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Relevance</span>
-              <div className={styles.scoreBar}>
-                <div
-                  className={styles.scoreBarFill}
-                  style={{ width: `${Math.min(100, source.score * 100).toFixed(0)}%` }}
-                />
-                <span className={styles.scoreText}>{(source.score * 100).toFixed(1)}%</span>
+            {source.score != null && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Relevance</span>
+                <div className={styles.scoreBar}>
+                  <div
+                    className={styles.scoreBarFill}
+                    style={{ width: `${Math.min(100, source.score * 100).toFixed(0)}%` }}
+                  />
+                  <span className={styles.scoreText}>{(source.score * 100).toFixed(1)}%</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Chunk text */}

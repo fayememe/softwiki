@@ -54,7 +54,7 @@ export interface Source {
   page_start: number | null;
   page_end: number | null;
   text: string;
-  score: number;
+  score: number | null;
 }
 
 export interface HistoryMessage {

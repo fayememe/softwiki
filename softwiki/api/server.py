@@ -324,9 +324,48 @@ _ANSWER_REF_INLINE_RE = re.compile(
 
 
 def _clean_ref_title(title: str) -> str:
+    # Strip a trailing parenthesized date, e.g. "PCSA (2023-02-06" / "(2023-02-06)".
+    title = re.sub(r"\s*\(\d{4}-\d{2}-\d{2}\)?\s*$", "", title)
     title = re.split(r",\s*(?:\d{4}-\d{2}-\d{2}|pp?\.)", title, maxsplit=1)[0]
     title = re.sub(r",\s*Manual Import\s*$", "", title)
     return title.strip(" ()")
+
+
+def _lookup_doc_meta(title: str, start: int, end: int) -> dict | None:
+    """Fill source metadata from the KB when the agent cites a page the
+    top-k search payload did not include."""
+    db = SessionLocal()
+    try:
+        doc = db.query(Document).filter(Document.title == title).first()
+        if doc is None:
+            doc = db.query(Document).filter(Document.title.contains(title)).first()
+        if doc is None:
+            return None
+        published = doc.published_at.strftime("%Y-%m-%d") if doc.published_at else "Unknown"
+        chunk = (
+            db.query(Chunk)
+            .filter(
+                Chunk.document_id == doc.id,
+                Chunk.page_start.isnot(None),
+                Chunk.page_end.isnot(None),
+                Chunk.page_start <= end,
+                Chunk.page_end >= start,
+            )
+            .first()
+        )
+        if chunk is None:
+            chunk = db.query(Chunk).filter(Chunk.document_id == doc.id).first()
+        return {
+            "title": doc.title,
+            "source_name": doc.source_name or "Unknown",
+            "published_at": published,
+            "url": doc.url,
+            "text": (chunk.text[:800] if chunk else ""),
+        }
+    except Exception:
+        return None
+    finally:
+        db.close()
 
 
 def _parse_answer_refs(answer: str) -> list[dict]:
@@ -427,16 +466,19 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
             ),
             None,
         )
+        meta = None if match else _lookup_doc_meta(title, start, end)
         result.append({
             "citation_num": ref["num"],
             "title": title,
-            "url": None,
-            "source_name": (match or {}).get("source_name", "Unknown"),
-            "published_at": (match or {}).get("published_at", "Unknown"),
+            "url": (match or meta or {}).get("url"),
+            "source_name": (match or meta or {}).get("source_name", "Unknown"),
+            "published_at": (match or meta or {}).get("published_at", "Unknown"),
             "page_start": start,
             "page_end": end,
-            "text": (match or {}).get("text", ""),
-            "score": (match or {}).get("score", 0.0),
+            "text": (match or meta or {}).get("text", ""),
+            # No retrieval score exists for a citation parsed from the
+            # answer text; the UI hides the percentage instead of lying 0%.
+            "score": (match or {}).get("score"),
         })
     return result
 

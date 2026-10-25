@@ -235,9 +235,11 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                                           : ''}
                                       </span>
                                     )}
-                                    <span className={styles.sourceScore}>
-                                      {(src.score * 100).toFixed(0)}%
-                                    </span>
+                                    {src.score != null && (
+                                      <span className={styles.sourceScore}>
+                                        {(src.score * 100).toFixed(0)}%
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 {src.url && (
