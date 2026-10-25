@@ -418,9 +418,13 @@ This is a READ-ONLY, knowledge-base-grounded research mode.
 ### Citation contract
 - Every factual sentence from the KB must carry `[n]`, with title and page
   when available.
-- Never invent page numbers. Use `page unavailable` when absent.
+- Use the page range from `softwiki_search`/`retrieve`: `[1] (title, pp. 9-10)`.
+  Never write `UNDEF`, `N/A`, or `page unavailable` when a page range exists.
+- `softwiki_ask` may return `UNDEF` placeholders; trust the search result.
+- Never invent page numbers. Use `page unavailable` only when no page exists.
 - Separate KB evidence, web evidence, and inference.
 - If the KB is insufficient, say `知识库证据不足` and state what is missing.
+- Match the language of the question exactly.
 
 ## Strict Operational Boundary (Sandbox Rules)
 
