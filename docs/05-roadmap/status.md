@@ -110,5 +110,6 @@ Current workspace: default (0 documents) / eva-kb (30 documents, 2173 claims, 11
 
 - 现状：TUI 调用系统 opencode，profile/config/session 隔离，但不是安全沙盒。
 - 目标：Web 双模式 —— Quick Answer（AnswerEngine）+ Agent（opencode）。
-- 先做 L1：独立 `opencode web` + WebUI 入口 + 允许 KB 工具；再做 L2 原生嵌入。
+- L1 已上线：宿主 opencode `:6111` + WebUI Agent 入口；L2 已上线：`/api/agent/*` + Quick/Agent + research steps（非流式）。
+- 验证：`/api/agent/status` available；acceptance 11/11；浏览器 Agent 模式已实测。
 - 产品化：独立 `softwiki-agent` 容器，pin opencode `1.18.35`，固定配置，升级冒烟测试。

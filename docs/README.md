@@ -24,10 +24,12 @@ graph TD
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
 - **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量索引完成）。
+- **Agent Web（2026-10-24）**：WebUI **Quick / Agent** 双模式；opencode `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/agent/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
+- **Demo 流程**：[`04-guides/demo.md`](./04-guides/demo.md)（Quick / Agent / Workflow / Report / 验收）。
 - **进度台账**：[`../progress.md`](../progress.md)（推进的唯一基准）
 - **试用清单**：[`05-roadmap/trial-readiness.md`](./05-roadmap/trial-readiness.md)（10 步验收 + P0/P1 任务）
 - **长期路线**：[`05-roadmap/status.md`](./05-roadmap/status.md)
 - **工作方式**：[`../AGENTS.md`](../AGENTS.md)（会话一次性、文档持久、小步提交）
 - **本轮报告**：[`06-archive/session-report-2026-10-23.md`](./06-archive/session-report-2026-10-23.md)
 - **Agent Web 计划**：[`05-roadmap/agent-web-plan.md`](./05-roadmap/agent-web-plan.md)
-- **已知阻塞**：20 篇真实 PDF、出站 LLM 许可、测试基线（pytest 挂起）、Postgres/SQLite、OCR 范围。
+- **已知限制**：出站 LLM/embedding 许可未确认；OCR 未做；TLS/反代未做；Agent remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；部分 PDF 标题为 `Untitled Document`。

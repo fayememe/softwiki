@@ -199,7 +199,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 
 ## 9. 实施记录（2026-10-24）
 
-### L1 已实现（待最终 KB 验证）
+### L1 已上线并验证
 
 - `softwiki agent-web --port 6111 --host 0.0.0.0 --mode wiki-research`
 - `prepare_agent_runtime(web=True)`：生成 `AGENTS_wiki-research.md`、`default_agent=wiki-research`、隔离 `XDG_*`
@@ -209,7 +209,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 - javis：`softwiki-agent-web.service`（systemd，host opencode `1.18.35`，端口 `6111`）
 - Shell 模型：`SHELL_MODEL=gpt-4.1-mini`（`gpt-5-mini` 不接受 `max_tokens`）
 
-### L2 已实现（非流式）
+### L2 已上线并验证（非流式）
 
 - FastAPI：
   - `GET /api/agent/status`
@@ -225,8 +225,12 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 
 - 2026-10-24 首次验收时，agent 经 remote MCP 调用了 `softwiki_rebuild_index`，触发全量索引；已 abort/restart，随后执行全量 `index` 修复。**在索引完成前，`softwiki_search` 返回空。**
 - 本次事件证明：**prompt + opencode permission 两层还不够**；产品化应增加只读 MCP sidecar / 网关。
-- 索引完成后必须验证：
+- 索引已完成（39,870 chunks），并已验证：
   1. `softwiki_search` 返回 PL031 结果
-  2. `/api/agent/ask` 返回答案 + sources
-  3. WebUI Agent 模式正常
-- L1 仍是宿主 opencode；独立 `softwiki-agent` 容器留给产品化。
+  2. `/api/agent/ask` 返回答案 + sources + tools（约 20–40s）
+  3. WebUI Agent 模式正常（Playwright：2 个 research steps、答案、1 source）
+  4. `scripts/run_acceptance.py` **11/11**
+- L1 仍是宿主 opencode `1.18.35`；独立 `softwiki-agent` 容器留给产品化。
+- L2 目前是轮询非流式；SSE / 逐 token 是下一步。
+- 系统提示词要求快路径：`softwiki_ask` 一次 + `softwiki_search` 一次；实测 2 个工具、约 40s。
+- 2026-10-24 修复：`AnswerEngine` 把 "List/Summary" 研究问题误判为 inventory；`softwiki_ask` 不再返回工作区统计。

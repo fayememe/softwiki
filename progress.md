@@ -7,6 +7,7 @@
 
 - **项目**：softwiki = 多策略研究智能引擎（RAG / GraphRAG / LLM-Wiki / ClaimDB / Timeline）。
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
+- **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode `1.18.35` 宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **本 session 已完成**：
@@ -45,7 +46,7 @@
   - 已推送 `origin/master`（`f19c296..cde5069`）。
 - **部署现状（javis = 10.3.9.29）**：
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
-  - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询（已手动验证 `up to date`）。
+  - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询；**Agent Web** 由宿主 systemd `softwiki-agent-web` 接管 `6111`（L1，调用系统 opencode）。
   - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
 - **Demo 范围（2026-10-23 确认）**：权限/用户系统（登录、RBAC、ACL 强制、审计）**不在当期目标**；当前实例按 `wiki-admin` 使用，4 种身份仅作概念/文档保留。
   - **数据库**：PostgreSQL `softwiki_armkb`；SQLite 数据已迁移；vector/BM25 文件仍在 workspace。
@@ -97,9 +98,10 @@
 - [x] Agent 允许 `softwiki_search` / `softwiki_retrieve`，并要求页码引用/弃权
 - [x] 设置 `SHELL_MODEL=gpt-4.1-mini` / `SHELL_API_BASE` / `SHELL_API_KEY`
 - [x] L2：`/api/agent/*` 代理 + Quick/Agent 切换 + research steps（非流式）
+- [x] L1/L2 部署与 KB 验证（armkb reindex 完成；acceptance 11/11；浏览器 Agent 模式已验证）
+- [x] 修复 `AnswerEngine` 把 "List/Summary" 研究问题误判为 inventory
 - [ ] L2 流式输出（SSE / 逐 token）
 - [ ] 独立 `softwiki-agent` 容器，pin opencode `1.18.35` + 升级冒烟测试
-- [~] L1/L2 部署与 KB 验证（等待 armkb 全量 reindex 完成）
 
 ## Pending issues / Blocker
 
@@ -118,7 +120,9 @@
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
 - [!] **TUI 不是沙盒**：调用系统 opencode，配置/会话隔离，但文件系统/网络是用户权限；打包/升级见 `docs/05-roadmap/agent-web-plan.md`。
 - [!] **TUI 默认不读 KB**：`agent_soul.md` 禁止 `softwiki_search/ask/retrieve`；Agent Web 已新增 `wiki-research` 并开放只读 KB 工具。
-- [~] **armkb 正在全量 reindex**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后触发；完成前 `softwiki_search` 返回空。已用 opencode permission 禁止写工具。
+- [x] **armkb reindex 完成**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后重跑全量索引；39,870 chunks，`softwiki_search` / `softwiki_ask` / acceptance 11/11 已验证。已用 opencode permission 禁止写工具。
+- [ ] **Agent source 标题**：部分 PDF 抽取标题为 `Untitled Document`；页码有效，标题清洗待做。
+- [ ] **Agent SSE**：L2 目前是轮询非流式；逐 token/工具事件输出待做。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
@@ -127,11 +131,11 @@
 
 ## 下一步（NEXT）
 
-1. **Agent Web**：等 armkb reindex 完成后验证 L1/L2，再部署；见 `docs/05-roadmap/agent-web-plan.md`。
-2. **Demo 验收**：`scripts/run_acceptance.py` 11/11；继续补更多 golden questions。
-3. **抽取覆盖**：窗口化已完成；评估哪些文档值得全量抽取。
-4. **Demo 体验**：Chat/Report/Workflow 已串联；继续打磨。
-5. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
+1. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent；acceptance 11/11；继续补 golden questions。
+2. **Agent L2 产品化**：SSE 流式、工具事件、独立 `softwiki-agent` 容器（pin `1.18.35`）。
+3. **数据质量**：清洗 `Untitled Document` 标题；补 PDF 元数据。
+4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
+5. **Workflow 高级**：自动路由、BM25/timeline verifier、可视化编辑。
 
 ## 本 session 状态记录（handoff）
 
@@ -158,4 +162,12 @@
   - `/api/ask` 会重复检索一次，且 `AskRequest` 丢弃 `mode`/`history`；
   - `scope guard` 没有接进 `AnswerEngine.ask`；
   - workspace 切换是全局 `os.environ`，并发用户会互相覆盖。
-- **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/trial-readiness.md` 即可接手。
+- **2026-10-24 Agent Web 追加**：
+  - L1：`softwiki agent-web`（默认 `:6111`，`wiki-research`，remote MCP `:6100/mcp`）；宿主 systemd `softwiki-agent-web`；WebUI Sidebar **Agent** + ChatPanel **Agent ↗**。
+  - L2：`GET /api/agent/status`、`POST /api/agent/ask`（轮询 opencode session）、`POST /api/agent/session`、abort/delete；ChatPanel **Quick / Agent** 切换 + research steps + answer reference parser。
+  - Agent 安全：opencode permission deny `bash`/`edit`/`softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`/`modules_set`/`workspace_set`；`steps=20`。
+  - 关键配置：`SHELL_MODEL=gpt-4.1-mini`（`gpt-5-mini` 不接受 `max_tokens`）；`AGENT_WEB_URL=http://host.docker.internal:6111`；`deploy/softwiki-agent-web.service`。
+  - 验证：`/api/agent/status` available；浏览器 Agent 模式 2 个工具（`softwiki_ask` + `softwiki_search`）出答案/页码/1 source；acceptance 11/11。
+  - 事故：首次验收 agent 误调 `softwiki_rebuild_index`，全量 reindex 约 45 分钟；已 abort/restart + reindex，且 permission deny 写工具。MCP/向量缓存需重启容器清空。
+  - 已知限制：remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；PDF 标题 `Untitled Document`；宿主 opencode 未 pin。
+- **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` 即可接手。

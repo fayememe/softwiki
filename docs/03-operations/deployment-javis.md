@@ -179,3 +179,34 @@ scripts/restore.sh /opt/aitools/apps/softwiki/backups/softwiki-armkb-YYYYmmdd-HH
 - `api` 与 `mcp` 是两个容器，各自持有 `WORKSPACE_DIR`；用 API 切库不会同步到 MCP（与旧 systemd 行为一致）。
 - SQLite 只适合单用户/小规模；多用户试用前应切 PostgreSQL（T12 后续项）。
 - 端口 `6100/6108/6200` 被旧 systemd 占用，切流前不要改默认端口。
+
+
+---
+
+## Host Agent Web（L1，opencode）
+
+浏览器 Agent 目前仍跑在宿主机（不是容器），与 Docker 栈并行：
+
+- systemd：`softwiki-agent-web.service`
+- 端口：`6111`
+- 工作区：`/opt/aitools/apps/softwiki/workspace/armkb`
+- 配置：`/home/faye/softwiki-ci/.softwiki_runtime/armkb_*/opencode/opencode.json`
+- 模型：`SHELL_MODEL=gpt-4.1-mini`（`.env`）
+- 启动：`sudo systemctl start softwiki-agent-web`
+- 重启：`sudo systemctl restart softwiki-agent-web`
+- 日志：`journalctl -u softwiki-agent-web -f`
+- 健康：`curl http://127.0.0.1:6111/`、`curl http://127.0.0.1:6200/api/agent/status`
+
+单元文件模板：`deploy/softwiki-agent-web.service`。安装：
+
+```bash
+sudo cp deploy/softwiki-agent-web.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now softwiki-agent-web
+```
+
+注意：
+
+- L1 调用**系统 opencode**（javis 当前 `1.18.35`），不是产品化容器；升级/打包见 `docs/05-roadmap/agent-web-plan.md`。
+- Agent 通过 remote MCP `http://127.0.0.1:6100/mcp` 访问 Docker 里的 SoftWiki MCP，不需要宿主 psycopg2/数据库连通性。
+- `wiki-research` 权限在 opencode 层 deny `bash`/`edit` 和 `softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`；remote MCP 本身仍暴露写工具，产品化需只读 sidecar。
