@@ -316,10 +316,55 @@ _SOURCE_RE = re.compile(
 )
 
 
-_ANSWER_REF_RE = re.compile(
+_ANSWER_REF_LINE_RE = re.compile(r"^\[(?P<num>\d+)\]\s*(?P<body>.+?)\s*$", re.MULTILINE)
+_ANSWER_REF_INLINE_RE = re.compile(
     r"\[(?P<num>\d+)\]\s*\((?P<title>[^()\n]+?),\s*"
     r"(?:pp?\.\s*)?(?P<start>\d+)(?:\s*[-–]\s*(?P<end>\d+))?\)"
 )
+
+
+def _parse_answer_refs(answer: str) -> list[dict]:
+    """Parse the agent's reference list, e.g.
+
+    [1] ARM PrimeCell ... Manual, 2017-05-23, pp. 3-6, 23
+    [6] ARM PrimeCell ... Manual, 2017-05-23, p. 23
+    [4] (ARM PrimeCell ..., p. 23)
+    """
+    refs = []
+    seen = set()
+    for match in _ANSWER_REF_LINE_RE.finditer(answer or ""):
+        num = int(match.group("num"))
+        body = match.group("body").strip()
+        if body.startswith("(") and body.endswith(")"):
+            body = body[1:-1].strip()
+        # Drop a trailing date so the title split is stable.
+        title = re.split(
+            r",\s*(?:\d{4}-\d{2}-\d{2}|pp?\.)", body, maxsplit=1
+        )[0].strip(" ()")
+        page_match = re.search(r"pp?\.\s*(\d+)(?:\s*[-–]\s*(\d+))?", body)
+        if not title or not page_match:
+            continue
+        start = int(page_match.group(1))
+        end = int(page_match.group(2) or start)
+        key = (num, title, start, end)
+        if key in seen:
+            continue
+        seen.add(key)
+        refs.append({"num": num, "title": title, "start": start, "end": end})
+
+    # Also accept inline parenthesized citations, e.g. "[4] (Title, p. 23)".
+    for match in _ANSWER_REF_INLINE_RE.finditer(answer or ""):
+        num = int(match.group("num"))
+        title = match.group("title").strip()
+        start = int(match.group("start"))
+        end = int(match.group("end") or start)
+        key = (num, title, start, end)
+        if key in seen:
+            continue
+        seen.add(key)
+        refs.append({"num": num, "title": title, "start": start, "end": end})
+    return refs
+
 
 
 def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
@@ -356,31 +401,25 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
 
     # If the agent wrote an explicit reference list, prefer it: its [n]
     # numbering is what the answer text actually uses.
-    refs = list(_ANSWER_REF_RE.finditer(answer or ""))
+    refs = _parse_answer_refs(answer or "")
     if not refs:
         return tool_sources
 
     result = []
-    seen_refs = set()
     for ref in refs:
-        num = int(ref.group("num"))
-        title = ref.group("title").strip()
-        start = int(ref.group("start"))
-        end = int(ref.group("end") or start)
-        key = (num, title, start, end)
-        if key in seen_refs:
-            continue
-        seen_refs.add(key)
+        title = ref["title"]
+        start = ref["start"]
+        end = ref["end"]
         match = next(
             (
                 src for src in tool_sources
-                if src["title"] == title
-                and src["page_start"] <= start <= src["page_end"]
+                if (src["title"] == title or title in src["title"] or src["title"] in title)
+                and src["page_start"] <= end and src["page_end"] >= start
             ),
             None,
         )
         result.append({
-            "citation_num": num,
+            "citation_num": ref["num"],
             "title": title,
             "url": None,
             "source_name": (match or {}).get("source_name", "Unknown"),

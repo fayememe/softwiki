@@ -94,3 +94,19 @@ def test_agent_ask_proxy(monkeypatch):
     assert data["session_id"] == "ses_test"
     assert data["sources"][0]["title"] == "RTC"
     assert data["tools"][0]["name"] == "softwiki_search"
+
+
+def test_agent_sources_parse_reference_lines():
+    answer = (
+        "Some answer.\n\n### Sources\n\n"
+        "[1] ARM PrimeCell Real Time Clock (PL031) Technical Reference Manual, "
+        "2017-05-23, pp. 3-6, 23\n"
+        "[6] ARM PrimeCell Real Time Clock (PL031) Technical Reference Manual, "
+        "2017-05-23, p. 23\n"
+    )
+    sources = _agent_sources([], answer)
+    assert [s["citation_num"] for s in sources] == [1, 6]
+    assert sources[0]["page_start"] == 3
+    assert sources[0]["page_end"] == 6
+    assert sources[1]["page_start"] == 23
+    assert sources[1]["page_end"] == 23
