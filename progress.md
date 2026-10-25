@@ -124,6 +124,7 @@
 - [ ] **Agent source 标题**：部分 PDF 抽取标题为 `Untitled Document`；页码有效，标题清洗待做。
 - [ ] **Agent SSE**：L2 目前是轮询非流式；逐 token/工具事件输出待做。
 - [x] **Agent 长请求**：Next rewrite 默认 30s 超时导致 33s 的 agent 回答被前端误报 `Invalid response`；已设 `experimental.proxyTimeout=300_000`，并修正错误文案。
+- [x] **Agent source 元数据**：从答案引用解析出的 source 之前 `Unknown / 0%`；现用 KB 反查 `source_name`/日期/页码/摘录，无检索分数的 source 隐藏百分比。
 - [x] **Agent 链接**：`/agent` 同源 307 → 当前 host:6111，不再写死 localhost。
 - [ ] **Agent Session / 沙盒 / 审核**：设计见 `docs/05-roadmap/agent-session-sandbox-plan.md`；P0/P1 待确认后开工。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
@@ -171,7 +172,7 @@
   - Agent 安全：opencode permission deny `bash`/`edit`/`softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`/`modules_set`/`workspace_set`；`steps=20`。
   - 关键配置：`SHELL_MODEL=gpt-4.1-mini`（`gpt-5-mini` 不接受 `max_tokens`）；`AGENT_WEB_URL=http://host.docker.internal:6111`；`deploy/softwiki-agent-web.service`。
   - 验证：`/api/agent/status` available；浏览器 Agent 模式 2 个工具（`softwiki_ask` + `softwiki_search`）出答案/页码/1 source；acceptance 11/11。
-  - 2026-10-24 追加：`/agent` 同源重定向；Next `proxyTimeout=300_000` 修复 30s 超时误报；长问题 CM55+NIC400+U55 浏览器实测 50s 出答案 + 2 steps + 3 sources。
+  - 2026-10-24 追加：`/agent` 同源重定向；Next `proxyTimeout=300_000` 修复 30s 超时误报；长问题 CM55+NIC400+U55 浏览器实测 50s 出答案 + 2 steps + 3 sources。source 卡片现从 KB 反查 source_name/日期/页码/摘录；无检索分数时不再显示 0%。
   - 事故：首次验收 agent 误调 `softwiki_rebuild_index`，全量 reindex 约 45 分钟；已 abort/restart + reindex，且 permission deny 写工具。MCP/向量缓存需重启容器清空。
   - 已知限制：remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；PDF 标题 `Untitled Document`；宿主 opencode 未 pin。
 - **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` 即可接手。
