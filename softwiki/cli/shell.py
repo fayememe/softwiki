@@ -542,6 +542,7 @@ Depending on the mode, certain operations are restricted:
             # Defense in depth: the prompt is read-only, and the tool layer
             # denies every known write path. This matters because the web
             # agent talks to the shared SoftWiki MCP service.
+            agents_config[m]["steps"] = 8
             agents_config[m]["permission"] = {
                 "bash": "deny",
                 "edit": "deny",
