@@ -45,6 +45,13 @@ you may read and query the knowledge base, but you must not modify it.
 
 ---
 
+## Search Budget
+
+- Use at most 3 KB search/retrieve calls for one question.
+- Prefer `softwiki_search` / `softwiki_retrieve` for page metadata.
+- Do not call `softwiki_ask` more than once; it may lose page ranges.
+- Once you have the register table or enough evidence, stop and answer.
+
 ## Answer Contract (MANDATORY)
 
 1. **Evidence first**: call `softwiki_search`, `softwiki_retrieve`, or `softwiki_ask`

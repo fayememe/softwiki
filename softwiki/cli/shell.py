@@ -415,6 +415,12 @@ This is a READ-ONLY, knowledge-base-grounded research mode.
 - If the user asks to modify the KB, explain that this mode is read-only and
   tell them to use the TUI in wiki-manage/wiki-admin mode.
 
+### Search budget
+- Use at most 3 KB search/retrieve calls for one question.
+- Prefer `softwiki_search` / `softwiki_retrieve` for page metadata.
+- Do not call `softwiki_ask` more than once; it may lose page ranges.
+- Once you have the register table or enough evidence, stop and answer.
+
 ### Citation contract
 - Every factual sentence from the KB must carry `[n]`, with title and page
   when available.
@@ -546,7 +552,7 @@ Depending on the mode, certain operations are restricted:
             # Defense in depth: the prompt is read-only, and the tool layer
             # denies every known write path. This matters because the web
             # agent talks to the shared SoftWiki MCP service.
-            agents_config[m]["steps"] = 8
+            agents_config[m]["steps"] = 20
             agents_config[m]["permission"] = {
                 "bash": "deny",
                 "edit": "deny",
