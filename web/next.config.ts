@@ -6,6 +6,10 @@ const API_INTERNAL_URL =
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // The agent can take 30-300s. Next's rewrite proxy defaults to 30s.
+  experimental: {
+    proxyTimeout: 300_000,
+  },
   async rewrites() {
     return [
       {

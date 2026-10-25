@@ -159,7 +159,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       const errorMsg: Message = {
         id: genId(),
         role: 'assistant',
-        content: `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
+        content: engine === 'agent'
+          ? `Agent request failed: ${errText}\n\nTry again, or open **Agent ↗** for the full opencode UI.`
+          : `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
         error: true,
         timestamp: new Date(),
       };

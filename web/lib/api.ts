@@ -162,6 +162,7 @@ export interface AgentAskResponse {
   tools: AgentTool[];
   message_id?: string;
   error?: string;
+  detail?: string;
 }
 
 export interface AgentStatusResponse {
@@ -190,10 +191,25 @@ export async function apiAgentAsk(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, session_id: sessionId || null, agent: agent || null }),
   });
-  const data = await res.json().catch(() => ({ detail: 'Invalid response' }));
-  if (!res.ok) {
-    throw new Error(data.error || data.detail || `Agent failed: ${res.status}`);
+  const text = await res.text();
+  let data: AgentAskResponse | null = null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === 'object' && parsed !== null) {
+      data = parsed as AgentAskResponse;
+    }
+  } catch {
+    // Next/nginx may return an HTML timeout page; surface the status and body.
   }
+  if (!res.ok) {
+    const detail =
+      data?.error ||
+      data?.detail ||
+      text.replace(/<[^>]+>/g, ' ').trim().slice(0, 300) ||
+      `HTTP ${res.status}`;
+    throw new Error(`Agent request failed (${res.status}): ${detail}`);
+  }
+  if (!data) throw new Error('Agent returned an empty response');
   return data;
 }
 
