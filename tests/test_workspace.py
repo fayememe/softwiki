@@ -175,6 +175,8 @@ def test_agent_web_runtime_generation():
         assert config["agent"]["build"]["disable"] is True
         assert config["plugin"] == []
         assert "softwiki" in config["mcp"]
+        assert config["mcp"]["softwiki"]["type"] == "remote"
+        assert "6100" in config["mcp"]["softwiki"]["url"]
 
         prompt_path = prepared["agents_paths"]["wiki-research"]
         prompt = open(prompt_path, encoding="utf-8").read()

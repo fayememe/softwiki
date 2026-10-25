@@ -491,17 +491,28 @@ Depending on the mode, certain operations are restricted:
     if os.getenv("SOFTWIKI_SESSION_ID"):
         mcp_env["SOFTWIKI_SESSION_ID"] = os.getenv("SOFTWIKI_SESSION_ID")
 
-    mcp_config = {
-        "type": "local",
-        "command": [
-            python_cmd,
-            "-m",
-            "softwiki.mcp.server"
-        ],
-        "cwd": abs_project_root,
-        "enabled": True,
-        "environment": mcp_env
-    }
+    if web:
+        # The browser agent talks to the running SoftWiki MCP service. This
+        # avoids needing psycopg2 / DB connectivity on the host and keeps the
+        # host opencode process independent from the database.
+        mcp_url = os.getenv("SOFTWIKI_AGENT_MCP_URL", "http://127.0.0.1:6100/mcp")
+        mcp_config = {
+            "type": "remote",
+            "url": mcp_url,
+            "enabled": True,
+        }
+    else:
+        mcp_config = {
+            "type": "local",
+            "command": [
+                python_cmd,
+                "-m",
+                "softwiki.mcp.server"
+            ],
+            "cwd": abs_project_root,
+            "enabled": True,
+            "environment": mcp_env
+        }
 
     agents_config = {
         "sisyphus": {"disable": True},
