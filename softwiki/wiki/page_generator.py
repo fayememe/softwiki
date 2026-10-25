@@ -1,4 +1,5 @@
 import os
+import hashlib
 import yaml
 import json
 from sqlalchemy.orm import Session
@@ -39,6 +40,7 @@ class WikiPageGenerator:
                             intervention: str = "", output_dir: str | None = None) -> str:
         self.last_fallback = False
         self.last_model = None
+        intervention_hash = hashlib.sha256((intervention or "").encode("utf-8")).hexdigest()
         # Check scope
         from softwiki.intelligence.scope_guard import check_scope
         is_in_scope, reason = check_scope(topic_id, item_type="wiki_topic")
@@ -81,9 +83,12 @@ class WikiPageGenerator:
                     state = json.load(f)
                     compiled_claim_ids = state.get("claim_ids", [])
                     compiled_doc_ids = state.get("doc_ids", [])
+                    stored_intervention_hash = state.get("intervention_hash", "__missing__")
                 with open(output_filepath, "r", encoding="utf-8") as f:
                     existing_markdown = f.read()
-                is_incremental = True
+                # A changed prompt/intervention must be a full rebuild; incremental
+                # merging would mix two different structures/policies.
+                is_incremental = stored_intervention_hash == intervention_hash
             except Exception as e:
                 print(f"Failed to read existing compiled state: {e}. Performing full rebuild.")
                 is_incremental = False
@@ -350,6 +355,8 @@ Please generate the updated full Markdown Wiki Page:"""
                 }
                 for d in sorted_docs
             ],
+            "intervention_hash": intervention_hash,
+            "intervention_chars": len(intervention or ""),
             "updated_at": datetime.now().isoformat()
         }
         with open(json_filepath, "w", encoding="utf-8") as f:
