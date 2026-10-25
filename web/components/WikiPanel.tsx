@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { apiListWikiTopics, apiGetWikiPage } from '@/lib/api';
+import { apiBuildWikiPage, apiListWikiTopics, apiGetWikiPage } from '@/lib/api';
 import styles from './WikiPanel.module.css';
 
 interface TocItem { id: string; text: string; level: number; }
@@ -30,6 +30,7 @@ export default function WikiPanel() {
   const [topics, setTopics] = useState<Record<string, any>>({});
   const [selectedTopic, setSelectedTopic] = useState('');
   const [loading, setLoading] = useState(false);
+  const [building, setBuilding] = useState(false);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [rawMarkdown, setRawMarkdown] = useState('');
   const [builtAt, setBuiltAt] = useState('');
@@ -169,6 +170,19 @@ export default function WikiPanel() {
     setTimeout(() => ms[next]?.classList.remove('wiki-search-active'), 1000);
   };
 
+  const handleBuild = async () => {
+    if (!selectedTopic || building) return;
+    setBuilding(true);
+    try {
+      await apiBuildWikiPage(selectedTopic);
+      await selectTopic(selectedTopic);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Wiki generation failed');
+    } finally {
+      setBuilding(false);
+    }
+  };
+
   const topicKeys = Object.keys(topics);
   const topicName = (key: string) =>
     topics[key]?.name || key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -226,7 +240,15 @@ export default function WikiPanel() {
         ) : !rawMarkdown ? (
           <div className={styles.emptyState}>
             <h3 className={styles.emptyTitle}>{topicName(selectedTopic)}</h3>
-            <p className={styles.emptyDesc}>Wiki page not available yet. Ingest documents and rebuild the index — wiki pages are built automatically.</p>
+            <p className={styles.emptyDesc}>
+              This topic has claims in the knowledge base, but its wiki page has not been generated yet.
+              Generation is manual so a 4,000-topic KB does not trigger thousands of LLM calls.
+            </p>
+            <div className={styles.emptyActions}>
+              <button className={styles.generateBtn} onClick={handleBuild} disabled={building || !selectedTopic}>
+                {building ? 'Generating…' : 'Generate wiki page'}
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -234,6 +256,9 @@ export default function WikiPanel() {
               <h1 className={styles.articleTitle}>{topicName(selectedTopic)}</h1>
               <div className={styles.articleMeta}>
                 <span className={styles.builtAt}>Built {builtAt}</span>
+                <button className={styles.regenerateBtn} onClick={handleBuild} disabled={building}>
+                  {building ? 'Regenerating…' : 'Regenerate'}
+                </button>
               </div>
             </div>
 

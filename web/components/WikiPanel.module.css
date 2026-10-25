@@ -405,3 +405,53 @@
 }
 
 /* ── (Right sidebar TOC removed — using floating TOC inside article) */
+
+
+/* ── Manual wiki generation ── */
+.emptyActions {
+  margin-top: 18px;
+}
+
+.generateBtn {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #0645ad;
+  background: #0645ad;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.generateBtn:hover:not(:disabled) {
+  background: #0b57d0;
+}
+
+.generateBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.regenerateBtn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #a2a9b1;
+  background: #f8f9fa;
+  color: #0645ad;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.regenerateBtn:hover:not(:disabled) {
+  background: #eaecf0;
+}
+
+.regenerateBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
