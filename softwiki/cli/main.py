@@ -22,7 +22,7 @@ from softwiki.config import get_workspace_dir, get_config_path, get_raw_dir, get
 
 @click.group()
 @click.option('--workspace', '-w', type=str, default=None, help='Path to the workspace directory.')
-@click.option('--mode', type=click.Choice(['wiki-admin', 'wiki-manage', 'wiki-study', 'wiki-work']), default='wiki-admin', help='Execution mode (wiki-admin, wiki-manage, wiki-study, wiki-work).')
+@click.option('--mode', type=click.Choice(['wiki-admin', 'wiki-manage', 'wiki-study', 'wiki-work', 'wiki-research']), default='wiki-admin', help='Execution mode (wiki-admin, wiki-manage, wiki-study, wiki-work).')
 @click.option('--session-id', type=str, default=None, help='Session ID for output routing (only used in user modes).')
 def cli(workspace, mode, session_id):
     """Universal Domain-Independent Research Wiki and RAG Engine"""
@@ -357,6 +357,18 @@ def shell(workspace, model, session):
 
     from softwiki.cli.shell import start_shell
     start_shell(model_override=model, session_suffix=session)
+
+@cli.command('agent-web')
+@click.option('--port', type=int, default=6111, show_default=True, help='Port for the opencode web UI.')
+@click.option('--host', 'hostname', type=str, default='0.0.0.0', show_default=True, help='Hostname to bind.')
+@click.option('--mode', type=click.Choice(['wiki-research', 'wiki-study', 'wiki-work', 'wiki-manage', 'wiki-admin']),
+              default='wiki-research', show_default=True, help='Agent mode (default: read-only research).')
+@click.option('--model', '-m', type=str, default=None, help='Override SHELL_MODEL for this run.')
+def agent_web(port, hostname, mode, model):
+    """Start the browser agent (opencode web) for the active workspace."""
+    os.environ['SOFTWIKI_MODE'] = mode
+    from softwiki.cli.shell import start_agent_web
+    start_agent_web(port=port, hostname=hostname, mode=mode, model_override=model)
 
 @cli.command()
 @click.option('--port', type=int, default=None, help='Port to run the API server on.')

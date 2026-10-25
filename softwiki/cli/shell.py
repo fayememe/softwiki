@@ -37,10 +37,11 @@ def _load_yaml(path: str) -> dict:
     except Exception:
         return {}
 
-def _get_agent_soul(ws: str, root: str) -> str:
-    """Load base agent_soul.md from templates, merge workspace override if present."""
+def _get_agent_soul(ws: str, root: str, web: bool = False) -> str:
+    """Load the base soul (TUI admin or web research), merge workspace override."""
     templates_dir = os.path.join(root, "softwiki", "templates")
-    soul = _read_file(os.path.join(templates_dir, "agent_soul.md"))
+    soul_name = "agent_soul_web.md" if web else "agent_soul.md"
+    soul = _read_file(os.path.join(templates_dir, soul_name))
     for override in (os.path.join(ws, "config", "agents.md"),
                      os.path.join(ws, "config", "agent_soul.md")):
         extra = _read_file(override)
@@ -267,9 +268,13 @@ def _load_global_opencode_config() -> dict:
     return {}
 
 
-def _build_mcp_config(softwiki_mcp: dict) -> dict:
-    """Merge user's global MCPs with softwiki MCP, and add client-side search."""
-    global_cfg = _load_global_opencode_config()
+def _build_mcp_config(softwiki_mcp: dict, include_global: bool = True) -> dict:
+    """Add softwiki MCP and optional client-side search.
+
+    ``include_global=False`` is used by the browser agent so a user's global
+    opencode MCPs cannot leak into the product runtime.
+    """
+    global_cfg = _load_global_opencode_config() if include_global else {}
     mcps = {
         name: cfg
         for name, cfg in global_cfg.get("mcp", {}).items()
@@ -302,7 +307,18 @@ def _build_mcp_config(softwiki_mcp: dict) -> dict:
 
 
 
-def start_shell(model_override: str = None, session_suffix: str = None):
+def prepare_agent_runtime(
+    model_override: str = None,
+    session_suffix: str = None,
+    web: bool = False,
+    mode_override: str = None,
+) -> dict:
+    """Prepare the isolated opencode runtime and return its facts.
+
+    This is shared by the TUI (``start_shell``) and the browser agent
+    (``start_agent_web``). It writes config/prompt files only; launching is
+    handled by ``_exec_opencode``.
+    """
     ws   = _ws_dir()
     root = _project_root()
     os.makedirs(ws, exist_ok=True)
@@ -311,7 +327,7 @@ def start_shell(model_override: str = None, session_suffix: str = None):
     runtime_dir = get_workspace_runtime_dir(ws, abs_project_root)
 
     # 1. Load merged agent soul & workflows
-    soul      = _get_agent_soul(ws, root)
+    soul      = _get_agent_soul(ws, root, web=web)
     workflows = _get_workflows(ws, root)
 
     # 2. Format workflows into markdown instructions
@@ -330,13 +346,17 @@ def start_shell(model_override: str = None, session_suffix: str = None):
             workflows_md += f"{step_num}. {step_desc}\n"
         workflows_md += "\n"
 
-    mode = os.getenv("SOFTWIKI_MODE", "wiki-admin")
-    if mode not in ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"]:
-        if f"wiki-{mode}" in ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"]:
+    default_mode = "wiki-research" if web else "wiki-admin"
+    mode = mode_override or os.getenv("SOFTWIKI_MODE", default_mode)
+    valid_modes = ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"]
+    if web:
+        valid_modes.append("wiki-research")
+    if mode not in valid_modes:
+        if f"wiki-{mode}" in valid_modes:
             mode = f"wiki-{mode}"
         else:
-            mode = "wiki-admin"
-            
+            mode = default_mode
+
     session_id = os.getenv("SOFTWIKI_SESSION_ID", "default")
     abs_ws_path = os.path.abspath(ws)
 
@@ -375,9 +395,47 @@ def start_shell(model_override: str = None, session_suffix: str = None):
     agents_paths = {}
     opencode_config_dir = os.path.join(runtime_dir, "opencode")
     os.makedirs(opencode_config_dir, exist_ok=True)
-    
-    for m in ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"]:
-        m_rules = f"""
+
+    modes = list(valid_modes)
+    for m in modes:
+        if m == "wiki-research":
+            m_rules = f"""
+## Active Workspace Mode & Security Constraints
+
+You are running in **WIKI-RESEARCH** mode in the SoftWiki browser agent.
+This is a READ-ONLY, knowledge-base-grounded research mode.
+
+- You MAY use: softwiki_status, softwiki_source_list, softwiki_source_preview,
+  softwiki_search, softwiki_retrieve, softwiki_ask, softwiki_graph_query,
+  softwiki_timeline_query, softwiki_claim_query, softwiki_wiki_read,
+  and native websearch/webfetch.
+- You MUST NOT use: softwiki_ingest, softwiki_index, softwiki_wiki_build,
+  softwiki_modules_set, softwiki_workspace_set.
+- You MUST NOT modify files, configs, the database, or the knowledge base.
+- If the user asks to modify the KB, explain that this mode is read-only and
+  tell them to use the TUI in wiki-manage/wiki-admin mode.
+
+### Citation contract
+- Every factual sentence from the KB must carry `[n]`, with title and page
+  when available.
+- Never invent page numbers. Use `page unavailable` when absent.
+- Separate KB evidence, web evidence, and inference.
+- If the KB is insufficient, say `知识库证据不足` and state what is missing.
+
+## Strict Operational Boundary (Sandbox Rules)
+
+1. **Project Sandbox Constraint**:
+   - You MUST strictly limit your operations and tasks to the softwiki project and the active workspace directory.
+   - You MUST NOT read, write, modify, or list files outside the workspace directory `{abs_ws_path}`.
+   - You MUST NOT run arbitrary shell commands that exit the project or access external system files.
+
+2. **Task Constraint**:
+   - You are restricted to softwiki research tasks (retrieval, analysis, wiki reading).
+   - If the user asks for unrelated tasks, politely refuse and state that your
+     operations are restricted to the softwiki research workspace.
+"""
+        else:
+            m_rules = f"""
 ## Active Workspace Mode & Security Constraints
 
 You are running in the **{m.upper()}** mode in the Softwiki Research Environment.
@@ -393,7 +451,7 @@ Depending on the mode, certain operations are restricted:
    - You MUST strictly limit your operations and tasks to the softwiki project and the active workspace directory.
    - You MUST NOT read, write, modify, or list files outside the workspace directory `{abs_ws_path}`.
    - You MUST NOT run arbitrary shell commands that exit the project or access external system files.
-   
+
 2. **Task Constraint**:
    - You are restricted to performing softwiki-related tasks (ingestion, retrieval, indexing, wiki compilation, database query).
    - If the user asks you to perform tasks unrelated to softwiki (such as system administration, web browsing unrelated to softwiki sources, or modifying code unrelated to softwiki), you MUST politely refuse and state that your operations are restricted to the softwiki research workspace.
@@ -414,17 +472,18 @@ Depending on the mode, certain operations are restricted:
         or os.getenv("OPENAI_API_BASE", "https://generativelanguage.googleapis.com/v1beta/")
     api_key_ref = "{env:SHELL_API_KEY}" if os.getenv("SHELL_API_KEY") else "{env:OPENAI_API_KEY}"
 
-    # abs_project_root is already defined at the start of start_shell
-    
     python_cmd = os.path.join(abs_project_root, "venv", "bin", "python")
     if not os.path.exists(python_cmd):
         python_cmd = os.path.join(abs_project_root, "venv", "bin", "python3")
+    if not os.path.exists(python_cmd):
+        python_cmd = sys.executable
 
     project_root = "."
     rel_ws = os.path.join(".", os.path.relpath(os.path.abspath(ws), abs_project_root))
+    mcp_ws = abs_ws_path if web else rel_ws
 
     mcp_env = {
-        "WORKSPACE_DIR": rel_ws,
+        "WORKSPACE_DIR": mcp_ws,
         "PYTHONPATH": project_root
     }
     if os.getenv("SOFTWIKI_MODE"):
@@ -462,28 +521,32 @@ Depending on the mode, certain operations are restricted:
         "archivist": {"disable": True},
         "Archivist": {"disable": True},
     }
-    for m in ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"]:
+    for m in modes:
         agents_config[m] = {
             "description": f"Softwiki {m.upper()} Agent",
             "mode": "primary",
             "prompt": f"{{file:{agents_paths[m]}}}"
         }
 
+    is_openai_compat = "openai" in api_base.lower()
+    provider_label = "OpenAI-compatible" if is_openai_compat else "Gemini (OpenAI-compat)"
+    model_label = model_name if is_openai_compat else f"Gemini {model_name}"
     workspace_config = {
         "$schema": "https://opencode.ai/config.json",
         "model": f"gemini-compat/{model_name}",
+        "default_agent": mode,
         "instructions": [agents_paths[mode]],
         "provider": {
             "gemini-compat": {
                 "npm": "@ai-sdk/openai-compatible",
-                "name": "Gemini (OpenAI-compat)",
+                "name": provider_label,
                 "options": {
                     "baseURL": api_base,
                     "apiKey": api_key_ref
                 },
                 "models": {
                     model_name: {
-                        "name": f"Gemini {model_name}",
+                        "name": model_label,
                         "attachment": True,
                         "reasoning": False
                     }
@@ -491,14 +554,14 @@ Depending on the mode, certain operations are restricted:
             }
         },
         "agent": agents_config,
-        "mcp": _build_mcp_config(mcp_config),
-        "plugin": _load_global_opencode_config().get("plugin", []),
+        "mcp": _build_mcp_config(mcp_config, include_global=not web),
+        "plugin": [] if web else _load_global_opencode_config().get("plugin", []),
         "tools": {
             "websearch": True,
             "webfetch": True
         }
     }
-    
+
     # Write our config to the isolated runtime dir (XDG_CONFIG_HOME will point here)
     xdg_config_home = runtime_dir
     opencode_config_dir = os.path.join(xdg_config_home, "opencode")
@@ -507,61 +570,110 @@ Depending on the mode, certain operations are restricted:
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(workspace_config, f, indent=2)
 
-    # Copy tui.json from global config (TUI plugin list)
-    global_tui = os.path.join(_global_opencode_dir(), "tui.json")
-    if os.path.exists(global_tui):
-        shutil.copy2(global_tui, os.path.join(opencode_config_dir, "tui.json"))
+    # The browser agent runs --pure and does not consume global TUI plugins.
+    if not web:
+        # Copy tui.json from global config (TUI plugin list)
+        global_tui = os.path.join(_global_opencode_dir(), "tui.json")
+        if os.path.exists(global_tui):
+            shutil.copy2(global_tui, os.path.join(opencode_config_dir, "tui.json"))
 
-    # Force-recreate node_modules symlink → global opencode node_modules
-    # (so oh-my-openagent and other plugins resolve correctly)
-    global_nm = os.path.join(_global_opencode_dir(), "node_modules")
-    runtime_nm = os.path.join(opencode_config_dir, "node_modules")
-    if os.path.isdir(global_nm):
-        if os.path.islink(runtime_nm):
-            os.unlink(runtime_nm)
-        elif os.path.isdir(runtime_nm):
-            shutil.rmtree(runtime_nm)
-        os.symlink(global_nm, runtime_nm)
+        # Force-recreate node_modules symlink → global opencode node_modules
+        # (so oh-my-openagent and other plugins resolve correctly)
+        global_nm = os.path.join(_global_opencode_dir(), "node_modules")
+        runtime_nm = os.path.join(opencode_config_dir, "node_modules")
+        if os.path.isdir(global_nm):
+            if os.path.islink(runtime_nm):
+                os.unlink(runtime_nm)
+            elif os.path.isdir(runtime_nm):
+                shutil.rmtree(runtime_nm)
+            os.symlink(global_nm, runtime_nm)
 
-    # Also copy package.json so plugin resolution works
-    global_pkg = os.path.join(_global_opencode_dir(), "package.json")
-    if os.path.exists(global_pkg):
-        shutil.copy2(global_pkg, os.path.join(opencode_config_dir, "package.json"))
+        # Also copy package.json so plugin resolution works
+        global_pkg = os.path.join(_global_opencode_dir(), "package.json")
+        if os.path.exists(global_pkg):
+            shutil.copy2(global_pkg, os.path.join(opencode_config_dir, "package.json"))
 
-    # 5. Print Softwiki banner
-    _print_banner(ws, f"gemini-compat/{model_name} (shell)", workflows)
+    return {
+        "ws": ws,
+        "root": abs_project_root,
+        "runtime_dir": runtime_dir,
+        "xdg_config_home": xdg_config_home,
+        "config_path": config_path,
+        "agents_paths": agents_paths,
+        "mode": mode,
+        "model_name": model_name,
+        "workflows": workflows,
+        "session_id": session_id,
+        "session_suffix": session_suffix,
+        "web": web,
+        "mcp_ws": mcp_ws,
+    }
 
-    # 6. Check for external opencode executable
+
+def _exec_opencode(prepared: dict, tui: bool = True, port: int = 6111, hostname: str = "0.0.0.0",
+                   pure: bool = True) -> None:
+    """Set the isolated runtime env and exec opencode."""
     opencode_path = shutil.which("opencode")
-    if opencode_path:
-        try:
-            # Isolate config AND sessions from user's global opencode
-            os.environ["XDG_CONFIG_HOME"] = xdg_config_home
-            os.environ["XDG_DATA_HOME"]   = xdg_config_home
-            os.environ["CLAUDE_CONFIG_DIR"] = os.path.abspath(os.path.join(runtime_dir, ".claude"))
-            os.makedirs(os.environ["CLAUDE_CONFIG_DIR"], exist_ok=True)
-            for env_var in ["OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR"]:
-                if env_var in os.environ:
-                    del os.environ[env_var]
-            # Sessions are stored in our isolated XDG_DATA_HOME, separate from
-            # the user's global opencode sessions.
-            # --continue resumes the last session in this isolated store (skips
-            # home screen). On first launch (empty store) it creates a new session.
-            # With a custom suffix, use --session so threads stay distinct.
-            # opencode doesn't support creating named sessions via --session.
-            # We manage session naming ourselves: default="null", or user-supplied.
-            # --continue skips the home screen and resumes/creates a session.
-            resolved_suffix = session_suffix or "null"
-            os.environ["SOFTWIKI_SESSION_SUFFIX"] = resolved_suffix
-            cmd = ["opencode", "--agent", mode, "--continue", abs_project_root]
-            os.execvp("opencode", cmd)
-        except Exception as e:
-            print(f"[!] Failed to launch OpenCode: {e}")
-            run_fallback_repl(ws)
-    else:
-        # Fallback to local Softwiki CLI Shell
-        run_fallback_repl(ws)
+    if not opencode_path:
+        if tui:
+            print("[!] opencode not found; falling back to the local Softwiki REPL.")
+            run_fallback_repl(prepared["ws"])
+            return
+        raise RuntimeError(
+            "opencode not found in PATH. Install it or set PATH to include the opencode binary."
+        )
 
+    xdg_config_home = prepared["xdg_config_home"]
+    os.environ["XDG_CONFIG_HOME"] = xdg_config_home
+    os.environ["XDG_DATA_HOME"]   = xdg_config_home
+    os.environ["CLAUDE_CONFIG_DIR"] = os.path.abspath(os.path.join(prepared["runtime_dir"], ".claude"))
+    os.makedirs(os.environ["CLAUDE_CONFIG_DIR"], exist_ok=True)
+    for env_var in ["OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR"]:
+        if env_var in os.environ:
+            del os.environ[env_var]
+
+    if tui:
+        resolved_suffix = prepared.get("session_suffix") or "null"
+        os.environ["SOFTWIKI_SESSION_SUFFIX"] = resolved_suffix
+        cmd = ["opencode", "--agent", prepared["mode"], "--continue", prepared["root"]]
+    else:
+        cmd = ["opencode", "web", "--port", str(port), "--hostname", hostname]
+        if pure:
+            cmd.append("--pure")
+    os.execvp(opencode_path, [opencode_path] + cmd[1:])
+
+
+def start_shell(model_override: str = None, session_suffix: str = None):
+    prepared = prepare_agent_runtime(
+        model_override=model_override,
+        session_suffix=session_suffix,
+        web=False,
+    )
+    os.environ["SOFTWIKI_SESSION_SUFFIX"] = session_suffix or "null"
+    _print_banner(
+        prepared["ws"],
+        f"gemini-compat/{prepared['model_name']} (shell)",
+        prepared["workflows"],
+    )
+    _exec_opencode(prepared, tui=True, pure=False)
+
+
+def start_agent_web(port: int = 6111, hostname: str = "0.0.0.0",
+                    mode: str = "wiki-research", model_override: str = None):
+    os.environ["SOFTWIKI_MODE"] = mode
+    prepared = prepare_agent_runtime(
+        model_override=model_override,
+        web=True,
+        mode_override=mode,
+    )
+    print(f"[*] Agent Web : http://{hostname}:{port}")
+    print(f"[*] Workspace: {prepared['ws']}")
+    print(f"[*] Agent    : {prepared['mode']}")
+    print(f"[*] Model    : gemini-compat/{prepared['model_name']}")
+    print(f"[*] Config   : {prepared['config_path']}")
+    print("[*] Read-only KB mode; websearch/webfetch enabled.")
+    sys.stdout.flush()
+    _exec_opencode(prepared, tui=False, port=port, hostname=hostname, pure=True)
 
 
 def _shell_web_search(query: str, top_k: int = 5) -> str:

@@ -67,7 +67,7 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
         file: The absolute path to a local PDF file to ingest.
         source_id: Optional source ID from workspace config/sources.yaml to associate metadata.
     """
-    if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user"]:
+    if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user", "wiki-research"]:
         return f"Error: Write operations (ingest) are disabled in {os.getenv('SOFTWIKI_MODE')} mode."
     if not url and not file:
         return "Error: You must provide either 'url' or 'file'."
@@ -190,7 +190,7 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
 @mcp.tool()
 def index() -> str:
     """Rebuild vector and keyword search indexes for all documents in the active workspace."""
-    if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user"]:
+    if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user", "wiki-research"]:
         return f"Error: Write operations (index) are disabled in {os.getenv('SOFTWIKI_MODE')} mode."
     db = SessionLocal()
     try:
@@ -282,8 +282,8 @@ def wiki_build(topic: str) -> str:
     Args:
         topic: The topic ID (e.g. 'de-dollarization') to compile.
     """
-    if os.getenv("SOFTWIKI_MODE") in ["study", "wiki-study"]:
-        return "Error: Wiki compilation is disabled in study mode."
+    if os.getenv("SOFTWIKI_MODE") in ["study", "wiki-study", "wiki-research"]:
+        return "Error: Wiki compilation is disabled in this mode."
     db = SessionLocal()
     try:
         generator = WikiPageGenerator()
@@ -831,6 +831,8 @@ def workspace_set(name: str) -> str:
     Args:
         name: Workspace directory name (e.g. 'eva-kb', 'default').
     """
+    if os.getenv("SOFTWIKI_MODE") == "wiki-research":
+        return "Error: workspace switching is disabled in wiki-research mode."
     from softwiki.config import set_workspace_dir, get_workspaces_root
     ws_path = os.path.join(get_workspaces_root(), name)
     ws_path = os.path.abspath(ws_path)
@@ -865,6 +867,8 @@ def modules_set(enabled: str, scope: str = "global") -> str:
                  Modules not in the list will be disabled. Valid names: rag, graph, claimdb, timeline, llmwiki.
         scope: "global" — runtime (resets on restart), "workspace" — persisted for this workspace.
     """
+    if os.getenv("SOFTWIKI_MODE") == "wiki-research":
+        return "Error: module changes are disabled in wiki-research mode."
     from softwiki.config import set_enabled_modules, set_workspace_modules
     valid = {"rag", "graph", "claimdb", "timeline", "llmwiki"}
     modules = [m.strip().lower() for m in enabled.split(",") if m.strip().lower() in valid]

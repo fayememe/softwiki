@@ -147,6 +147,66 @@ def test_opencode_config_generation():
             if env_var in os.environ:
                 del os.environ[env_var]
 
+def test_agent_web_runtime_generation():
+    import json
+    ws = "data/test_agent_web_ws"
+    if os.path.exists(ws):
+        shutil.rmtree(ws)
+    os.makedirs(ws, exist_ok=True)
+    os.environ["WORKSPACE_DIR"] = ws
+    os.environ["SOFTWIKI_MODE"] = "wiki-research"
+
+    try:
+        from softwiki.cli.shell import prepare_agent_runtime, get_workspace_runtime_dir
+        abs_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        runtime_dir = get_workspace_runtime_dir(ws, abs_project_root)
+
+        prepared = prepare_agent_runtime(web=True, mode_override="wiki-research")
+        assert prepared["mode"] == "wiki-research"
+
+        config_path = os.path.join(runtime_dir, "opencode", "opencode.json")
+        assert os.path.exists(config_path)
+        with open(config_path, "r") as f:
+            config = json.load(f)
+
+        assert config["default_agent"] == "wiki-research"
+        assert "wiki-research" in config["agent"]
+        assert "wiki-study" in config["agent"]
+        assert config["agent"]["build"]["disable"] is True
+        assert config["plugin"] == []
+        assert "softwiki" in config["mcp"]
+
+        prompt_path = prepared["agents_paths"]["wiki-research"]
+        prompt = open(prompt_path, encoding="utf-8").read()
+        assert "softwiki_search" in prompt
+        assert "softwiki_retrieve" in prompt
+        assert "softwiki_ingest" in prompt  # forbidden list
+        assert "citation" in prompt.lower()
+    finally:
+        from softwiki.source_store.db import get_engine
+        try:
+            get_engine().dispose()
+        except Exception:
+            pass
+        if os.path.exists(ws):
+            try:
+                shutil.rmtree(ws)
+            except Exception:
+                pass
+        abs_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        runtime_parent = os.path.join(abs_project_root, ".softwiki_runtime")
+        import glob
+        for fpath in glob.glob(os.path.join(runtime_parent, "test_agent_web_ws_*")):
+            if os.path.exists(fpath):
+                try:
+                    shutil.rmtree(fpath)
+                except Exception:
+                    pass
+        for env_var in ["WORKSPACE_DIR", "SOFTWIKI_MODE"]:
+            if env_var in os.environ:
+                del os.environ[env_var]
+
+
 def test_dynamic_topics_discovery():
     from fastapi.testclient import TestClient
     from softwiki.api.server import app

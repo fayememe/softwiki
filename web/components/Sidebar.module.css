@@ -166,6 +166,10 @@
   color: var(--text-primary);
 }
 
+.navLink {
+  text-decoration: none;
+}
+
 .navActive {
   background: rgba(85, 136, 255, 0.12);
   color: var(--accent-blue);

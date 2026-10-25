@@ -6,6 +6,7 @@ import type { Source, Workflow } from '@/lib/api';
 import ChatMessage, { type Message } from './ChatMessage';
 import SourceDrawer from './SourceDrawer';
 import styles from './ChatPanel.module.css';
+import { agentWebUrl } from '@/lib/agent';
 
 const SUGGESTIONS = [
   "What's in my knowledge base?",
@@ -245,6 +246,15 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 <option key={id} value={id}>{wf.name || id}</option>
               ))}
             </select>
+            <a
+              className={styles.agentBtn}
+              href={agentWebUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open the opencode Agent / Deep Research in a new tab"
+            >
+              Agent ↗
+            </a>
             <button
               className={styles.reportBtn}
               onClick={handleReport}
