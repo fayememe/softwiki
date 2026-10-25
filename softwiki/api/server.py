@@ -302,7 +302,7 @@ def _agent_tool_parts(messages: List[dict]) -> List[dict]:
                 "name": part.get("tool"),
                 "status": state.get("status"),
                 "input": state.get("input") or {},
-                "output": (output or "")[:2500],
+                "output": (output or "")[:8000],
             })
     return tools
 
@@ -316,8 +316,14 @@ _SOURCE_RE = re.compile(
 )
 
 
-def _agent_sources(tools: List[dict]) -> List[dict]:
-    sources = []
+_ANSWER_REF_RE = re.compile(
+    r"\[(?P<num>\d+)\]\s*\((?P<title>[^()\n]+?),\s*"
+    r"(?:pp?\.\s*)?(?P<start>\d+)(?:\s*[-–]\s*(?P<end>\d+))?\)"
+)
+
+
+def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
+    tool_sources = []
     seen = set()
     for tool in tools:
         if tool.get("name") not in (
@@ -336,8 +342,8 @@ def _agent_sources(tools: List[dict]) -> List[dict]:
             seen.add(key)
             page_start = int(match.group("page_start"))
             page_end = int(match.group("page_end") or page_start)
-            sources.append({
-                "citation_num": len(sources) + 1,
+            tool_sources.append({
+                "citation_num": len(tool_sources) + 1,
                 "title": match.group("title").strip(),
                 "url": None,
                 "source_name": match.group("source").strip(),
@@ -347,7 +353,44 @@ def _agent_sources(tools: List[dict]) -> List[dict]:
                 "text": "",
                 "score": float(match.group("score") or 0),
             })
-    return sources
+
+    # If the agent wrote an explicit reference list, prefer it: its [n]
+    # numbering is what the answer text actually uses.
+    refs = list(_ANSWER_REF_RE.finditer(answer or ""))
+    if not refs:
+        return tool_sources
+
+    result = []
+    seen_refs = set()
+    for ref in refs:
+        num = int(ref.group("num"))
+        title = ref.group("title").strip()
+        start = int(ref.group("start"))
+        end = int(ref.group("end") or start)
+        key = (num, title, start, end)
+        if key in seen_refs:
+            continue
+        seen_refs.add(key)
+        match = next(
+            (
+                src for src in tool_sources
+                if src["title"] == title
+                and src["page_start"] <= start <= src["page_end"]
+            ),
+            None,
+        )
+        result.append({
+            "citation_num": num,
+            "title": title,
+            "url": None,
+            "source_name": (match or {}).get("source_name", "Unknown"),
+            "published_at": (match or {}).get("published_at", "Unknown"),
+            "page_start": start,
+            "page_end": end,
+            "text": "",
+            "score": (match or {}).get("score", 0.0),
+        })
+    return result
 
 
 def _agent_final_message(messages: List[dict], baseline: int) -> Optional[dict]:
@@ -461,7 +504,7 @@ def agent_ask(req: AgentAskRequest):
             {
                 "session_id": session_id,
                 "answer": "",
-                "sources": _agent_sources(tools),
+                "sources": _agent_sources(tools, answer),
                 "tools": tools,
                 "message_id": info.get("id"),
                 "error": message or "Agent error",
@@ -471,7 +514,7 @@ def agent_ask(req: AgentAskRequest):
     return {
         "session_id": session_id,
         "answer": answer,
-        "sources": _agent_sources(tools),
+        "sources": _agent_sources(tools, answer),
         "tools": tools,
         "message_id": info.get("id"),
     }

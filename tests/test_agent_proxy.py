@@ -27,6 +27,19 @@ def test_agent_sources_parse_and_dedup():
     assert sources[1]["citation_num"] == 2
 
 
+def test_agent_sources_prefer_answer_references():
+    tools = [{"name": "softwiki_search", "output": (
+        "[0.032] Untitled Document: [Document: Untitled Document | Source: Manual Import | "
+        "Date: 2026-10-23 | Pages: 9-10] text"
+    )}]
+    answer = "See [4] (ARM PrimeCell RTC, p. 23) and [1] (Untitled Document, pp. 9-10)."
+    sources = _agent_sources(tools, answer)
+    assert [s["citation_num"] for s in sources] == [4, 1]
+    assert sources[0]["title"] == "ARM PrimeCell RTC"
+    assert sources[0]["page_start"] == 23
+    assert sources[1]["page_start"] == 9
+
+
 def test_agent_tool_parts_and_final_message():
     messages = [
         {"info": {"role": "assistant", "finish": "tool-calls"},
