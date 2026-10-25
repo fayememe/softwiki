@@ -319,6 +319,7 @@ export default function WikiPanel() {
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           </svg>
           Topics
+          <button className={styles.topicRefresh} onClick={fetchTopics} title="Reload topics" aria-label="Reload topics">↻</button>
         </div>
         {loadingTopics ? (
           <div className={styles.topicLoading}>Loading…</div>

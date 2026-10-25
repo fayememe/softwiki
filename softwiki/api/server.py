@@ -945,7 +945,10 @@ def list_wiki_topics():
                         "aliases": [t],
                         "related": []
                     }
-            return {"topics": topics_dict}
+            return JSONResponse(
+                {"topics": topics_dict},
+                headers={"Cache-Control": "no-store"},
+            )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         finally:
@@ -954,7 +957,7 @@ def list_wiki_topics():
     try:
         with open(topics_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-            return data
+            return JSONResponse(data, headers={"Cache-Control": "no-store"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

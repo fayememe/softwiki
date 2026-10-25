@@ -313,7 +313,7 @@ export async function apiListClaims(): Promise<Claim[]> {
 }
 
 export async function apiListWikiTopics(): Promise<{ topics: Record<string, unknown> }> {
-  const res = await fetch(`${API_BASE}/api/wiki/topics`);
+  const res = await fetch(`${API_BASE}/api/wiki/topics`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to list topics: ${res.status}`);
   return res.json();
 }

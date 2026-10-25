@@ -788,3 +788,19 @@
   line-height: 1.5;
   color: #202122;
 }
+
+
+.topicRefresh {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: #54595d;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.topicRefresh:hover {
+  color: #0645ad;
+}
