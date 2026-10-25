@@ -394,6 +394,8 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
             seen.add(key)
             page_start = int(match.group("page_start"))
             page_end = int(match.group("page_end") or page_start)
+            tail = output[match.end():]
+            chunk_text = tail.split("\n[", 1)[0].strip()[:800]
             tool_sources.append({
                 "citation_num": len(tool_sources) + 1,
                 "title": match.group("title").strip(),
@@ -402,7 +404,7 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
                 "published_at": match.group("date").strip(),
                 "page_start": page_start,
                 "page_end": page_end,
-                "text": "",
+                "text": chunk_text,
                 "score": float(match.group("score") or 0),
             })
 
@@ -433,7 +435,7 @@ def _agent_sources(tools: List[dict], answer: str = "") -> List[dict]:
             "published_at": (match or {}).get("published_at", "Unknown"),
             "page_start": start,
             "page_end": end,
-            "text": "",
+            "text": (match or {}).get("text", ""),
             "score": (match or {}).get("score", 0.0),
         })
     return result
