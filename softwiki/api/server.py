@@ -310,7 +310,7 @@ def _agent_tool_parts(messages: List[dict]) -> List[dict]:
 _SOURCE_RE = re.compile(
     r"^\[(?P<score>[0-9.]+)\]\s+(?P<title>.*?):\s+"
     r"\[Document:\s*(?P<doc>.*?)\s*\|\s*Source:\s*(?P<source>.*?)\s*\|\s*"
-    r"Date:\s*(?P<date>.*?)\s*\|\s*Pages:\s*(?P<page_start>\d+)"
+    r"Date:\s*(?P<date>.*?)\s*\|\s*Pages?:\s*(?P<page_start>\d+)"
     r"(?:-(?P<page_end>\d+))?\]",
     re.MULTILINE,
 )

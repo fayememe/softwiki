@@ -122,3 +122,14 @@ def test_agent_sources_dedup_inline_and_line_refs():
     assert sources[0]["citation_num"] == 1
     assert sources[0]["title"] == "Untitled Document"
     assert sources[0]["page_start"] == 9
+
+
+def test_agent_sources_singular_page():
+    tools = [{"name": "softwiki_search", "output": (
+        "[0.5] ARM PrimeCell RTC: [Document: ARM PrimeCell RTC | Source: ARM | "
+        "Date: 2017-05-23 | Page: 23] text"
+    )}]
+    sources = _agent_sources(tools)
+    assert len(sources) == 1
+    assert sources[0]["page_start"] == 23
+    assert sources[0]["page_end"] == 23
