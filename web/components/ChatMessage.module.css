@@ -430,3 +430,106 @@
   color: var(--accent-blue);
   background: var(--glass-bg-hover);
 }
+
+/* ── Agent research steps ── */
+.researchSteps {
+  margin-bottom: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-bg);
+  overflow: hidden;
+}
+
+.researchSummary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  list-style: none;
+  user-select: none;
+}
+
+.researchSummary::-webkit-details-marker {
+  display: none;
+}
+
+.researchIcon {
+  color: #8ee6b0;
+  font-size: 12px;
+}
+
+.researchCount {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: rgba(110, 220, 160, 0.1);
+  color: #8ee6b0;
+}
+
+.researchList {
+  border-top: 1px solid var(--glass-border);
+  padding: 6px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.researchItem {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: var(--bg-inset);
+}
+
+.researchHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.researchName {
+  font-family: monospace;
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.researchStatus {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.researchOk {
+  color: #8ee6b0;
+}
+
+.researchInput {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.researchOutput {
+  margin-top: 5px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}

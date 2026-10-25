@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import shutil
+import time
 from datetime import datetime
 from typing import List, Optional, Dict
+import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +38,10 @@ from softwiki.intelligence.answer_engine import AnswerEngine
 from softwiki.wiki.page_generator import WikiPageGenerator
 
 app = FastAPI(title="Softwiki REST API", version="0.1.0")
+
+AGENT_WEB_URL = os.getenv("AGENT_WEB_URL", "http://127.0.0.1:6111").rstrip("/")
+AGENT_DEFAULT = os.getenv("AGENT_DEFAULT", "wiki-research")
+AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "300"))
 
 def _safe_db_url():
     try:
@@ -246,6 +253,240 @@ def _build_sources(engine):
             "score": float(result["score"]) if result else 0.0,
         })
     return sources
+
+
+# ── Browser agent proxy (opencode web) ──────────────────────────────────────
+
+class AgentAskRequest(BaseModel):
+    question: str
+    session_id: Optional[str] = None
+    agent: Optional[str] = None
+
+
+class AgentSessionRequest(BaseModel):
+    title: Optional[str] = None
+
+
+def _agent_request(method: str, path: str, payload: Optional[dict] = None,
+                   timeout: int = 60):
+    url = f"{AGENT_WEB_URL}{path}"
+    try:
+        resp = requests.request(method, url, json=payload, timeout=timeout)
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Agent unavailable at {AGENT_WEB_URL}: {exc}",
+        ) from exc
+    if resp.status_code >= 400:
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = resp.text[:500]
+        raise HTTPException(status_code=502, detail=f"Agent error: {detail}")
+    if resp.status_code == 204 or not resp.content:
+        return None
+    return resp.json()
+
+
+def _agent_tool_parts(messages: List[dict]) -> List[dict]:
+    tools = []
+    for msg in messages:
+        for part in msg.get("parts", []):
+            if part.get("type") != "tool":
+                continue
+            state = part.get("state") or {}
+            output = state.get("output")
+            if output is not None and not isinstance(output, str):
+                output = json.dumps(output, ensure_ascii=False)
+            tools.append({
+                "name": part.get("tool"),
+                "status": state.get("status"),
+                "input": state.get("input") or {},
+                "output": (output or "")[:2500],
+            })
+    return tools
+
+
+_SOURCE_RE = re.compile(
+    r"^\[(?P<score>[0-9.]+)\]\s+(?P<title>.*?):\s+"
+    r"\[Document:\s*(?P<doc>.*?)\s*\|\s*Source:\s*(?P<source>.*?)\s*\|\s*"
+    r"Date:\s*(?P<date>.*?)\s*\|\s*Pages:\s*(?P<page_start>\d+)"
+    r"(?:-(?P<page_end>\d+))?\]",
+    re.MULTILINE,
+)
+
+
+def _agent_sources(tools: List[dict]) -> List[dict]:
+    sources = []
+    seen = set()
+    for tool in tools:
+        if tool.get("name") not in (
+            "softwiki_search", "softwiki_retrieve", "softwiki_ask",
+        ):
+            continue
+        output = tool.get("output") or ""
+        for match in _SOURCE_RE.finditer(output):
+            key = (
+                match.group("title").strip(),
+                match.group("page_start"),
+                match.group("page_end"),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            page_start = int(match.group("page_start"))
+            page_end = int(match.group("page_end") or page_start)
+            sources.append({
+                "citation_num": len(sources) + 1,
+                "title": match.group("title").strip(),
+                "url": None,
+                "source_name": match.group("source").strip(),
+                "published_at": match.group("date").strip(),
+                "page_start": page_start,
+                "page_end": page_end,
+                "text": "",
+                "score": float(match.group("score") or 0),
+            })
+    return sources
+
+
+def _agent_final_message(messages: List[dict], baseline: int) -> Optional[dict]:
+    for msg in reversed(messages[baseline:]):
+        info = msg.get("info") or {}
+        if info.get("role") != "assistant":
+            continue
+        finish = info.get("finish")
+        if info.get("error"):
+            return msg
+        if finish and finish != "tool-calls":
+            return msg
+    return None
+
+
+def _agent_answer_text(message: dict) -> str:
+    texts = []
+    for part in message.get("parts", []):
+        if part.get("type") == "text" and part.get("text"):
+            texts.append(part["text"])
+    return "\n\n".join(texts).strip()
+
+
+@app.get("/api/agent/status")
+def agent_status():
+    """Health and agent inventory for the opencode browser agent."""
+    try:
+        agents = _agent_request("GET", "/agent", timeout=10) or []
+        config = _agent_request("GET", "/config", timeout=10) or {}
+        mcp = _agent_request("GET", "/mcp", timeout=10) or {}
+    except HTTPException as exc:
+        return JSONResponse(
+            {"available": False, "url": AGENT_WEB_URL, "error": exc.detail},
+            status_code=503,
+        )
+    primary = [
+        {"name": a.get("name"), "description": a.get("description")}
+        for a in agents
+        if a.get("mode") == "primary"
+    ]
+    return {
+        "available": True,
+        "url": AGENT_WEB_URL,
+        "agents": primary,
+        "default_agent": config.get("default_agent"),
+        "model": config.get("model"),
+        "mcp": mcp,
+    }
+
+
+@app.post("/api/agent/session")
+def agent_create_session(req: AgentSessionRequest):
+    session = _agent_request("POST", "/session", {"title": req.title or "SoftWiki Agent"})
+    return {"session_id": session.get("id"), "session": session}
+
+
+@app.post("/api/agent/ask")
+def agent_ask(req: AgentAskRequest):
+    """Send a question to the opencode agent and wait for the final answer.
+
+    Returns the answer, parsed KB sources, and every tool call (for the UI's
+    research-step trail). This is the non-streaming L2 endpoint.
+    """
+    session_id = req.session_id
+    if not session_id:
+        session = _agent_request("POST", "/session", {"title": req.question[:60]})
+        session_id = session.get("id")
+    if not session_id:
+        raise HTTPException(status_code=502, detail="Agent did not return a session id")
+
+    baseline_messages = _agent_request(
+        "GET", f"/session/{session_id}/message", timeout=30
+    ) or []
+    baseline = len(baseline_messages)
+
+    try:
+        _agent_request("POST", f"/session/{session_id}/message", {
+            "agent": req.agent or AGENT_DEFAULT,
+            "parts": [{"type": "text", "text": req.question}],
+        }, timeout=AGENT_TIMEOUT)
+    except HTTPException:
+        # A long-running prompt may time out at the HTTP layer while the
+        # agent is still working. Poll below; only fail if no message appears.
+        pass
+
+    deadline = time.time() + AGENT_TIMEOUT
+    final = None
+    messages = baseline_messages
+    while time.time() < deadline:
+        messages = _agent_request(
+            "GET", f"/session/{session_id}/message", timeout=30
+        ) or []
+        final = _agent_final_message(messages, baseline)
+        if final is not None:
+            break
+        time.sleep(1.5)
+
+    if final is None:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Agent did not finish within {AGENT_TIMEOUT}s (session {session_id})",
+        )
+
+    info = final.get("info") or {}
+    tools = _agent_tool_parts(messages[baseline:])
+    answer = _agent_answer_text(final)
+    error = info.get("error")
+    if error:
+        message = error.get("data", {}).get("message") if isinstance(error, dict) else str(error)
+        return JSONResponse(
+            {
+                "session_id": session_id,
+                "answer": "",
+                "sources": _agent_sources(tools),
+                "tools": tools,
+                "message_id": info.get("id"),
+                "error": message or "Agent error",
+            }
+        )
+
+    return {
+        "session_id": session_id,
+        "answer": answer,
+        "sources": _agent_sources(tools),
+        "tools": tools,
+        "message_id": info.get("id"),
+    }
+
+
+@app.post("/api/agent/session/{session_id}/abort")
+def agent_abort(session_id: str):
+    _agent_request("POST", f"/session/{session_id}/abort", timeout=15)
+    return {"status": "aborted", "session_id": session_id}
+
+
+@app.delete("/api/agent/session/{session_id}")
+def agent_delete(session_id: str):
+    _agent_request("DELETE", f"/session/{session_id}", timeout=15)
+    return {"status": "deleted", "session_id": session_id}
 
 
 @app.post("/api/ask")

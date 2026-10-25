@@ -8,6 +8,10 @@ x-api-common: &api-common
   environment:
     WORKSPACE_DIR: /data/workspace/${SOFTWIKI_ACTIVE_WORKSPACE:-lsl-kb}
     SOFTWIKI_ENABLE_WEB_SEARCH: "true"
+    AGENT_WEB_URL: ${AGENT_WEB_URL:-http://host.docker.internal:6111}
+    AGENT_DEFAULT: ${AGENT_DEFAULT:-wiki-research}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   volumes:
     - ${SOFTWIKI_WORKSPACE:-./workspace}:/data/workspace
   restart: unless-stopped

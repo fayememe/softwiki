@@ -147,6 +147,62 @@ export interface WorkspaceSwitchResponse {
   workspace: string;
 }
 
+
+export interface AgentTool {
+  name: string;
+  status: string;
+  input: Record<string, unknown>;
+  output: string;
+}
+
+export interface AgentAskResponse {
+  session_id: string;
+  answer: string;
+  sources: Source[];
+  tools: AgentTool[];
+  message_id?: string;
+  error?: string;
+}
+
+export interface AgentStatusResponse {
+  available: boolean;
+  url: string;
+  agents?: { name: string; description?: string }[];
+  default_agent?: string;
+  model?: string;
+  mcp?: Record<string, unknown>;
+  error?: string;
+}
+
+export async function apiAgentStatus(): Promise<AgentStatusResponse> {
+  const res = await fetch(`${API_BASE}/api/agent/status`);
+  const data = await res.json().catch(() => ({ available: false, url: '', error: 'Invalid response' }));
+  return data;
+}
+
+export async function apiAgentAsk(
+  question: string,
+  sessionId?: string,
+  agent?: string,
+): Promise<AgentAskResponse> {
+  const res = await fetch(`${API_BASE}/api/agent/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, session_id: sessionId || null, agent: agent || null }),
+  });
+  const data = await res.json().catch(() => ({ detail: 'Invalid response' }));
+  if (!res.ok) {
+    throw new Error(data.error || data.detail || `Agent failed: ${res.status}`);
+  }
+  return data;
+}
+
+export async function apiAgentAbort(sessionId: string): Promise<void> {
+  await fetch(`${API_BASE}/api/agent/session/${encodeURIComponent(sessionId)}/abort`, {
+    method: 'POST',
+  });
+}
+
 // ─── API Functions ───────────────────────────────────────────────────────────
 
 export async function apiListWorkspaces(): Promise<WorkspaceListResponse> {

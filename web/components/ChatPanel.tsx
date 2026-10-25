@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { apiAsk, apiReport, apiReportDownloadUrl, apiWorkflows } from '@/lib/api';
+import { apiAgentAsk, apiAgentStatus, apiAsk, apiReport, apiReportDownloadUrl, apiWorkflows } from '@/lib/api';
 import type { Source, Workflow } from '@/lib/api';
 import ChatMessage, { type Message } from './ChatMessage';
 import SourceDrawer from './SourceDrawer';
@@ -40,6 +40,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [engine, setEngine] = useState<'quick' | 'agent'>('quick');
+  const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
+  const [agentAvailable, setAgentAvailable] = useState<boolean | null>(null);
 
   const scrollToBottom = useCallback((instant = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'instant' : 'smooth' });
@@ -67,6 +70,20 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    apiAgentStatus()
+      .then(s => setAgentAvailable(s.available))
+      .catch(() => setAgentAvailable(false));
+  }, []);
+
+  useEffect(() => {
+    try {
+      setAgentSessionId(localStorage.getItem(`softwiki_agent_session_${sessionId}`));
+    } catch {
+      setAgentSessionId(null);
+    }
+  }, [sessionId]);
+
   const genId = () =>
     crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -86,6 +103,8 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       role: 'assistant',
       content: '',
       isLoading: true,
+      agent: engine === 'agent',
+      loadingLabel: engine === 'agent' ? 'Researching with the agent…' : undefined,
       timestamp: new Date(),
     };
 
@@ -95,18 +114,42 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
     setIsLoading(true);
 
     try {
-      const history = messages
-        .filter(m => !m.isLoading)
-        .slice(-20) // last 20 messages
-        .map(m => ({ role: m.role, content: m.content }));
-      const response = await apiAsk(question, history, mode, workflow || undefined);
-      const assistantMsg: Message = {
-        id: genId(),
-        role: 'assistant',
-        content: response.answer,
-        sources: response.sources,
-        timestamp: new Date(),
-      };
+      let assistantMsg: Message;
+      if (engine === 'agent') {
+        const response = await apiAgentAsk(question, agentSessionId || undefined);
+        if (response.session_id) {
+          setAgentSessionId(response.session_id);
+          try {
+            localStorage.setItem(`softwiki_agent_session_${sessionId}`, response.session_id);
+          } catch {}
+        }
+        const agentError = response.error;
+        assistantMsg = {
+          id: genId(),
+          role: 'assistant',
+          content: agentError
+            ? `Agent error: ${agentError}`
+            : (response.answer || 'The agent returned an empty answer.'),
+          sources: response.sources || [],
+          tools: response.tools || [],
+          agent: true,
+          error: Boolean(agentError),
+          timestamp: new Date(),
+        };
+      } else {
+        const history = messages
+          .filter(m => !m.isLoading)
+          .slice(-20) // last 20 messages
+          .map(m => ({ role: m.role, content: m.content }));
+        const response = await apiAsk(question, history, mode, workflow || undefined);
+        assistantMsg = {
+          id: genId(),
+          role: 'assistant',
+          content: response.answer,
+          sources: response.sources,
+          timestamp: new Date(),
+        };
+      }
       // Replace loading message with actual response
       const finalMessages = updatedMessages
         .filter(m => m.id !== loadingMsg.id)
@@ -129,7 +172,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow]);
+  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow, engine, agentSessionId]);
 
   const handleReport = async () => {
     const question = (
@@ -166,6 +209,10 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   const clearChat = () => {
     if (messages.length === 0 || !confirm('Clear all messages in this session?')) return;
     onMessagesChange(sessionId, []);
+    setAgentSessionId(null);
+    try {
+      localStorage.removeItem(`softwiki_agent_session_${sessionId}`);
+    } catch {}
   };
 
   const hasMessages = messages.length > 0;
@@ -184,9 +231,13 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                   <path d="M12 6v6l4 2" />
                 </svg>
               </div>
-              <h2 className={styles.emptyTitle}>Research Chat</h2>
+              <h2 className={styles.emptyTitle}>
+                {engine === 'agent' ? 'Deep Research Agent' : 'Research Chat'}
+              </h2>
               <p className={styles.emptyDesc}>
-                Ask questions about your ingested documents. The system searches across full-text, vectors, claims, and knowledge graph to give you grounded answers.
+                {engine === 'agent'
+                  ? 'opencode agent with read-only knowledge-base tools and web research. It shows its research steps and cites datasheet pages.'
+                  : 'Ask questions about your ingested documents. The system searches across full-text, vectors, claims, and knowledge graph to give you grounded answers.'}
               </p>
               <div className={styles.suggestions}>
                 {SUGGESTIONS.map((s, i) => (
@@ -224,7 +275,24 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       {/* Mode / workflow / report bar */}
       <div className={styles.modeBar}>
         <div className={styles.modeInner}>
-          {MODES.map(m => (
+          <div className={styles.engineSwitch} role="group" aria-label="Answer engine">
+            <button
+              className={`${styles.engineBtn} ${engine === 'quick' ? styles.engineActive : ''}`}
+              onClick={() => setEngine('quick')}
+              disabled={isLoading}
+            >
+              Quick
+            </button>
+            <button
+              className={`${styles.engineBtn} ${engine === 'agent' ? styles.engineActive : ''}`}
+              onClick={() => setEngine('agent')}
+              disabled={isLoading}
+              title="opencode agent; read-only KB + web research"
+            >
+              Agent
+            </button>
+          </div>
+          {engine === 'quick' ? MODES.map(m => (
             <button
               key={m.id}
               className={`${styles.modeBtn} ${mode === m.id ? styles.modeActive : ''}`}
@@ -232,20 +300,26 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
             >
               {m.label}
             </button>
-          ))}
+          )) : (
+            <span className={styles.agentHint}>
+              {agentAvailable === false ? 'Agent offline' : 'Read-only KB · opencode'}
+            </span>
+          )}
           <div className={styles.modeRight}>
-            <select
-              className={styles.workflowSelect}
-              value={workflow}
-              onChange={e => setWorkflow(e.target.value)}
-              aria-label="Workflow"
-              disabled={isLoading}
-            >
-              <option value="">No workflow</option>
-              {Object.entries(workflows).map(([id, wf]) => (
-                <option key={id} value={id}>{wf.name || id}</option>
-              ))}
-            </select>
+            {engine === 'quick' && (
+              <select
+                className={styles.workflowSelect}
+                value={workflow}
+                onChange={e => setWorkflow(e.target.value)}
+                aria-label="Workflow"
+                disabled={isLoading}
+              >
+                <option value="">No workflow</option>
+                {Object.entries(workflows).map(([id, wf]) => (
+                  <option key={id} value={id}>{wf.name || id}</option>
+                ))}
+              </select>
+            )}
             <a
               className={styles.agentBtn}
               href={agentWebUrl()}
@@ -255,14 +329,16 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
             >
               Agent ↗
             </a>
-            <button
-              className={styles.reportBtn}
-              onClick={handleReport}
-              disabled={isReporting || isLoading}
-              title="Generate a research report with citations"
-            >
-              {isReporting ? 'Generating…' : 'Report'}
-            </button>
+            {engine === 'quick' && (
+              <button
+                className={styles.reportBtn}
+                onClick={handleReport}
+                disabled={isReporting || isLoading}
+                title="Generate a research report with citations"
+              >
+                {isReporting ? 'Generating…' : 'Report'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -277,7 +353,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a research question…"
+              placeholder={engine === 'agent' ? 'Ask the research agent…' : 'Ask a research question…'}
               rows={1}
               disabled={isLoading}
               aria-label="Research question"
@@ -315,7 +391,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
             </div>
           </div>
           <p className={styles.hint}>
-            Answers are grounded in your indexed documents. Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line.
+            {engine === 'agent'
+              ? 'The agent uses read-only KB tools and web search; it may take longer than Quick Answer.'
+              : 'Answers are grounded in your indexed documents.'} Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line.
           </p>
         </div>
       </div>

@@ -333,3 +333,48 @@
   font-size: 10px;
   font-family: inherit;
 }
+
+/* ── Engine switch (Quick / Agent) ── */
+.engineSwitch {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.engineBtn {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.engineBtn:hover:not(:disabled) {
+  color: var(--text-secondary);
+}
+
+.engineBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.engineActive {
+  background: rgba(110, 220, 160, 0.14);
+  color: #8ee6b0;
+}
+
+.agentHint {
+  font-size: 11px;
+  color: #8ee6b0;
+  opacity: 0.8;
+  margin-left: 8px;
+  white-space: nowrap;
+}

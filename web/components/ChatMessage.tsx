@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { Source } from '@/lib/api';
+import type { AgentTool, Source } from '@/lib/api';
 import styles from './ChatMessage.module.css';
 
 export interface Message {
@@ -10,6 +10,9 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   sources?: Source[];
+  tools?: AgentTool[];
+  agent?: boolean;
+  loadingLabel?: string;
   isLoading?: boolean;
   error?: boolean;
   timestamp: Date;
@@ -20,14 +23,48 @@ interface ChatMessageProps {
   onSourceClick?: (source: Source) => void;
 }
 
-function ThinkingDots() {
+function ThinkingDots({ label }: { label?: string }) {
   return (
     <div className={styles.thinking}>
       <div className={styles.thinkingDots}>
         <span /><span /><span />
       </div>
-      <span className={styles.thinkingLabel}>Analyzing knowledge base…</span>
+      <span className={styles.thinkingLabel}>{label || 'Analyzing knowledge base…'}</span>
     </div>
+  );
+}
+
+function ResearchSteps({ tools }: { tools: AgentTool[] }) {
+  return (
+    <details className={styles.researchSteps}>
+      <summary className={styles.researchSummary}>
+        <span className={styles.researchIcon}>◈</span>
+        Research steps
+        <span className={styles.researchCount}>{tools.length}</span>
+      </summary>
+      <div className={styles.researchList}>
+        {tools.map((tool, i) => (
+          <div key={i} className={styles.researchItem}>
+            <div className={styles.researchHead}>
+              <span className={styles.researchName}>{tool.name}</span>
+              <span className={`${styles.researchStatus} ${tool.status === 'completed' ? styles.researchOk : ''}`}>
+                {tool.status}
+              </span>
+            </div>
+            {tool.input && Object.keys(tool.input).length > 0 && (
+              <div className={styles.researchInput}>
+                {Object.entries(tool.input).map(([k, v]) => (
+                  <span key={k}>{k}: {String(v)}</span>
+                ))}
+              </div>
+            )}
+            {tool.output && (
+              <div className={styles.researchOutput}>{tool.output.slice(0, 700)}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -110,11 +147,14 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
             {message.isLoading ? (
               <div className={styles.botContainer}>
                 <div className={`${styles.bubble} ${styles.botBubble} ${styles.loadingBubble}`}>
-                  <ThinkingDots />
+                  <ThinkingDots label={message.loadingLabel} />
                 </div>
               </div>
             ) : (
               <div className={styles.botBlock}>
+                {message.tools && message.tools.length > 0 && (
+                  <ResearchSteps tools={message.tools} />
+                )}
                 {message.error ? (
                   <div className={`${styles.bubble} ${styles.botBubble} ${styles.errorBubble}`}>
                     <div className="prose">
