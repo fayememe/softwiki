@@ -415,11 +415,10 @@ This is a READ-ONLY, knowledge-base-grounded research mode.
 - If the user asks to modify the KB, explain that this mode is read-only and
   tell them to use the TUI in wiki-manage/wiki-admin mode.
 
-### Search budget
-- Use at most 3 KB search/retrieve calls for one question.
-- Prefer `softwiki_search` / `softwiki_retrieve` for page metadata.
-- Do not call `softwiki_ask` more than once; it may lose page ranges.
-- Once you have the register table or enough evidence, stop and answer.
+### Fast path (mandatory)
+1. Call `softwiki_ask(query, mode="deep")` **once**.
+2. If substantive, call `softwiki_search(query, top_k=5)` **once** for page metadata.
+3. Answer and STOP. Do not retry the same search; do not exceed 3 tools.
 
 ### Citation contract
 - Every factual sentence from the KB must carry `[n]`, with title and page

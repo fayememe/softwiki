@@ -89,12 +89,25 @@ _CASUAL_PATTERNS = [
 ]
 
 _ADMIN_PATTERNS = [
-    "what's in", "what is in", "show me", "list", "how many", "count", "summary",
-    "knowledge base", "knowledgebase", "my data", "all documents", "all claims",
-    "知识库", "有什么", "多少", "统计", "列表", "数据",
-    "工作区", "workspace", "workspaces",
-    "documents", "claims", "entities", "relationships", "events",
-    "status", "database", "storage",
+    # Inventory questions must name both an inventory verb/intent and a noun.
+    # Do not use bare "list", "summary", "documents", "knowledge base", etc.:
+    # those words appear in normal KB research questions such as
+    # "List the PL031 registers from the knowledge base".
+    "what's in my knowledge base", "what is in my knowledge base",
+    "what's in the knowledge base", "what is in the knowledge base",
+    "what's in my workspace", "what is in my workspace",
+    "what's in my data", "what is in my data",
+    "how many documents", "how many claims", "how many chunks",
+    "how many entities", "how many relationships", "how many events",
+    "how many sources",
+    "list all documents", "list documents", "list all claims", "list claims",
+    "list all sources", "list sources",
+    "show me all documents", "show me documents",
+    "show me all claims", "show me claims",
+    "knowledge base status", "workspace status", "database status",
+    "storage status", "knowledge base summary", "workspace summary",
+    "工作区状态", "数据库状态", "知识库里有什么", "知识库有什么",
+    "有多少文档", "有多少条声明", "列出所有文档", "列出所有声明", "统计一下",
 ]
 
 # Phrases that mean "search the web for this"
