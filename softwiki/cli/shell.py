@@ -409,8 +409,8 @@ This is a READ-ONLY, knowledge-base-grounded research mode.
   softwiki_search, softwiki_retrieve, softwiki_ask, softwiki_graph_query,
   softwiki_timeline_query, softwiki_claim_query, softwiki_wiki_read,
   and native websearch/webfetch.
-- You MUST NOT use: softwiki_ingest, softwiki_index, softwiki_wiki_build,
-  softwiki_modules_set, softwiki_workspace_set.
+- You MUST NOT use: softwiki_ingest, softwiki_index, softwiki_rebuild_index,
+  softwiki_wiki_build, softwiki_modules_set, softwiki_workspace_set.
 - You MUST NOT modify files, configs, the database, or the knowledge base.
 - If the user asks to modify the KB, explain that this mode is read-only and
   tell them to use the TUI in wiki-manage/wiki-admin mode.
@@ -538,6 +538,20 @@ Depending on the mode, certain operations are restricted:
             "mode": "primary",
             "prompt": f"{{file:{agents_paths[m]}}}"
         }
+        if m == "wiki-research":
+            # Defense in depth: the prompt is read-only, and the tool layer
+            # denies every known write path. This matters because the web
+            # agent talks to the shared SoftWiki MCP service.
+            agents_config[m]["permission"] = {
+                "bash": "deny",
+                "edit": "deny",
+                "softwiki_ingest": "deny",
+                "softwiki_index": "deny",
+                "softwiki_rebuild_index": "deny",
+                "softwiki_wiki_build": "deny",
+                "softwiki_modules_set": "deny",
+                "softwiki_workspace_set": "deny",
+            }
 
     is_openai_compat = "openai" in api_base.lower()
     provider_label = "OpenAI-compatible" if is_openai_compat else "Gemini (OpenAI-compat)"

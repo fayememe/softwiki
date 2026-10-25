@@ -26,7 +26,7 @@ you may read and query the knowledge base, but you must not modify it.
 | Forbidden | Reason |
 |-----------|--------|
 | `softwiki_ingest` | Read-only research mode |
-| `softwiki_index` | Read-only research mode |
+| `softwiki_index` / `softwiki_rebuild_index` | Read-only research mode |
 | `softwiki_wiki_build` | Read-only research mode |
 | `softwiki_modules_set` | Read-only research mode |
 | `softwiki_workspace_set` | Workspace is fixed for the session |

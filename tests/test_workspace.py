@@ -173,6 +173,8 @@ def test_agent_web_runtime_generation():
         assert "wiki-research" in config["agent"]
         assert "wiki-study" in config["agent"]
         assert config["agent"]["build"]["disable"] is True
+        assert config["agent"]["wiki-research"]["permission"]["softwiki_rebuild_index"] == "deny"
+        assert config["agent"]["wiki-research"]["permission"]["bash"] == "deny"
         assert config["plugin"] == []
         assert "softwiki" in config["mcp"]
         assert config["mcp"]["softwiki"]["type"] == "remote"
