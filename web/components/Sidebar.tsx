@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import type { Session, ThemeMode } from '@/app/page';
 import styles from './Sidebar.module.css';
-import { agentWebUrl } from '@/lib/agent';
 
 export type ActivePanel = 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'graph' | 'timeline' | 'wiki';
 
@@ -150,7 +149,7 @@ export default function Sidebar({
         })}
         <a
           className={`${styles.navItem} ${styles.navLink}`}
-          href={agentWebUrl()}
+          href="/agent"
           target="_blank"
           rel="noopener noreferrer"
           title="Open the opencode Agent / Deep Research (new tab)"
