@@ -100,3 +100,15 @@ Current workspace: default (0 documents) / eva-kb (30 documents, 2173 claims, 11
 - ☐ web_loader upgrade — Readability.js / Jina AI Reader
 - ☐ Test coverage — extraction / wiki / answer_engine
 - ☐ Docker deployment stack — docker-compose one-click launch
+
+
+---
+
+## Workstream — Agent Web（opencode）
+
+> 计划文档：`docs/05-roadmap/agent-web-plan.md`
+
+- 现状：TUI 调用系统 opencode，profile/config/session 隔离，但不是安全沙盒。
+- 目标：Web 双模式 —— Quick Answer（AnswerEngine）+ Agent（opencode）。
+- 先做 L1：独立 `opencode web` + WebUI 入口 + 允许 KB 工具；再做 L2 原生嵌入。
+- 产品化：独立 `softwiki-agent` 容器，pin opencode `1.18.35`，固定配置，升级冒烟测试。

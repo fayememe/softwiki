@@ -91,6 +91,14 @@
 - [x] T23 Golden questions + `scripts/run_acceptance.py`（11/11 passed）
 - [ ] T18 Workflow 高级：自动路由、BM25/timeline verifier、可视化编辑
 
+### M4 — Agent Web（opencode）
+> 计划：`docs/05-roadmap/agent-web-plan.md`
+- [ ] L1：抽出 `prepare_agent_runtime()` + `softwiki agent-web` + WebUI Agent 入口
+- [ ] Agent 允许 `softwiki_search` / `softwiki_retrieve`，并要求页码引用/弃权
+- [ ] 设置 `SHELL_MODEL` / `SHELL_API_BASE` / `SHELL_API_KEY`（当前 Google key 402）
+- [ ] L2：`/api/agent/*` 代理 + 流式 + 工具调用 UI
+- [ ] 独立 `softwiki-agent` 容器，pin opencode `1.18.35` + 升级冒烟测试
+
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
@@ -106,6 +114,8 @@
 - [x] **armkb 数据**：73 篇 / 39,870 chunks / 10,573 claims / 4,165 entities / 7,211 relationships / 639 events。
 - [x] **armkb 窗口化重抽完成**：73/73；最终 10,573 claims / 4,165 entities / 7,211 relationships / 639 events；acceptance **11/11**。
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
+- [!] **TUI 不是沙盒**：调用系统 opencode，配置/会话隔离，但文件系统/网络是用户权限；打包/升级见 `docs/05-roadmap/agent-web-plan.md`。
+- [!] **TUI 默认不读 KB**：`agent_soul.md` 禁止 `softwiki_search/ask/retrieve`；做 Agent Web 前必须打开 KB 工具，否则只是“聪明的网上研究员”。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
@@ -113,10 +123,11 @@
 
 ## 下一步（NEXT）
 
-1. **Demo 验收**：`scripts/run_acceptance.py` 11/11；继续补更多 golden questions。
-2. **抽取覆盖**：评估 15k 字符窗口，改为窗口/分块抽取。
-3. **Demo 体验**：Chat/Report/Workflow 的 UI 串联、API `mode`/`history` 修复。
-4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
+1. **Agent Web L1**：`softwiki agent-web` + WebUI 入口 + 允许 KB 工具，见 `docs/05-roadmap/agent-web-plan.md`。
+2. **Demo 验收**：`scripts/run_acceptance.py` 11/11；继续补更多 golden questions。
+3. **抽取覆盖**：窗口化已完成；评估哪些文档值得全量抽取。
+4. **Demo 体验**：Chat/Report/Workflow 已串联；继续打磨。
+5. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
 
 ## 本 session 状态记录（handoff）
 
