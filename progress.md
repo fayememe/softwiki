@@ -123,6 +123,7 @@
 - [x] **armkb reindex 完成**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后重跑全量索引；39,870 chunks，`softwiki_search` / `softwiki_ask` / acceptance 11/11 已验证。已用 opencode permission 禁止写工具。
 - [ ] **Agent source 标题**：部分 PDF 抽取标题为 `Untitled Document`；页码有效，标题清洗待做。
 - [ ] **Agent SSE**：L2 目前是轮询非流式；逐 token/工具事件输出待做。
+- [ ] **Agent Session / 沙盒 / 审核**：设计见 `docs/05-roadmap/agent-session-sandbox-plan.md`；P0/P1 待确认后开工。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
