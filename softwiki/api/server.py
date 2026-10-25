@@ -323,6 +323,12 @@ _ANSWER_REF_INLINE_RE = re.compile(
 )
 
 
+def _clean_ref_title(title: str) -> str:
+    title = re.split(r",\s*(?:\d{4}-\d{2}-\d{2}|pp?\.)", title, maxsplit=1)[0]
+    title = re.sub(r",\s*Manual Import\s*$", "", title)
+    return title.strip(" ()")
+
+
 def _parse_answer_refs(answer: str) -> list[dict]:
     """Parse the agent's reference list, e.g.
 
@@ -337,10 +343,8 @@ def _parse_answer_refs(answer: str) -> list[dict]:
         body = match.group("body").strip()
         if body.startswith("(") and body.endswith(")"):
             body = body[1:-1].strip()
-        # Drop a trailing date so the title split is stable.
-        title = re.split(
-            r",\s*(?:\d{4}-\d{2}-\d{2}|pp?\.)", body, maxsplit=1
-        )[0].strip(" ()")
+        # Drop a trailing date/source so the title split is stable.
+        title = _clean_ref_title(body)
         page_match = re.search(r"pp?\.\s*(\d+)(?:\s*[-–]\s*(\d+))?", body)
         if not title or not page_match:
             continue
@@ -355,11 +359,14 @@ def _parse_answer_refs(answer: str) -> list[dict]:
     # Also accept inline parenthesized citations, e.g. "[4] (Title, p. 23)".
     for match in _ANSWER_REF_INLINE_RE.finditer(answer or ""):
         num = int(match.group("num"))
-        title = match.group("title").strip()
+        title = _clean_ref_title(match.group("title").strip())
         start = int(match.group("start"))
         end = int(match.group("end") or start)
         key = (num, title, start, end)
         if key in seen:
+            continue
+        # A line reference already carries this citation; do not duplicate it.
+        if any(r["num"] == num and r["start"] == start and r["end"] == end for r in refs):
             continue
         seen.add(key)
         refs.append({"num": num, "title": title, "start": start, "end": end})

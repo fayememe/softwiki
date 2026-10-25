@@ -110,3 +110,15 @@ def test_agent_sources_parse_reference_lines():
     assert sources[0]["page_end"] == 6
     assert sources[1]["page_start"] == 23
     assert sources[1]["page_end"] == 23
+
+
+def test_agent_sources_dedup_inline_and_line_refs():
+    answer = (
+        "Answer.\n\n[1] (Untitled Document, Manual Import, 2026-10-23, pp. 9-10)\n"
+        "Sources:\n[1] (Untitled Document, pp. 9-10)\n"
+    )
+    sources = _agent_sources([], answer)
+    assert len(sources) == 1
+    assert sources[0]["citation_num"] == 1
+    assert sources[0]["title"] == "Untitled Document"
+    assert sources[0]["page_start"] == 9
