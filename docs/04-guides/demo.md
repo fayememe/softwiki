@@ -21,7 +21,7 @@ What registers does the PL031 RTC provide?
 Chat 输入框上方有 **Quick / Agent** 切换：
 
 - **Quick**：`AnswerEngine`，快、基于 armkb、页码引用。
-- **Agent**：opencode agent，只读 KB + websearch，显示 research steps 和工具调用；通常 20–60s。
+- **Agent**：opencode agent，只读 KB + websearch，显示 research steps 和工具调用；通常 20–60s，复杂问题可到 2–3 分钟（前端/Next 代理已放宽到 300s）。
 
 也可以直接打开独立的 opencode 页面：`http://10.3.9.29:6111`（WebUI 左侧 **Agent** 或 `Agent ↗` 按钮）。
 

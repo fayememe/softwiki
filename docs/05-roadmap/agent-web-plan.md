@@ -232,5 +232,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
   4. `scripts/run_acceptance.py` **11/11**
 - L1 仍是宿主 opencode `1.18.35`；独立 `softwiki-agent` 容器留给产品化。
 - L2 目前是轮询非流式；SSE / 逐 token 是下一步。
+- **Next rewrite 默认 30s** 会先于 `AGENT_TIMEOUT=300` 超时，导致前端误报 `Invalid response`；已在 `web/next.config.ts` 设 `experimental.proxyTimeout=300_000`。
+- Agent 入口使用同源 `/agent` 307 → 当前 host:6111，避免服务端渲染写死 localhost。
 - 系统提示词要求快路径：`softwiki_ask` 一次 + `softwiki_search` 一次；实测 2 个工具、约 40s。
 - 2026-10-24 修复：`AnswerEngine` 把 "List/Summary" 研究问题误判为 inventory；`softwiki_ask` 不再返回工作区统计。
