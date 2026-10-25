@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import uuid
 import shutil
 import time
 from datetime import datetime
@@ -36,6 +37,14 @@ from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.rag.citations import CitationManager
 from softwiki.intelligence.answer_engine import AnswerEngine
 from softwiki.wiki.page_generator import WikiPageGenerator
+from softwiki.wiki.interventions import (
+    list_interventions,
+    save_intervention,
+    delete_intervention,
+    compose_interventions,
+    preview_dir,
+)
+from softwiki.wiki.coverage import compute_coverage
 
 app = FastAPI(title="Softwiki REST API", version="0.1.0")
 
@@ -182,6 +191,24 @@ class IngestUrlRequest(BaseModel):
 
 class WikiBuildRequest(BaseModel):
     topic: str
+
+class WikiInterventionRequest(BaseModel):
+    id: Optional[str] = None
+    scope: str = "global"
+    text: str = ""
+    enabled: bool = True
+    priority: int = 100
+
+class WikiPreviewRequest(BaseModel):
+    topic: Optional[str] = None
+    topics: Optional[List[str]] = None
+    intervention: Optional[str] = None
+    include_saved: bool = True
+
+class WikiApplyRequest(BaseModel):
+    topics: List[str]
+    intervention: Optional[str] = None
+    include_saved: bool = True
 
 @app.get("/api/status")
 def get_status():
@@ -930,6 +957,162 @@ def list_wiki_topics():
             return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/wiki/coverage")
+def wiki_claim_coverage():
+    """Claim coverage against the curated topics.yaml map (canonical + aliases)."""
+    db = SessionLocal()
+    try:
+        return compute_coverage(db)
+    finally:
+        db.close()
+
+
+@app.get("/api/wiki/interventions")
+def get_wiki_interventions():
+    """List saved prompt interventions (global / group / topic scopes)."""
+    return {"interventions": list_interventions()}
+
+
+@app.post("/api/wiki/interventions")
+def create_or_update_wiki_intervention(req: WikiInterventionRequest):
+    try:
+        saved = save_intervention(
+            scope=req.scope,
+            text=req.text,
+            intervention_id=req.id,
+            enabled=req.enabled,
+            priority=req.priority,
+        )
+        return {"status": "success", "intervention": saved}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/wiki/interventions/{intervention_id}")
+def remove_wiki_intervention(intervention_id: str):
+    if not delete_intervention(intervention_id):
+        raise HTTPException(status_code=404, detail="Intervention not found")
+    return {"status": "deleted", "id": intervention_id}
+
+
+def _preview_diagnostics(content: str, generator, elapsed_ms: int) -> dict:
+    headings = [
+        {"level": len(m.group(1)), "text": m.group(2).strip()}
+        for m in re.finditer(r"^(#{1,4})\s+(.+)$", content or "", re.MULTILINE)
+    ]
+    citations = len(re.findall(r"\[\d+\]", content or ""))
+    warnings = []
+    if generator.last_fallback:
+        warnings.append("LLM unavailable or failed; fallback template used, intervention was not applied.")
+    if not headings:
+        warnings.append("No markdown headings detected.")
+    if citations == 0:
+        warnings.append("No [n] citations detected.")
+    if "UNDEF" in (content or ""):
+        warnings.append("Output contains UNDEF placeholders.")
+    return {
+        "headings": headings,
+        "citation_count": citations,
+        "warnings": warnings,
+        "elapsed_ms": elapsed_ms,
+        "model": generator.last_model,
+        "fallback": generator.last_fallback,
+    }
+
+
+@app.post("/api/wiki/preview")
+def preview_wiki_page(req: WikiPreviewRequest):
+    """Generate preview pages without touching canonical wiki files.
+
+    This is the closed-loop testing endpoint: change the optional intervention,
+    preview selected topics, inspect, and iterate.
+    """
+    topics = [t.strip() for t in (req.topics or ([req.topic] if req.topic else [])) if t and t.strip()]
+    if not topics:
+        raise HTTPException(status_code=400, detail="Provide topic or topics")
+    if len(topics) > 3:
+        raise HTTPException(status_code=400, detail="Preview at most 3 topics per run")
+
+    run_id = datetime.utcnow().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+    out_dir = preview_dir(run_id)
+    db = SessionLocal()
+    results = []
+    try:
+        for topic in topics:
+            started = datetime.utcnow()
+            generator = WikiPageGenerator()
+            intervention = compose_interventions(
+                topic, adhoc=req.intervention or "", include_saved=req.include_saved
+            )
+            try:
+                path = generator.generate_topic_page(
+                    db,
+                    topic,
+                    force_rebuild=True,
+                    intervention=intervention,
+                    output_dir=out_dir,
+                )
+                with open(path, encoding="utf-8") as f:
+                    content = f.read()
+                elapsed_ms = int((datetime.utcnow() - started).total_seconds() * 1000)
+                diag = _preview_diagnostics(content, generator, elapsed_ms)
+                results.append({
+                    "topic": topic,
+                    "preview_path": path,
+                    "content": content,
+                    "intervention_applied": bool(intervention),
+                    "intervention_chars": len(intervention),
+                    **diag,
+                })
+            except Exception as e:
+                results.append({"topic": topic, "error": str(e)})
+        return {"run_id": run_id, "preview_dir": out_dir, "results": results}
+    finally:
+        db.close()
+
+
+@app.post("/api/wiki/apply")
+def apply_wiki_interventions(req: WikiApplyRequest):
+    """Write canonical wiki pages using saved + ad-hoc interventions.
+
+    Preview first, then apply. The caller is responsible for choosing topics.
+    """
+    check_read_only()
+    topics = [t.strip() for t in req.topics if t and t.strip()]
+    if not topics:
+        raise HTTPException(status_code=400, detail="Provide topics")
+    db = SessionLocal()
+    results = []
+    try:
+        for topic in topics:
+            started = datetime.utcnow()
+            generator = WikiPageGenerator()
+            intervention = compose_interventions(
+                topic, adhoc=req.intervention or "", include_saved=req.include_saved
+            )
+            try:
+                path = generator.generate_topic_page(
+                    db, topic, force_rebuild=True, intervention=intervention
+                )
+                with open(path, encoding="utf-8") as f:
+                    content = f.read()
+                elapsed_ms = int((datetime.utcnow() - started).total_seconds() * 1000)
+                results.append({
+                    "topic": topic,
+                    "filepath": path,
+                    "content": content,
+                    "intervention_applied": bool(intervention),
+                    "model": generator.last_model,
+                    "fallback": generator.last_fallback,
+                    "elapsed_ms": elapsed_ms,
+                })
+            except Exception as e:
+                results.append({"topic": topic, "error": str(e)})
+        return {"status": "success", "results": results}
+    finally:
+        db.close()
+
 
 @app.post("/api/wiki/build")
 def build_wiki_page(req: WikiBuildRequest):

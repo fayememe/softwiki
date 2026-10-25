@@ -3,7 +3,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { apiBuildWikiPage, apiListWikiTopics, apiGetWikiPage } from '@/lib/api';
+import {
+  apiApplyWiki,
+  apiBuildWikiPage,
+  apiDeleteWikiIntervention,
+  apiGetWikiPage,
+  apiListWikiInterventions,
+  apiListWikiTopics,
+  apiPreviewWiki,
+  apiSaveWikiIntervention,
+} from '@/lib/api';
+import type { WikiIntervention, WikiPreviewResult } from '@/lib/api';
 import styles from './WikiPanel.module.css';
 
 interface TocItem { id: string; text: string; level: number; }
@@ -31,6 +41,17 @@ export default function WikiPanel() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [building, setBuilding] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [studioTopics, setStudioTopics] = useState('');
+  const [promptText, setPromptText] = useState('');
+  const [includeSaved, setIncludeSaved] = useState(true);
+  const [previewing, setPreviewing] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [studioError, setStudioError] = useState('');
+  const [studioNotice, setStudioNotice] = useState('');
+  const [previewResults, setPreviewResults] = useState<WikiPreviewResult[]>([]);
+  const [interventions, setInterventions] = useState<WikiIntervention[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [rawMarkdown, setRawMarkdown] = useState('');
   const [builtAt, setBuiltAt] = useState('');
@@ -183,6 +204,100 @@ export default function WikiPanel() {
     }
   };
 
+  const currentGroup = topics[selectedTopic]?.group || 'Other';
+
+  const parseStudioTopics = useCallback(() => {
+    return studioTopics
+      .split(/[\n,]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }, [studioTopics]);
+
+  const loadInterventions = useCallback(async () => {
+    try {
+      const data = await apiListWikiInterventions();
+      setInterventions(data.interventions || []);
+    } catch {
+      setInterventions([]);
+    }
+  }, []);
+
+  const openStudio = () => {
+    setStudioOpen(true);
+    setStudioTopics(selectedTopic || '');
+    setPreviewResults([]);
+    setStudioError('');
+    setStudioNotice('');
+    loadInterventions();
+  };
+
+  const handlePreview = async () => {
+    const ts = parseStudioTopics();
+    if (ts.length === 0) { setStudioError('请至少指定一个 topic。'); return; }
+    if (ts.length > 3) { setStudioError('Preview 一次最多 3 个 topic。'); return; }
+    setPreviewing(true);
+    setStudioError('');
+    setStudioNotice('');
+    try {
+      const data = await apiPreviewWiki(ts, promptText, includeSaved);
+      setPreviewResults(data.results || []);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : 'Preview failed');
+      setPreviewResults([]);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleSaveIntervention = async (kind: 'global' | 'group' | 'topic') => {
+    if (!promptText.trim()) { setStudioError('Prompt 为空，无法保存。'); return; }
+    let scope = 'global';
+    if (kind === 'group') scope = `group:${currentGroup}`;
+    if (kind === 'topic') scope = `topic:${selectedTopic}`;
+    setSaving(true);
+    setStudioError('');
+    setStudioNotice('');
+    try {
+      await apiSaveWikiIntervention({ scope, text: promptText });
+      setPromptText('');
+      await loadInterventions();
+      setStudioNotice(`已保存到 ${scope}；后续生成会自动叠加。`);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteIntervention = async (id: string) => {
+    try {
+      await apiDeleteWikiIntervention(id);
+      await loadInterventions();
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  };
+
+  const handleApplyPrompts = async () => {
+    const ts = parseStudioTopics();
+    if (ts.length === 0) { setStudioError('请至少指定一个 topic。'); return; }
+    if (previewResults.length === 0) { setStudioError('请先 Preview，确认效果后再 Apply。'); return; }
+    setApplying(true);
+    setStudioError('');
+    setStudioNotice('');
+    try {
+      const data = await apiApplyWiki(ts, promptText, includeSaved);
+      const failed = (data.results || []).filter(r => r.error);
+      setStudioNotice(`已应用 ${ts.length - failed.length}/${ts.length} 个 topic。`);
+      if (failed.length) setStudioError(failed.map(f => `${f.topic}: ${f.error}`).join('\n'));
+      if (ts.includes(selectedTopic)) await selectTopic(selectedTopic);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : 'Apply failed');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const topicKeys = Object.keys(topics);
   const topicName = (key: string) =>
     topics[key]?.name || key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -248,6 +363,9 @@ export default function WikiPanel() {
               <button className={styles.generateBtn} onClick={handleBuild} disabled={building || !selectedTopic}>
                 {building ? 'Generating…' : 'Generate wiki page'}
               </button>
+              <button className={styles.studioBtn} onClick={openStudio} disabled={!selectedTopic}>
+                Prompt Studio
+              </button>
             </div>
           </div>
         ) : (
@@ -256,6 +374,9 @@ export default function WikiPanel() {
               <h1 className={styles.articleTitle}>{topicName(selectedTopic)}</h1>
               <div className={styles.articleMeta}>
                 <span className={styles.builtAt}>Built {builtAt}</span>
+                <button className={styles.studioBtnSmall} onClick={openStudio}>
+                  Prompt Studio
+                </button>
                 <button className={styles.regenerateBtn} onClick={handleBuild} disabled={building}>
                   {building ? 'Regenerating…' : 'Regenerate'}
                 </button>
@@ -318,6 +439,121 @@ export default function WikiPanel() {
           </>
         )}
       </article>
+
+      {studioOpen && (
+        <div className={styles.studioBackdrop} onMouseDown={e => { if (e.target === e.currentTarget) setStudioOpen(false); }}>
+          <div className={styles.studioPanel} onMouseDown={e => e.stopPropagation()}>
+            <div className={styles.studioHeader}>
+              <div>
+                <h2 className={styles.studioTitle}>Prompt Studio</h2>
+                <p className={styles.studioSub}>
+                  Intervention 是可选输入，可空、一句话、章节规则或完整模板。先 Preview，满意后再 Apply；canonical wiki 不会被 Preview 修改。
+                </p>
+              </div>
+              <button className={styles.studioClose} onClick={() => setStudioOpen(false)} aria-label="Close">✕</button>
+            </div>
+
+            <div className={styles.studioBody}>
+              <label className={styles.studioLabel}>Intervention（可空）</label>
+              <textarea
+                className={styles.studioTextarea}
+                value={promptText}
+                onChange={e => setPromptText(e.target.value)}
+                placeholder={"例：\n所有页面先给结论，再给证据；每个事实必须有 [n]。\n\n[SECTION: 寄存器与编程模型]\n用表格：Offset | Name | Access | Width | Reset | Description\n\n也可以直接粘贴一个完整模板。"}
+              />
+
+              <div className={styles.studioRow}>
+                <div className={styles.studioField}>
+                  <label className={styles.studioLabel}>Topics（逗号或换行分隔，最多 3 个）</label>
+                  <input
+                    className={styles.studioInput}
+                    value={studioTopics}
+                    onChange={e => setStudioTopics(e.target.value)}
+                    placeholder={selectedTopic || 'rtc-register-map'}
+                  />
+                </div>
+                <label className={styles.studioCheck}>
+                  <input type="checkbox" checked={includeSaved} onChange={e => setIncludeSaved(e.target.checked)} />
+                  叠加已保存的 interventions
+                </label>
+              </div>
+
+              <div className={styles.studioActions}>
+                <button className={styles.generateBtn} onClick={handlePreview} disabled={previewing || applying}>
+                  {previewing ? 'Previewing…' : 'Preview'}
+                </button>
+                <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('global')} disabled={saving || !promptText.trim()}>
+                  Save global
+                </button>
+                <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('group')} disabled={saving || !promptText.trim()}>
+                  Save group ({currentGroup})
+                </button>
+                <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('topic')} disabled={saving || !promptText.trim()}>
+                  Save topic
+                </button>
+                <button className={styles.studioApply} onClick={handleApplyPrompts} disabled={applying || previewing || previewResults.length === 0}>
+                  {applying ? 'Applying…' : 'Apply to topics'}
+                </button>
+              </div>
+
+              {studioError && <div className={styles.studioError}>{studioError}</div>}
+              {studioNotice && <div className={styles.studioNotice}>{studioNotice}</div>}
+
+              <div className={styles.studioSaved}>
+                <div className={styles.studioSectionTitle}>Saved interventions ({interventions.length})</div>
+                {interventions.length === 0 ? (
+                  <div className={styles.studioMuted}>None yet. Save a prompt after it previews well.</div>
+                ) : (
+                  interventions.map(inv => (
+                    <div key={inv.id} className={styles.studioSavedItem}>
+                      <div className={styles.studioSavedMeta}>
+                        <span className={styles.studioScope}>{inv.scope}</span>
+                        <button className={styles.studioDelete} onClick={() => handleDeleteIntervention(inv.id)}>Delete</button>
+                      </div>
+                      <div className={styles.studioSavedText}>{inv.text}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {previewResults.length > 0 && (
+                <div className={styles.studioResults}>
+                  <div className={styles.studioSectionTitle}>Preview results</div>
+                  {previewResults.map((res, idx) => (
+                    <div key={idx} className={styles.studioResult}>
+                      <div className={styles.studioResultHead}>
+                        <strong>{res.topic}</strong>
+                        {res.error ? (
+                          <span className={styles.studioErrorInline}>{res.error}</span>
+                        ) : (
+                          <span className={styles.studioResultMeta}>
+                            {res.model || 'model?'} · {res.elapsed_ms ?? 0}ms · {res.citation_count ?? 0} citations · {res.headings?.length ?? 0} headings
+                          </span>
+                        )}
+                      </div>
+                      {!res.error && res.warnings && res.warnings.length > 0 && (
+                        <ul className={styles.studioWarnings}>
+                          {res.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                        </ul>
+                      )}
+                      {!res.error && res.headings && res.headings.length > 0 && (
+                        <div className={styles.studioHeadings}>
+                          {res.headings.map((h, i) => (
+                            <span key={i} className={styles.studioHeadingChip}>{'·'.repeat(Math.max(0, h.level - 1))} {h.text}</span>
+                          ))}
+                        </div>
+                      )}
+                      {!res.error && (
+                        <pre className={styles.studioPreviewContent}>{res.content}</pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -8,9 +8,14 @@ from softwiki.config import get_export_dir, get_session_id
 
 class WikiPageGenerator:
     def __init__(self):
-        pass
+        self.last_model = None
+        self.last_fallback = False
+        self.last_intervention = ""
 
-    def get_output_dir(self) -> str:
+    def get_output_dir(self, override: str | None = None) -> str:
+        if override:
+            os.makedirs(override, exist_ok=True)
+            return override
         if os.getenv("SOFTWIKI_MODE") in ["wiki-study", "wiki-work", "wiki-user", "study", "work", "user"]:
             session_id = get_session_id()
             path = os.path.abspath(os.path.join("output", session_id))
@@ -18,7 +23,22 @@ class WikiPageGenerator:
             return path
         return get_export_dir("wiki/topics")
 
-    def generate_topic_page(self, db: Session, topic_id: str, force_rebuild: bool = False) -> str:
+    def _apply_intervention(self, system_prompt: str, intervention: str) -> str:
+        self.last_intervention = intervention or ""
+        if not intervention:
+            return system_prompt
+        return (
+            system_prompt
+            + "\n\n## USER INTERVENTIONS (highest priority)\n"
+            + "These are user instructions, not source evidence; they override the "
+              "default structure where they conflict.\n\n"
+            + intervention
+        )
+
+    def generate_topic_page(self, db: Session, topic_id: str, force_rebuild: bool = False,
+                            intervention: str = "", output_dir: str | None = None) -> str:
+        self.last_fallback = False
+        self.last_model = None
         # Check scope
         from softwiki.intelligence.scope_guard import check_scope
         is_in_scope, reason = check_scope(topic_id, item_type="wiki_topic")
@@ -36,14 +56,16 @@ class WikiPageGenerator:
         
         topic_title = topic_id.replace("-", " ").title()
         
-        output_filepath = os.path.join(self.get_output_dir(), f"{topic_id}.md")
+        output_filepath = os.path.join(self.get_output_dir(output_dir), f"{topic_id}.md")
         json_filepath = output_filepath.replace(".md", ".json")
         
         # 2. Check if we can use the LLM client
         from softwiki.intelligence.llm_client import get_llm_client_and_params
         client, model_name, temperature, max_tokens = get_llm_client_and_params("wiki_compilation")
-        
+        self.last_model = model_name
+
         if not client:
+            self.last_fallback = True
             print("No valid LLM client found for wiki compilation. Falling back to template-based generation.")
             return self._fallback_generate_topic_page(db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath)
 
@@ -160,6 +182,7 @@ Rules:
 2. Keep the table formatted perfectly as a Markdown table.
 3. Be objective, precise, and academic.
 """
+            system_prompt = self._apply_intervention(system_prompt, intervention)
             user_content = f"""Topic: {topic_title}
             
 Claims:
@@ -186,6 +209,7 @@ Please compile the initial Markdown Wiki Page:"""
                 markdown_content = response.choices[0].message.content
             except Exception as e:
                 print(f"Wiki compilation LLM failed: {e}. Falling back to template generation.")
+                self.last_fallback = True
                 return self._fallback_generate_topic_page(
                     db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
                 )
@@ -222,6 +246,7 @@ Rules:
 2. Do NOT erase or lose existing facts, rows, or citations. Merge incrementally.
 3. Output the FULL updated Markdown content.
 """
+            system_prompt = self._apply_intervention(system_prompt, intervention)
             user_content = f"""Existing Wiki Page Content:
 ---
 {existing_markdown}
@@ -248,6 +273,7 @@ Please generate the updated full Markdown Wiki Page:"""
                 markdown_content = response.choices[0].message.content
             except Exception as e:
                 print(f"Wiki compilation LLM failed: {e}. Falling back to template generation.")
+                self.last_fallback = True
                 return self._fallback_generate_topic_page(
                     db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
                 )

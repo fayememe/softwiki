@@ -390,3 +390,103 @@ export async function apiReport(
 export function apiReportDownloadUrl(reportId: string): string {
   return `${API_BASE}/api/report/${encodeURIComponent(reportId)}`;
 }
+
+// ─── Wiki prompt interventions ───────────────────────────────────────────────
+
+export interface WikiIntervention {
+  id: string;
+  scope: string;
+  text: string;
+  enabled: boolean;
+  priority: number;
+  version: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WikiPreviewResult {
+  topic: string;
+  preview_path?: string;
+  content?: string;
+  headings?: { level: number; text: string }[];
+  citation_count?: number;
+  warnings?: string[];
+  model?: string | null;
+  fallback?: boolean;
+  elapsed_ms?: number;
+  intervention_applied?: boolean;
+  intervention_chars?: number;
+  error?: string;
+}
+
+export interface WikiPreviewResponse {
+  run_id: string;
+  preview_dir: string;
+  results: WikiPreviewResult[];
+}
+
+export async function apiListWikiInterventions(): Promise<{ interventions: WikiIntervention[] }> {
+  const res = await fetch(`${API_BASE}/api/wiki/interventions`);
+  if (!res.ok) throw new Error(`Failed to list interventions: ${res.status}`);
+  return res.json();
+}
+
+export async function apiSaveWikiIntervention(payload: {
+  id?: string;
+  scope: string;
+  text: string;
+  enabled?: boolean;
+  priority?: number;
+}): Promise<{ status: string; intervention: WikiIntervention }> {
+  const res = await fetch(`${API_BASE}/api/wiki/interventions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Save intervention failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiDeleteWikiIntervention(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/wiki/interventions/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`Delete intervention failed: ${res.status}`);
+}
+
+export async function apiPreviewWiki(
+  topics: string[],
+  intervention?: string,
+  includeSaved: boolean = true,
+): Promise<WikiPreviewResponse> {
+  const res = await fetch(`${API_BASE}/api/wiki/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topics, intervention: intervention || null, include_saved: includeSaved }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Preview failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiApplyWiki(
+  topics: string[],
+  intervention?: string,
+  includeSaved: boolean = true,
+): Promise<{ status: string; results: WikiPreviewResult[] }> {
+  const res = await fetch(`${API_BASE}/api/wiki/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topics, intervention: intervention || null, include_saved: includeSaved }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Apply failed: ${res.status}`);
+  }
+  return res.json();
+}
