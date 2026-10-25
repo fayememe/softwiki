@@ -93,11 +93,13 @@
 
 ### M4 — Agent Web（opencode）
 > 计划：`docs/05-roadmap/agent-web-plan.md`
-- [ ] L1：抽出 `prepare_agent_runtime()` + `softwiki agent-web` + WebUI Agent 入口
-- [ ] Agent 允许 `softwiki_search` / `softwiki_retrieve`，并要求页码引用/弃权
-- [ ] 设置 `SHELL_MODEL` / `SHELL_API_BASE` / `SHELL_API_KEY`（当前 Google key 402）
-- [ ] L2：`/api/agent/*` 代理 + 流式 + 工具调用 UI
+- [x] L1：`prepare_agent_runtime()` + `softwiki agent-web` + WebUI Agent 入口
+- [x] Agent 允许 `softwiki_search` / `softwiki_retrieve`，并要求页码引用/弃权
+- [x] 设置 `SHELL_MODEL=gpt-4.1-mini` / `SHELL_API_BASE` / `SHELL_API_KEY`
+- [x] L2：`/api/agent/*` 代理 + Quick/Agent 切换 + research steps（非流式）
+- [ ] L2 流式输出（SSE / 逐 token）
 - [ ] 独立 `softwiki-agent` 容器，pin opencode `1.18.35` + 升级冒烟测试
+- [~] L1/L2 部署与 KB 验证（等待 armkb 全量 reindex 完成）
 
 ## Pending issues / Blocker
 
@@ -115,7 +117,9 @@
 - [x] **armkb 窗口化重抽完成**：73/73；最终 10,573 claims / 4,165 entities / 7,211 relationships / 639 events；acceptance **11/11**。
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
 - [!] **TUI 不是沙盒**：调用系统 opencode，配置/会话隔离，但文件系统/网络是用户权限；打包/升级见 `docs/05-roadmap/agent-web-plan.md`。
-- [!] **TUI 默认不读 KB**：`agent_soul.md` 禁止 `softwiki_search/ask/retrieve`；做 Agent Web 前必须打开 KB 工具，否则只是“聪明的网上研究员”。
+- [!] **TUI 默认不读 KB**：`agent_soul.md` 禁止 `softwiki_search/ask/retrieve`；Agent Web 已新增 `wiki-research` 并开放只读 KB 工具。
+- [~] **armkb 正在全量 reindex**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后触发；完成前 `softwiki_search` 返回空。已用 opencode permission 禁止写工具。
+- [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
@@ -123,7 +127,7 @@
 
 ## 下一步（NEXT）
 
-1. **Agent Web L1**：`softwiki agent-web` + WebUI 入口 + 允许 KB 工具，见 `docs/05-roadmap/agent-web-plan.md`。
+1. **Agent Web**：等 armkb reindex 完成后验证 L1/L2，再部署；见 `docs/05-roadmap/agent-web-plan.md`。
 2. **Demo 验收**：`scripts/run_acceptance.py` 11/11；继续补更多 golden questions。
 3. **抽取覆盖**：窗口化已完成；评估哪些文档值得全量抽取。
 4. **Demo 体验**：Chat/Report/Workflow 已串联；继续打磨。

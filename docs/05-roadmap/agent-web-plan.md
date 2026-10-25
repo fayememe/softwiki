@@ -194,3 +194,39 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
    - 答案带页码
 4. 现有 Quick Answer 仍正常，带页码引用
 5. 关闭 agent 进程后不影响 SoftWiki API
+
+---
+
+## 9. 实施记录（2026-10-24）
+
+### L1 已实现（待最终 KB 验证）
+
+- `softwiki agent-web --port 6111 --host 0.0.0.0 --mode wiki-research`
+- `prepare_agent_runtime(web=True)`：生成 `AGENTS_wiki-research.md`、`default_agent=wiki-research`、隔离 `XDG_*`
+- 浏览器 agent 通过 **现有 MCP 服务** `http://127.0.0.1:6100/mcp`（remote）访问 KB，不在宿主安装 psycopg2
+- `wiki-research` 权限：`bash`/`edit` deny；`softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`/`modules_set`/`workspace_set` deny；`steps=8`
+- WebUI：Sidebar **Agent** 入口 + ChatPanel **Agent ↗** 入口；`web/lib/agent.ts` 按当前 hostname 生成 `:6111` URL
+- javis：`softwiki-agent-web.service`（systemd，host opencode `1.18.35`，端口 `6111`）
+- Shell 模型：`SHELL_MODEL=gpt-4.1-mini`（`gpt-5-mini` 不接受 `max_tokens`）
+
+### L2 已实现（非流式）
+
+- FastAPI：
+  - `GET /api/agent/status`
+  - `POST /api/agent/session`
+  - `POST /api/agent/ask`（轮询 opencode session，返回 answer/sources/tools）
+  - `POST /api/agent/session/{id}/abort`
+  - `DELETE /api/agent/session/{id}`
+- WebUI：ChatPanel **Quick / Agent** 切换；Agent 模式显示 research steps、工具调用、解析后的 KB sources；会话映射存在 localStorage
+- Docker：API 通过 `AGENT_WEB_URL=http://host.docker.internal:6111` 访问宿主 agent；`extra_hosts: host-gateway`
+- 注意：当前是**非流式**；SSE/逐 token 输出留到后续
+
+### 已知问题 / 待验证
+
+- 2026-10-24 首次验收时，agent 经 remote MCP 调用了 `softwiki_rebuild_index`，触发全量索引；已 abort/restart，随后执行全量 `index` 修复。**在索引完成前，`softwiki_search` 返回空。**
+- 本次事件证明：**prompt + opencode permission 两层还不够**；产品化应增加只读 MCP sidecar / 网关。
+- 索引完成后必须验证：
+  1. `softwiki_search` 返回 PL031 结果
+  2. `/api/agent/ask` 返回答案 + sources
+  3. WebUI Agent 模式正常
+- L1 仍是宿主 opencode；独立 `softwiki-agent` 容器留给产品化。
