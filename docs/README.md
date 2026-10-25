@@ -26,6 +26,7 @@ graph TD
 - **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量索引完成）。
 - **Agent Web（2026-10-24）**：WebUI **Quick / Agent** 双模式；opencode `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/agent/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
 - **Demo 流程**：[`04-guides/demo.md`](./04-guides/demo.md)（Quick / Agent / Workflow / Report / 验收）。
+- **Wiki Prompt Studio**：[`04-guides/wiki-prompt-studio.md`](./04-guides/wiki-prompt-studio.md)（提示词干预 / Preview / Apply / 范例）。
 - **进度台账**：[`../progress.md`](../progress.md)（推进的唯一基准）
 - **试用清单**：[`05-roadmap/trial-readiness.md`](./05-roadmap/trial-readiness.md)（10 步验收 + P0/P1 任务）
 - **长期路线**：[`05-roadmap/status.md`](./05-roadmap/status.md)

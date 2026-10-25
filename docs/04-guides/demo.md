@@ -54,7 +54,23 @@ journalctl -u softwiki-agent-web -n 100 --no-pager
 
 注意：当前 PDF 抽取的部分标题是 `Untitled Document`，页码仍有效；标题清洗是后续数据质量问题。
 
-## 3. 学术分析 workflow
+## 3. Wiki 生成与 Prompt Studio
+
+Wiki 页面**不是自动生成**的；在 Wiki 面板选择 topic 后：
+
+- **Generate wiki page**：用默认提示词生成完整页面
+- **Prompt Studio**：写可选 intervention（一句话/章节规则/完整模板）→ **Preview**（只写 preview 目录）→ 满意后 **Apply to topics**
+- 保存到 global/group/topic 后，后续 Generate/Regenerate 会自动叠加
+
+详细说明和 prompt 范例：`docs/04-guides/wiki-prompt-studio.md`。
+
+当前 claim 覆盖率：
+
+```bash
+curl http://10.3.9.29:6200/api/wiki/coverage
+```
+
+## 4. 学术分析 workflow
 
 在 Chat 的 workflow 下拉框选 `Academic Analysis`，或直接调 API：
 
@@ -66,7 +82,7 @@ curl -X POST http://10.3.9.29:6200/api/ask \
 
 期望：答案按“拆解 → 来源批判 → 时间线 → 竞争解释 → 局限”的顺序组织；证据不足时明确说明。
 
-## 4. 生成报告
+## 5. 生成报告
 
 Chat 里点 `Report`，或：
 
@@ -84,7 +100,7 @@ curl -O http://10.3.9.29:6200/api/report/<report_id>
 
 `manifest.json` 在 `/api/report/<report_id>/manifest`。
 
-## 5. 验收脚本
+## 6. 验收脚本
 
 ```bash
 python scripts/run_acceptance.py --api http://127.0.0.1:6200

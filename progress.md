@@ -8,6 +8,7 @@
 - **项目**：softwiki = 多策略研究智能引擎（RAG / GraphRAG / LLM-Wiki / ClaimDB / Timeline）。
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
 - **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode `1.18.35` 宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
+- **Wiki Prompt Studio（2026-10-25）**：提示词作为可选 intervention 层；Support Preview（canonical 不动）/ Save global/group/topic / Apply；保存后 canonical 重建自动叠加；`GET /api/wiki/coverage`。当前 claim 覆盖率 **3.4%**（360/10,573；未映射 10,213；0 ignored）。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **本 session 已完成**：
@@ -103,6 +104,20 @@
 - [ ] L2 流式输出（SSE / 逐 token）
 - [ ] 独立 `softwiki-agent` 容器，pin opencode `1.18.35` + 升级冒烟测试
 
+
+### M5 — Wiki Prompt Studio / 覆盖率
+> 指南：`docs/04-guides/wiki-prompt-studio.md`
+- [x] intervention 存储/组合（global/group/topic + ad-hoc）
+- [x] `POST /api/wiki/preview`：指定 1–3 个 topic，写 preview 目录，canonical 不动
+- [x] `POST /api/wiki/apply`：保存后可写 canonical
+- [x] Prompt Studio UI：textarea、scope 保存、Preview、Apply、diagnostics
+- [x] intervention hash：提示词变化强制 full rebuild；删除后恢复
+- [x] 保存的 intervention 在 Generate/Regenerate 自动生效
+- [x] `GET /api/wiki/coverage`：claim 覆盖率/未映射 top
+- [ ] 自动重建接线（index/ingest 后按策展范围）
+- [ ] `__ignore__` / aliases / 新 canonical topic，提升 3.4% 覆盖率
+- [ ] 自定义 topics.yaml 的 29 个初始主题已写入 armkb（workspace 数据）
+
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
@@ -127,6 +142,9 @@
 - [x] **Agent source 元数据**：从答案引用解析出的 source 之前 `Unknown / 0%`；现用 KB 反查 `source_name`/日期/页码/摘录，无检索分数的 source 隐藏百分比。
 - [x] **Agent 链接**：`/agent` 同源 307 → 当前 host:6111，不再写死 localhost。
 - [ ] **Agent Session / 沙盒 / 审核**：设计见 `docs/05-roadmap/agent-session-sandbox-plan.md`；P0/P1 待确认后开工。
+- [ ] **Wiki 自动重建**：Prompt Studio 已手动闭环；index/ingest 后自动重建待接线（默认只跑策展主题 + 已有页面）。
+- [!] **Claim 覆盖率仅 3.4%**：360/10,573 mapped；10,213 unmapped，0 ignored。最大未映射是法务/模板类 topic；需要 alias/ignore/新增 canonical topic。
+- [ ] **Wiki 页面数量**：当前 4 个 canonical 页面（apb-interface / power-management / rtc-register-map / rtc-reset-generation）。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
@@ -135,11 +153,11 @@
 
 ## 下一步（NEXT）
 
-1. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent；acceptance 11/11；继续补 golden questions。
-2. **Agent L2 产品化**：SSE 流式、工具事件、独立 `softwiki-agent` 容器（pin `1.18.35`）。
-3. **数据质量**：清洗 `Untitled Document` 标题；补 PDF 元数据。
-4. **lsl-kb**：历史 820 篇 claims/events 仍为 0，决定重抽或迁移。
-5. **Workflow 高级**：自动路由、BM25/timeline verifier、可视化编辑。
+1. **Wiki 自动重建**：把 Prompt Studio 接到 index/ingest；默认只跑策展主题 + 已有页面，带 cap/队列。
+2. **Claim 覆盖率**：加 `__ignore__`（法务/模板）+ aliases（rtc/power/amba 同义词）+ 新 canonical topic；从 3.4% 往上拉。
+3. **Prompt 调优**：用 `docs/04-guides/wiki-prompt-studio.md` 的 IP/协议/技术范例，先 preview 再 apply。
+4. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent + Wiki Prompt Studio；acceptance 11/11。
+5. **Agent L2 产品化**：SSE、独立容器；lsl-kb 重抽。
 
 ## 本 session 状态记录（handoff）
 
@@ -175,4 +193,10 @@
   - 2026-10-24 追加：`/agent` 同源重定向；Next `proxyTimeout=300_000` 修复 30s 超时误报；长问题 CM55+NIC400+U55 浏览器实测 50s 出答案 + 2 steps + 3 sources。source 卡片现从 KB 反查 source_name/日期/页码/摘录；无检索分数时不再显示 0%。
   - 事故：首次验收 agent 误调 `softwiki_rebuild_index`，全量 reindex 约 45 分钟；已 abort/restart + reindex，且 permission deny 写工具。MCP/向量缓存需重启容器清空。
   - 已知限制：remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；PDF 标题 `Untitled Document`；宿主 opencode 未 pin。
-- **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` 即可接手。
+- **2026-10-25 Wiki Prompt Studio 追加**：
+  - 新代码：`softwiki/wiki/interventions.py`、`softwiki/wiki/coverage.py`；`page_generator.py` 支持 intervention/输出目录/hash；API `/api/wiki/preview|apply|interventions|coverage`；UI `WikiPanel` Prompt Studio。
+  - 验证：preview 61.8s（canonical hash 不变）；saved topic intervention 生效；apply 35.2s；删除 intervention 后 full rebuild 恢复；UI modal 可见，preview 请求完成（preview 文件生成）。
+  - 初始策展地图：`armkb/config/topics.yaml` 29 个主题（IP/协议/技术 group）；当前 4 个 canonical 页面。
+  - Claim 覆盖率：**3.4%**（360/10,573 mapped；10,213 unmapped；0 ignored）；top unmapped 为 `inclusive-language`/`export-compliance`/`warranty-disclaimer` 等法务/模板 topic。
+  - 未完成：index/ingest 自动重建、`__ignore__`/alias 映射、页面批量覆盖。
+- **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` + `docs/04-guides/wiki-prompt-studio.md` 即可接手。
