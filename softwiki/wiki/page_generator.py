@@ -37,9 +37,15 @@ class WikiPageGenerator:
         )
 
     def generate_topic_page(self, db: Session, topic_id: str, force_rebuild: bool = False,
-                            intervention: str = "", output_dir: str | None = None) -> str:
+                            intervention: str | None = None, output_dir: str | None = None) -> str:
         self.last_fallback = False
         self.last_model = None
+        if intervention is None:
+            # Canonical generation (UI Generate/Regenerate, CLI, MCP, auto-index)
+            # always applies saved interventions. Preview/apply pass an explicit
+            # composed string and therefore do not call this branch.
+            from softwiki.wiki.interventions import compose_interventions
+            intervention = compose_interventions(topic_id, include_saved=True)
         intervention_hash = hashlib.sha256((intervention or "").encode("utf-8")).hexdigest()
         # Check scope
         from softwiki.intelligence.scope_guard import check_scope
