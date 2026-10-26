@@ -39,6 +39,7 @@ function slugify(text: string): string {
 export default function WikiPanel() {
   const [topics, setTopics] = useState<Record<string, any>>({});
   const [selectedTopic, setSelectedTopic] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [building, setBuilding] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
@@ -94,15 +95,35 @@ export default function WikiPanel() {
     setLoadingTopics(true);
     try {
       const data = await apiListWikiTopics();
-      const loaded = data.topics || {};
+      const loaded = (data.topics || {}) as Record<string, any>;
       setTopics(loaded);
-      const keys = Object.keys(loaded);
-      if (keys.length > 0) selectTopic(keys[0], loaded);
+      const firstTop = Object.keys(loaded).find(
+        k => loaded[k]?.kind === 'category' && !loaded[k]?.parent,
+      );
+      const firstSub = firstTop
+        ? (loaded[firstTop].children || []).find((k: string) => loaded[k]?.kind === 'category')
+        : null;
+      if (firstSub) {
+        selectCategory(firstSub, loaded);
+      } else {
+        const firstPage = Object.keys(loaded).find(k => loaded[k]?.kind !== 'category');
+        if (firstPage) selectTopic(firstPage, loaded);
+      }
     } catch {} finally { setLoadingTopics(false); }
+  };
+
+  const selectCategory = (category: string, topicsMap?: Record<string, any>) => {
+    setSelectedCategory(category);
+    setSelectedTopic('');
+    setRawMarkdown('');
+    setLinkedMarkdown('');
+    setSearchQuery('');
+    setBuiltAt('');
   };
 
   const selectTopic = async (topic: string, topicsMap?: Record<string, any>) => {
     const map = topicsMap || topics;
+    setSelectedCategory(null);
     setSelectedTopic(topic);
     setRawMarkdown('');
     setLinkedMarkdown('');
@@ -204,7 +225,7 @@ export default function WikiPanel() {
     }
   };
 
-  const currentGroup = topics[selectedTopic]?.group || 'Other';
+  const currentGroup = topics[selectedTopic]?.category || topics[selectedTopic]?.group || 'Other';
 
   const parseStudioTopics = useCallback(() => {
     return studioTopics
@@ -298,9 +319,19 @@ export default function WikiPanel() {
     }
   };
 
-  const topicKeys = Object.keys(topics);
+  const topicKeys = Object.keys(topics).filter(
+    k => topics[k]?.kind !== 'category' && k !== '__ignore__',
+  );
+  const topCategories = Object.keys(topics).filter(
+    k => topics[k]?.kind === 'category' && !topics[k]?.parent,
+  );
   const topicName = (key: string) =>
     topics[key]?.name || key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const categoryChildren = selectedCategory
+    ? (topics[selectedCategory]?.children || [])
+        .map((k: string) => ({ key: k, info: topics[k] }))
+        .filter((x: { key: string; info: any }) => x.info && x.info.kind !== 'category')
+    : [];
 
   // Compute "See also" from the raw content
   const bodyLower = rawMarkdown.toLowerCase();
@@ -325,33 +356,65 @@ export default function WikiPanel() {
           <div className={styles.topicLoading}>Loading…</div>
         ) : (
           <div className={styles.topicListItems}>
-            {(() => {
-              const groups: Record<string, string[]> = {};
-              const groupOrder: string[] = [];
-              for (const key of topicKeys) {
-                const g = topics[key]?.group || 'Other';
-                if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
-                groups[g].push(key);
-              }
-              return groupOrder.map(g => (
-                <div key={g} className={styles.topicGroup}>
-                  <div className={styles.topicGroupLabel}>{g}</div>
-                  {groups[g].map(key => (
-                    <button key={key}
-                      className={`${styles.topicItem} ${selectedTopic === key ? styles.topicActive : ''}`}
-                      onClick={() => selectTopic(key)}>
-                      {topicName(key)}
-                    </button>
-                  ))}
+            {topCategories.map(topKey => {
+              const top = topics[topKey] || {};
+              return (
+                <div key={topKey} className={styles.topicGroup}>
+                  <div className={styles.topicGroupLabel}>{top.name || topKey}</div>
+                  {(top.children || []).map((childKey: string) => {
+                    const child = topics[childKey] || {};
+                    if (child.kind === 'category') {
+                      return (
+                        <button key={childKey}
+                          className={`${styles.topicItem} ${selectedCategory === childKey ? styles.topicActive : ''}`}
+                          onClick={() => selectCategory(childKey)}>
+                          {child.name || childKey}
+                        </button>
+                      );
+                    }
+                    if (child.kind === 'page' && child.nav !== false) {
+                      return (
+                        <button key={childKey}
+                          className={`${styles.topicItem} ${selectedTopic === childKey ? styles.topicActive : ''}`}
+                          onClick={() => selectTopic(childKey)}>
+                          {child.name || childKey}
+                        </button>
+                      );
+                    }
+                    return null;
+                  })}
                 </div>
-              ));
-            })()}
+              );
+            })}
           </div>
         )}
       </aside>
 
       <article className={styles.article}>
-        {loading ? (
+        {selectedCategory ? (
+          <div className={styles.categoryView}>
+            <h2 className={styles.categoryTitle}>
+              {topics[selectedCategory]?.name || selectedCategory}
+            </h2>
+            <p className={styles.categoryDesc}>
+              选择一个子页查看内容；左侧列表不展开叶子。
+            </p>
+            {categoryChildren.length === 0 ? (
+              <div className={styles.categoryEmpty}>暂无子页；后续补充文档后再生效。</div>
+            ) : (
+              <div className={styles.categoryGrid}>
+                {categoryChildren.map(({ key, info }: { key: string; info: any }) => (
+                  <button key={key} className={styles.categoryCard} onClick={() => selectTopic(key)}>
+                    <span className={styles.categoryCardName}>{info.name || key}</span>
+                    <span className={styles.categoryCardMeta}>
+                      {info.no_docs ? '知识库暂无文档' : '打开子页'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : loading ? (
           <div className={styles.loadingState}><div className={styles.spinner} /><span>Loading wiki page…</span></div>
         ) : !rawMarkdown ? (
           <div className={styles.emptyState}>

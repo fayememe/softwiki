@@ -112,18 +112,35 @@ def delete_intervention(intervention_id: str) -> bool:
     return True
 
 
-def topic_group(topic: str) -> str:
+def topic_info(topic: str) -> dict:
     path = get_config_path("topics.yaml")
     if not os.path.exists(path):
-        return "Other"
+        return {}
     try:
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         topics = data.get("topics", data) if isinstance(data, dict) else {}
         info = topics.get(topic, {}) if isinstance(topics, dict) else {}
-        return str(info.get("group") or "Other")
+        return info if isinstance(info, dict) else {}
     except Exception:
-        return "Other"
+        return {}
+
+
+def topic_group(topic: str) -> str:
+    """The first-level knowledge category (IP 产品 / 协议 / 技术)."""
+    info = topic_info(topic)
+    return str(info.get("category") or info.get("group") or "Other")
+
+
+def topic_aliases(topic: str) -> list[str]:
+    info = topic_info(topic)
+    aliases = info.get("aliases") or []
+    return [str(x) for x in aliases if str(x).strip()]
+
+
+def topic_name(topic: str) -> str:
+    info = topic_info(topic)
+    return str(info.get("name") or topic.replace("-", " ").title())
 
 
 def compose_interventions(topic: str, adhoc: str = "",

@@ -2,9 +2,11 @@ import os
 import hashlib
 import yaml
 import json
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from datetime import datetime
 from softwiki.source_store.document_repo import DocumentRepository
+from softwiki.source_store.models import Claim
 from softwiki.config import get_export_dir, get_session_id
 
 class WikiPageGenerator:
@@ -53,8 +55,16 @@ class WikiPageGenerator:
         if not is_in_scope:
             raise ValueError(f"Reject: The topic '{topic_id}' is out of scope. Reason: {reason}")
 
-        # 1. Fetch data from DB
-        claims = DocumentRepository.get_claims_by_topic(db, topic_id)
+        # 1. Fetch data from DB, including alias/pattern topics merged into this page.
+        from softwiki.wiki.interventions import topic_aliases, topic_name
+        aliases = topic_aliases(topic_id)
+        conds = [Claim.topic == topic_id]
+        for alias in aliases:
+            if "*" in alias or "?" in alias:
+                conds.append(Claim.topic.like(alias.replace("*", "%").replace("?", "_")))
+            else:
+                conds.append(Claim.topic == alias)
+        claims = db.query(Claim).filter(or_(*conds)).all()
         doc_ids = list(set(c.document_id for c in claims if c.document_id))
         docs = [DocumentRepository.get_document(db, d_id) for d_id in doc_ids if d_id]
         docs = [d for d in docs if d]
@@ -62,7 +72,7 @@ class WikiPageGenerator:
         # Sort docs by date
         sorted_docs = sorted(docs, key=lambda x: x.published_at or datetime.min)
         
-        topic_title = topic_id.replace("-", " ").title()
+        topic_title = topic_name(topic_id)
         
         output_filepath = os.path.join(self.get_output_dir(output_dir), f"{topic_id}.md")
         json_filepath = output_filepath.replace(".md", ".json")
@@ -133,9 +143,15 @@ class WikiPageGenerator:
             for d in sorted_docs
         ]
 
-        # Fetch timeline events
+        # Fetch timeline events, including merged alias topics.
         from softwiki.source_store.models import Event
-        events = db.query(Event).filter(Event.topic == topic_id).order_by(Event.event_date.asc()).all()
+        event_conds = [Event.topic == topic_id]
+        for alias in aliases:
+            if "*" in alias or "?" in alias:
+                event_conds.append(Event.topic.like(alias.replace("*", "%").replace("?", "_")))
+            else:
+                event_conds.append(Event.topic == alias)
+        events = db.query(Event).filter(or_(*event_conds)).order_by(Event.event_date.asc()).all()
         events_data = [
             {
                 "date": e.event_date.strftime("%Y-%m-%d"),

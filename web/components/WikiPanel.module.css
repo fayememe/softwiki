@@ -804,3 +804,68 @@
 .topicRefresh:hover {
   color: #0645ad;
 }
+
+/* ── Category view (IP subcategories, no leaf expansion in nav) ── */
+.categoryView {
+  padding: 48px 40px;
+  max-width: 920px;
+}
+
+.categoryTitle {
+  margin: 0 0 8px;
+  font-family: 'Georgia', 'Linux Libertine', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: #202122;
+}
+
+.categoryDesc {
+  margin: 0 0 24px;
+  color: #54595d;
+  font-size: 13px;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.categoryCard {
+  text-align: left;
+  padding: 16px 18px;
+  border: 1px solid #a2a9b1;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.categoryCard:hover {
+  background: #eaecf0;
+  border-color: #0645ad;
+}
+
+.categoryCardName {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0645ad;
+}
+
+.categoryCardMeta {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: #72777d;
+}
+
+.categoryEmpty {
+  padding: 36px;
+  border: 1px dashed #a2a9b1;
+  border-radius: 8px;
+  color: #72777d;
+  font-size: 13px;
+  text-align: center;
+}
