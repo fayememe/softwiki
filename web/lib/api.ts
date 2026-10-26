@@ -414,6 +414,8 @@ export interface WikiPreviewResult {
   model?: string | null;
   fallback?: boolean;
   elapsed_ms?: number;
+  claims_total?: number;
+  claims_used?: number;
   intervention_applied?: boolean;
   intervention_chars?: number;
   error?: string;

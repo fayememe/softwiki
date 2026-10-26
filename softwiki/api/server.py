@@ -1021,6 +1021,8 @@ def _preview_diagnostics(content: str, generator, elapsed_ms: int) -> dict:
         "elapsed_ms": elapsed_ms,
         "model": generator.last_model,
         "fallback": generator.last_fallback,
+        "claims_total": getattr(generator, "last_claims_total", 0),
+        "claims_used": getattr(generator, "last_claims_used", 0),
     }
 
 
@@ -1108,6 +1110,8 @@ def apply_wiki_interventions(req: WikiApplyRequest):
                     "intervention_applied": bool(intervention),
                     "model": generator.last_model,
                     "fallback": generator.last_fallback,
+                    "claims_total": getattr(generator, "last_claims_total", 0),
+                    "claims_used": getattr(generator, "last_claims_used", 0),
                     "elapsed_ms": elapsed_ms,
                 })
             except Exception as e:

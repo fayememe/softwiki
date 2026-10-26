@@ -65,6 +65,15 @@ class WikiPageGenerator:
             else:
                 conds.append(Claim.topic == alias)
         claims = db.query(Claim).filter(or_(*conds)).all()
+        self.last_claims_total = len(claims)
+        max_claims = int(os.getenv("WIKI_MAX_CLAIMS", "250"))
+        if len(claims) > max_claims:
+            claims = sorted(
+                claims,
+                key=lambda c: ((c.confidence or 0), c.published_at or datetime.min),
+                reverse=True,
+            )[:max_claims]
+        self.last_claims_used = len(claims)
         doc_ids = list(set(c.document_id for c in claims if c.document_id))
         docs = [DocumentRepository.get_document(db, d_id) for d_id in doc_ids if d_id]
         docs = [d for d in docs if d]
@@ -379,6 +388,8 @@ Please generate the updated full Markdown Wiki Page:"""
             ],
             "intervention_hash": intervention_hash,
             "intervention_chars": len(intervention or ""),
+            "claims_total": getattr(self, "last_claims_total", len(claims)),
+            "claims_used": getattr(self, "last_claims_used", len(claims)),
             "updated_at": datetime.now().isoformat()
         }
         with open(json_filepath, "w", encoding="utf-8") as f:

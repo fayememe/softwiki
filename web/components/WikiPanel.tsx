@@ -420,14 +420,15 @@ export default function WikiPanel() {
           <div className={styles.emptyState}>
             <h3 className={styles.emptyTitle}>{topicName(selectedTopic)}</h3>
             <p className={styles.emptyDesc}>
-              This topic has claims in the knowledge base, but its wiki page has not been generated yet.
-              Generation is manual so a 4,000-topic KB does not trigger thousands of LLM calls.
+              {topics[selectedTopic]?.no_docs
+                ? 'This IP is in the curated map, but the current corpus has no documents for it. Ingest its TRM first.'
+                : 'This topic has claims in the knowledge base, but its wiki page has not been generated yet. Generation is manual; Preview in Prompt Studio first if you want to tune the prompt.'}
             </p>
             <div className={styles.emptyActions}>
-              <button className={styles.generateBtn} onClick={handleBuild} disabled={building || !selectedTopic}>
+              <button className={styles.generateBtn} onClick={handleBuild} disabled={building || !selectedTopic || topics[selectedTopic]?.no_docs}>
                 {building ? 'Generating…' : 'Generate wiki page'}
               </button>
-              <button className={styles.studioBtn} onClick={openStudio} disabled={!selectedTopic}>
+              <button className={styles.studioBtn} onClick={openStudio} disabled={!selectedTopic || topics[selectedTopic]?.no_docs}>
                 Prompt Studio
               </button>
             </div>
@@ -592,6 +593,7 @@ export default function WikiPanel() {
                         ) : (
                           <span className={styles.studioResultMeta}>
                             {res.model || 'model?'} · {res.elapsed_ms ?? 0}ms · {res.citation_count ?? 0} citations · {res.headings?.length ?? 0} headings
+                            {res.claims_total != null && ` · ${res.claims_used ?? 0}/${res.claims_total} claims`}
                           </span>
                         )}
                       </div>
