@@ -28,10 +28,16 @@ class WikiPageGenerator:
 
     def _apply_intervention(self, system_prompt: str, intervention: str) -> str:
         self.last_intervention = intervention or ""
+        language_rule = (
+            "OUTPUT LANGUAGE: Write the wiki page in English unless the user "
+            "intervention explicitly requests another language. A Chinese-language "
+            "intervention does not by itself request Chinese; it must say so explicitly."
+        )
+        prompt = language_rule + "\n\n" + system_prompt
         if not intervention:
-            return system_prompt
+            return prompt
         return (
-            system_prompt
+            prompt
             + "\n\n## USER INTERVENTIONS (highest priority)\n"
             + "These are user instructions, not source evidence; they override the "
               "default structure where they conflict.\n\n"

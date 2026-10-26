@@ -1,6 +1,6 @@
 topics:
   ip:
-    name: IP 产品
+    name: IP Products
     kind: category
     parent: null
     children:
@@ -10,7 +10,7 @@ topics:
     - dma
     - other
   protocols:
-    name: 协议
+    name: Protocols
     kind: category
     parent: null
     children:
@@ -18,7 +18,7 @@ topics:
     - pq-channel
     - instruction-set
   technologies:
-    name: 技术
+    name: Technologies
     kind: category
     parent: null
     children:
@@ -61,7 +61,7 @@ topics:
     name: Cortex-M55
     kind: page
     parent: cpu
-    category: IP 产品
+    category: IP Products
     subcategory: CPU
     aliases:
     - cortex-m55*
@@ -72,7 +72,7 @@ topics:
     name: Cortex-M85
     kind: page
     parent: cpu
-    category: IP 产品
+    category: IP Products
     subcategory: CPU
     aliases:
     - cortex-m85*
@@ -81,7 +81,7 @@ topics:
     name: Ethos-U55
     kind: page
     parent: npu
-    category: IP 产品
+    category: IP Products
     subcategory: NPU
     aliases:
     - ethos-u55*
@@ -91,7 +91,7 @@ topics:
     name: NIC-400
     kind: page
     parent: amba-ip
-    category: IP 产品
+    category: IP Products
     subcategory: AMBA
     aliases:
     - nic-400*
@@ -101,7 +101,7 @@ topics:
     name: PL301
     kind: page
     parent: amba-ip
-    category: IP 产品
+    category: IP Products
     subcategory: AMBA
     aliases:
     - pl301*
@@ -111,7 +111,7 @@ topics:
     name: PL031 RTC
     kind: page
     parent: other
-    category: IP 产品
+    category: IP Products
     subcategory: Other
     aliases:
     - rtc-*
@@ -121,7 +121,7 @@ topics:
     name: PCK-600
     kind: page
     parent: other
-    category: IP 产品
+    category: IP Products
     subcategory: Other
     aliases:
     - pck-600*
@@ -130,7 +130,7 @@ topics:
     name: AMBA
     kind: page
     parent: protocols
-    category: 协议
+    category: Protocols
     subcategory: AMBA
     aliases:
     - apb-*
@@ -143,7 +143,7 @@ topics:
     name: P/Q Channel
     kind: page
     parent: protocols
-    category: 协议
+    category: Protocols
     subcategory: P/Q Channel
     aliases:
     - p-channel*
@@ -157,7 +157,7 @@ topics:
     name: Instruction Set
     kind: page
     parent: protocols
-    category: 协议
+    category: Protocols
     subcategory: Instruction Set
     aliases:
     - instruction-*
@@ -173,7 +173,7 @@ topics:
     name: System (Clock / Reset)
     kind: page
     parent: technologies
-    category: 技术
+    category: Technologies
     subcategory: System
     aliases:
     - clock*
@@ -184,7 +184,7 @@ topics:
     name: Low Power
     kind: page
     parent: technologies
-    category: 技术
+    category: Technologies
     subcategory: Low Power
     aliases:
     - power-*
@@ -195,7 +195,7 @@ topics:
     name: SoC (Debug / Interrupt)
     kind: page
     parent: technologies
-    category: 技术
+    category: Technologies
     subcategory: SoC
     aliases:
     - debug*

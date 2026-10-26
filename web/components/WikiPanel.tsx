@@ -254,8 +254,8 @@ export default function WikiPanel() {
 
   const handlePreview = async () => {
     const ts = parseStudioTopics();
-    if (ts.length === 0) { setStudioError('请至少指定一个 topic。'); return; }
-    if (ts.length > 3) { setStudioError('Preview 一次最多 3 个 topic。'); return; }
+    if (ts.length === 0) { setStudioError('Please specify at least one topic.'); return; }
+    if (ts.length > 3) { setStudioError('Preview supports at most 3 topics.'); return; }
     setPreviewing(true);
     setStudioError('');
     setStudioNotice('');
@@ -271,7 +271,7 @@ export default function WikiPanel() {
   };
 
   const handleSaveIntervention = async (kind: 'global' | 'group' | 'topic') => {
-    if (!promptText.trim()) { setStudioError('Prompt 为空，无法保存。'); return; }
+    if (!promptText.trim()) { setStudioError('Prompt is empty; nothing to save.'); return; }
     let scope = 'global';
     if (kind === 'group') scope = `group:${currentGroup}`;
     if (kind === 'topic') scope = `topic:${selectedTopic}`;
@@ -282,7 +282,7 @@ export default function WikiPanel() {
       await apiSaveWikiIntervention({ scope, text: promptText });
       setPromptText('');
       await loadInterventions();
-      setStudioNotice(`已保存到 ${scope}；后续生成会自动叠加。`);
+      setStudioNotice(`Saved to ${scope}; it will be applied to future generations.`);
     } catch (err) {
       setStudioError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -301,15 +301,15 @@ export default function WikiPanel() {
 
   const handleApplyPrompts = async () => {
     const ts = parseStudioTopics();
-    if (ts.length === 0) { setStudioError('请至少指定一个 topic。'); return; }
-    if (previewResults.length === 0) { setStudioError('请先 Preview，确认效果后再 Apply。'); return; }
+    if (ts.length === 0) { setStudioError('Please specify at least one topic.'); return; }
+    if (previewResults.length === 0) { setStudioError('Preview first, then Apply.'); return; }
     setApplying(true);
     setStudioError('');
     setStudioNotice('');
     try {
       const data = await apiApplyWiki(ts, promptText, includeSaved);
       const failed = (data.results || []).filter(r => r.error);
-      setStudioNotice(`已应用 ${ts.length - failed.length}/${ts.length} 个 topic。`);
+      setStudioNotice(`Applied ${ts.length - failed.length}/${ts.length} topics.`);
       if (failed.length) setStudioError(failed.map(f => `${f.topic}: ${f.error}`).join('\n'));
       if (ts.includes(selectedTopic)) await selectTopic(selectedTopic);
     } catch (err) {
@@ -397,17 +397,17 @@ export default function WikiPanel() {
               {topics[selectedCategory]?.name || selectedCategory}
             </h2>
             <p className={styles.categoryDesc}>
-              选择一个子页查看内容；左侧列表不展开叶子。
+              Select a child page. Leaf pages are not expanded in the left list.
             </p>
             {categoryChildren.length === 0 ? (
-              <div className={styles.categoryEmpty}>暂无子页；后续补充文档后再生效。</div>
+              <div className={styles.categoryEmpty}>No child pages yet. They will appear after more documents are ingested.</div>
             ) : (
               <div className={styles.categoryGrid}>
                 {categoryChildren.map(({ key, info }: { key: string; info: any }) => (
                   <button key={key} className={styles.categoryCard} onClick={() => selectTopic(key)}>
                     <span className={styles.categoryCardName}>{info.name || key}</span>
                     <span className={styles.categoryCardMeta}>
-                      {info.no_docs ? '知识库暂无文档' : '打开子页'}
+                      {info.no_docs ? 'No documents in the current corpus' : 'Open page'}
                     </span>
                   </button>
                 ))}
@@ -512,24 +512,24 @@ export default function WikiPanel() {
               <div>
                 <h2 className={styles.studioTitle}>Prompt Studio</h2>
                 <p className={styles.studioSub}>
-                  Intervention 是可选输入，可空、一句话、章节规则或完整模板。先 Preview，满意后再 Apply；canonical wiki 不会被 Preview 修改。
+                  Intervention is optional: empty, one line, section rules, or a full template. Preview first; Apply writes canonical wiki.
                 </p>
               </div>
               <button className={styles.studioClose} onClick={() => setStudioOpen(false)} aria-label="Close">✕</button>
             </div>
 
             <div className={styles.studioBody}>
-              <label className={styles.studioLabel}>Intervention（可空）</label>
+              <label className={styles.studioLabel}>Intervention (optional)</label>
               <textarea
                 className={styles.studioTextarea}
                 value={promptText}
                 onChange={e => setPromptText(e.target.value)}
-                placeholder={"例：\n所有页面先给结论，再给证据；每个事实必须有 [n]。\n\n[SECTION: 寄存器与编程模型]\n用表格：Offset | Name | Access | Width | Reset | Description\n\n也可以直接粘贴一个完整模板。"}
+                placeholder={"Example:\nEvery page starts with a conclusion, then evidence; every fact needs [n].\n\n[SECTION: Registers and Programming Model]\nUse a table: Offset | Name | Access | Width | Reset | Description\n\nOr paste a complete template."}
               />
 
               <div className={styles.studioRow}>
                 <div className={styles.studioField}>
-                  <label className={styles.studioLabel}>Topics（逗号或换行分隔，最多 3 个）</label>
+                  <label className={styles.studioLabel}>Topics (comma or newline separated, max 3)</label>
                   <input
                     className={styles.studioInput}
                     value={studioTopics}
@@ -539,7 +539,7 @@ export default function WikiPanel() {
                 </div>
                 <label className={styles.studioCheck}>
                   <input type="checkbox" checked={includeSaved} onChange={e => setIncludeSaved(e.target.checked)} />
-                  叠加已保存的 interventions
+                  Include saved interventions
                 </label>
               </div>
 
