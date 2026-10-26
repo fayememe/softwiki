@@ -120,7 +120,7 @@
 - [x] claim 覆盖率从 3.4% 提升到 **15.94%**（effective 17.80%）
 - [x] 12 个策展页面已生成（IP 6 + 协议 3 + 技术 3）；Cortex-M55 已验证
 - [x] 旧页面归档到 `exports/wiki/archive/`；PL301 标记 no_docs；DMA 留空
-- [x] 回归：pytest 73 passed（taxonomy/prompt），web build 通过
+- [x] 回归：pytest 71 passed（taxonomy/prompt），web build 通过
 - [ ] 自动重建接线（index/ingest 后按策展范围）
 - [ ] 继续 alias/新 canonical 收编 7,781 unmapped
 - [ ] PL301/NIC-400 等 IP 文档补齐；DMA/其他产品后续加入
