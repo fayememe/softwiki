@@ -248,6 +248,16 @@ curl http://10.3.9.29:6200/api/wiki/coverage
 | Cortex-M85 | 19 |
 | NIC-400 | 14 |
 
+当前 12 个页面：
+
+```text
+IP:      cortex-m55, cortex-m85, ethos-u55, nic-400, pl031, pck-600
+协议:    amba, pq-channel, instruction-set
+技术:    system, low-power, soc
+```
+
+PL301 标记 `no_docs`（当前语料无文档）；DMA 类目暂空。旧 4 页归档到 `exports/wiki/archive/`。
+
 Top unmapped 仍是零散技术/文档 topic：`unpredictable-behavior`、`ppu-register-summary`、`software-tests`、`etr-sts-register`、`res1-behavior`、`ip-xact` 等。下一步继续用 alias/新 canonical 收编。
 
 ## 7. 已知限制
