@@ -196,24 +196,59 @@ Apply 请求：
 
 ---
 
-## 6. 当前 claim 覆盖率
+## 6. 当前分类与 claim 覆盖率
+
+### 6.1 三级结构
+
+```text
+IP 产品
+  CPU        → Cortex-M55 / Cortex-M85
+  NPU        → Ethos-U55
+  AMBA       → NIC-400 / PL301 (no docs yet)
+  DMA        → future
+  Other      → PL031 / PCK-600
+
+协议
+  AMBA       → AXI / AHB / APB 合并页
+  P/Q Channel→ P-Channel / Q-Channel 合并页
+  Instruction Set
+
+技术
+  System     → Clock + Reset
+  Low Power  → Power Management + Low-Power Interface
+  SoC        → Debug/Trace + Interrupt
+```
+
+左侧只显示一级/二级；IP 叶子页在内容区以卡片打开。种子文件：`deploy/armkb-topics.yaml`；线上工作区：`armkb/config/topics.yaml`。
+
+### 6.2 覆盖率（2026-10-25）
 
 ```bash
 curl http://10.3.9.29:6200/api/wiki/coverage
 ```
 
-当前（2026-10-25）：
-
 - total claims: **10,573**
-- mapped: **360**（3.4%）
-- unmapped: **10,213**
-- ignored: **0**
-- canonical topics: **29**
+- mapped: **1,685**（15.94%）
+- ignored: **1,107**（法务/模板 topic）
+- unmapped: **7,781**
+- effective coverage: **17.80%**（mapped / (mapped+unmapped)）
 
-低覆盖率主要来自大量法务/文档模板 topic（`inclusive-language`、`warranty-disclaimer`、`copyright` 等）。
-后续通过 `__ignore__` + aliases + 新 canonical topic 提升。
+主要 mapped：
 
----
+| canonical | claims |
+|---|---:|
+| AMBA | 496 |
+| SoC | 268 |
+| System | 218 |
+| Low Power | 200 |
+| P/Q Channel | 185 |
+| Instruction Set | 131 |
+| PL031 | 110 |
+| Ethos-U55 | 29 |
+| Cortex-M85 | 19 |
+| NIC-400 | 14 |
+
+Top unmapped 仍是零散技术/文档 topic：`unpredictable-behavior`、`ppu-register-summary`、`software-tests`、`etr-sts-register`、`res1-behavior`、`ip-xact` 等。下一步继续用 alias/新 canonical 收编。
 
 ## 7. 已知限制
 

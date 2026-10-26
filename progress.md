@@ -8,7 +8,7 @@
 - **项目**：softwiki = 多策略研究智能引擎（RAG / GraphRAG / LLM-Wiki / ClaimDB / Timeline）。
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
 - **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode `1.18.35` 宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
-- **Wiki Prompt Studio（2026-10-25）**：提示词作为可选 intervention 层；Support Preview（canonical 不动）/ Save global/group/topic / Apply；保存后 canonical 重建自动叠加；`GET /api/wiki/coverage`。当前 claim 覆盖率 **3.4%**（360/10,573；未映射 10,213；0 ignored）。
+- **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **本 session 已完成**：
@@ -114,9 +114,13 @@
 - [x] intervention hash：提示词变化强制 full rebuild；删除后恢复
 - [x] 保存的 intervention 在 Generate/Regenerate 自动生效
 - [x] `GET /api/wiki/coverage`：claim 覆盖率/未映射 top
+- [x] 三级分类：IP 产品 / 协议 / 技术；IP 子类 CPU/NPU/AMBA/DMA/Other
+- [x] alias-aware 合并页：AMBA / P/Q / System / Low Power / SoC / PL031
+- [x] `__ignore__` 忽略法务/模板 topic（1,107 claims）
+- [x] claim 覆盖率从 3.4% 提升到 **15.94%**（effective 17.80%）
+- [x] 12 个策展页面生成中/已完成（Cortex-M55 已验证）
 - [ ] 自动重建接线（index/ingest 后按策展范围）
-- [ ] `__ignore__` / aliases / 新 canonical topic，提升 3.4% 覆盖率
-- [ ] 自定义 topics.yaml 的 29 个初始主题已写入 armkb（workspace 数据）
+- [ ] 继续 alias/新 canonical 收编 7,781 unmapped
 
 ## Pending issues / Blocker
 
@@ -143,7 +147,7 @@
 - [x] **Agent 链接**：`/agent` 同源 307 → 当前 host:6111，不再写死 localhost。
 - [ ] **Agent Session / 沙盒 / 审核**：设计见 `docs/05-roadmap/agent-session-sandbox-plan.md`；P0/P1 待确认后开工。
 - [ ] **Wiki 自动重建**：Prompt Studio 已手动闭环；index/ingest 后自动重建待接线（默认只跑策展主题 + 已有页面）。
-- [!] **Claim 覆盖率仅 3.4%**：360/10,573 mapped；10,213 unmapped，0 ignored。最大未映射是法务/模板类 topic；需要 alias/ignore/新增 canonical topic。
+- [!] **Claim 覆盖率 15.94%**：1,685/10,573 mapped；7,781 unmapped；1,107 ignored；effective 17.80%。Top unmapped 是零散技术/文档 topic（unpredictable-behavior、ppu-register-summary、software-tests、ip-xact 等）。
 - [ ] **Wiki 页面数量**：当前 4 个 canonical 页面（apb-interface / power-management / rtc-register-map / rtc-reset-generation）。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
@@ -154,7 +158,7 @@
 ## 下一步（NEXT）
 
 1. **Wiki 自动重建**：把 Prompt Studio 接到 index/ingest；默认只跑策展主题 + 已有页面，带 cap/队列。
-2. **Claim 覆盖率**：加 `__ignore__`（法务/模板）+ aliases（rtc/power/amba 同义词）+ 新 canonical topic；从 3.4% 往上拉。
+2. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
 3. **Prompt 调优**：用 `docs/04-guides/wiki-prompt-studio.md` 的 IP/协议/技术范例，先 preview 再 apply。
 4. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent + Wiki Prompt Studio；acceptance 11/11。
 5. **Agent L2 产品化**：SSE、独立容器；lsl-kb 重抽。

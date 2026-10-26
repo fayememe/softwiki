@@ -1,0 +1,235 @@
+topics:
+  ip:
+    name: IP 产品
+    kind: category
+    parent: null
+    children:
+    - cpu
+    - npu
+    - amba-ip
+    - dma
+    - other
+  protocols:
+    name: 协议
+    kind: category
+    parent: null
+    children:
+    - amba
+    - pq-channel
+    - instruction-set
+  technologies:
+    name: 技术
+    kind: category
+    parent: null
+    children:
+    - system
+    - low-power
+    - soc
+  cpu:
+    name: CPU
+    kind: category
+    parent: ip
+    children:
+    - cortex-m55
+    - cortex-m85
+  npu:
+    name: NPU
+    kind: category
+    parent: ip
+    children:
+    - ethos-u55
+  amba-ip:
+    name: AMBA
+    kind: category
+    parent: ip
+    children:
+    - nic-400
+    - pl301
+  dma:
+    name: DMA
+    kind: category
+    parent: ip
+    children: []
+  other:
+    name: Other
+    kind: category
+    parent: ip
+    children:
+    - pl031
+    - pck-600
+  cortex-m55:
+    name: Cortex-M55
+    kind: page
+    parent: cpu
+    category: IP 产品
+    subcategory: CPU
+    aliases:
+    - cortex-m55*
+    - cm55*
+    - m55*
+    nav: false
+  cortex-m85:
+    name: Cortex-M85
+    kind: page
+    parent: cpu
+    category: IP 产品
+    subcategory: CPU
+    aliases:
+    - cortex-m85*
+    nav: false
+  ethos-u55:
+    name: Ethos-U55
+    kind: page
+    parent: npu
+    category: IP 产品
+    subcategory: NPU
+    aliases:
+    - ethos-u55*
+    - npu-*
+    nav: false
+  nic-400:
+    name: NIC-400
+    kind: page
+    parent: amba-ip
+    category: IP 产品
+    subcategory: AMBA
+    aliases:
+    - nic-400*
+    - nic-asib-*
+    nav: false
+  pl301:
+    name: PL301
+    kind: page
+    parent: amba-ip
+    category: IP 产品
+    subcategory: AMBA
+    aliases:
+    - pl301*
+    nav: false
+    no_docs: true
+  pl031:
+    name: PL031 RTC
+    kind: page
+    parent: other
+    category: IP 产品
+    subcategory: Other
+    aliases:
+    - rtc-*
+    - pl031*
+    nav: false
+  pck-600:
+    name: PCK-600
+    kind: page
+    parent: other
+    category: IP 产品
+    subcategory: Other
+    aliases:
+    - pck-600*
+    nav: false
+  amba:
+    name: AMBA
+    kind: page
+    parent: protocols
+    category: 协议
+    subcategory: AMBA
+    aliases:
+    - apb-*
+    - axi-*
+    - ahb-*
+    - ahb5-*
+    - amba-*
+    nav: true
+  pq-channel:
+    name: P/Q Channel
+    kind: page
+    parent: protocols
+    category: 协议
+    subcategory: P/Q Channel
+    aliases:
+    - p-channel*
+    - q-channel*
+    - msc-q-channel*
+    - bridge-q-channels*
+    - parity-extended-q-channel*
+    - ppu-*-channel*
+    nav: true
+  instruction-set:
+    name: Instruction Set
+    kind: page
+    parent: protocols
+    category: 协议
+    subcategory: Instruction Set
+    aliases:
+    - instruction-*
+    - armv8-*
+    - armv7-*
+    - vlldm-*
+    - vlstm-*
+    - vfnm*
+    - adr-*
+    - load-store-*
+    nav: true
+  system:
+    name: System (Clock / Reset)
+    kind: page
+    parent: technologies
+    category: 技术
+    subcategory: System
+    aliases:
+    - clock*
+    - reset*
+    - warm-reset*
+    nav: true
+  low-power:
+    name: Low Power
+    kind: page
+    parent: technologies
+    category: 技术
+    subcategory: Low Power
+    aliases:
+    - power-*
+    - low-power*
+    - pactive-*
+    nav: true
+  soc:
+    name: SoC (Debug / Interrupt)
+    kind: page
+    parent: technologies
+    category: 技术
+    subcategory: SoC
+    aliases:
+    - debug*
+    - interrupt*
+    - external-debug*
+    - secure-debug*
+    nav: true
+  __ignore__:
+    name: Ignore (legal / boilerplate)
+    kind: ignore
+    aliases:
+    - inclusive-language*
+    - export-compliance*
+    - product-status*
+    - document-accuracy*
+    - document-changes*
+    - document-confidentiality*
+    - document-reproduction*
+    - document-updates*
+    - warranty*
+    - warranties*
+    - trademark*
+    - copyright*
+    - liability*
+    - confidential*
+    - release-history*
+    - revision*
+    - feedback*
+    - translation-precedence*
+    - intellectual-property*
+    - licens*
+    - partnership-terminology*
+    - intended-audience*
+    - reproduction-*
+    - document-preparation*
+    - document-control*
+    - legal-*
