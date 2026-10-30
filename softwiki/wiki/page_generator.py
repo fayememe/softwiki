@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.source_store.models import Claim, CanonicalClaim, WikiArtifactState
+from softwiki.knowledge.canonical import canonical_claims_for_topic
 from softwiki.config import get_export_dir, get_session_id
 
 class WikiPageGenerator:
@@ -412,7 +413,7 @@ Please generate the updated full Markdown Wiki Page:"""
 
     def _update_artifact_state(self, db: Session, topic_id: str, claims: list) -> None:
         """Record claim hash/status/model so claim changes can mark this page stale."""
-        canonical = db.query(CanonicalClaim).filter(CanonicalClaim.topic == topic_id).all()
+        canonical = canonical_claims_for_topic(db, topic_id)
         if canonical:
             ids = sorted(c.id for c in canonical)
             counts = Counter(c.status for c in canonical)

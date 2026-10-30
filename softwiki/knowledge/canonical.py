@@ -202,6 +202,49 @@ def backfill_canonical_claims(db: Session, batch: int = 500) -> dict:
         print(f"[canonical] {total} raw claims processed, {created} canonical created", flush=True)
     return {"claims": total, "canonical_created": created}
 
+def canonical_claims_for_topic(db: Session, topic_id: str) -> list[CanonicalClaim]:
+    """Canonical claims merged into a page, including alias patterns."""
+    from softwiki.wiki.interventions import topic_aliases
+    aliases = topic_aliases(topic_id)
+    conds = [CanonicalClaim.topic == topic_id]
+    for alias in aliases:
+        if "*" in alias or "?" in alias:
+            conds.append(
+                CanonicalClaim.topic.like(alias.replace("*", "%").replace("?", "_"))
+            )
+        else:
+            conds.append(CanonicalClaim.topic == alias)
+    return db.query(CanonicalClaim).filter(or_(*conds)).all()
+
+
+def backfill_wiki_states(db: Session, mark_stale: bool = True) -> dict:
+    import glob
+    from softwiki.config import get_export_dir
+    from softwiki.wiki.interventions import topic_aliases
+    base = get_export_dir("wiki/topics")
+    changed = 0
+    for path in sorted(glob.glob(os.path.join(base, "*.md"))):
+        topic = os.path.splitext(os.path.basename(path))[0]
+        canonical = canonical_claims_for_topic(db, topic)
+        ids = sorted(c.id for c in canonical)
+        counts: dict[str, int] = {}
+        for c in canonical:
+            counts[c.status] = counts.get(c.status, 0) + 1
+        state = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic).first()
+        if state is None:
+            state = WikiArtifactState(topic=topic)
+            db.add(state)
+        if state.built_at is None:
+            state.built_at = datetime.fromtimestamp(os.path.getmtime(path))
+        state.claim_set_hash = hashlib.sha256("|".join(ids).encode("utf-8")).hexdigest()
+        state.status_counts_json = json.dumps(counts, ensure_ascii=False)
+        if mark_stale:
+            state.stale_at = datetime.utcnow()
+        changed += 1
+    db.commit()
+    return {"wiki_pages": changed, "mark_stale": mark_stale}
+
+
 def mark_wiki_stale_for_topics(db: Session, topics: Iterable[str], reason: str = "claim_changed") -> int:
     count = 0
     for topic in {t for t in topics if t}:
