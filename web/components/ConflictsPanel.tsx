@@ -131,6 +131,8 @@ export default function ConflictsPanel() {
           <div className={styles.metric}><span>{metrics.contradictions.open || 0}</span>open conflicts</div>
           <div className={styles.metric}><span>{metrics.contradictions.auto_resolved || 0}</span>auto-resolved</div>
           <div className={styles.metric}><span>{metrics.stale_wiki_artifacts}</span>stale wiki pages</div>
+          <div className={styles.metric}><span>{metrics.relationships_linked || 0}/{metrics.relationships || 0}</span>graph links</div>
+          <div className={styles.metric}><span>{metrics.events_linked || 0}/{metrics.events || 0}</span>timeline links</div>
         </div>
       )}
 

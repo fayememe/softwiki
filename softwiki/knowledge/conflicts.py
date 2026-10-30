@@ -252,7 +252,7 @@ def adjudicate(db: Session, contradiction_id: int, action: str,
 
 def metrics(db: Session) -> dict:
     from sqlalchemy import func
-    from softwiki.source_store.models import Claim
+    from softwiki.source_store.models import Claim, Event, Relationship
     canonical = {
         status: count for status, count in
         db.query(CanonicalClaim.status, func.count(CanonicalClaim.id)).group_by(CanonicalClaim.status).all()
@@ -274,5 +274,13 @@ def metrics(db: Session) -> dict:
         "contradictions_by_type": by_type,
         "stale_wiki_artifacts": db.query(func.count(WikiArtifactState.id)).filter(
             WikiArtifactState.stale_at.isnot(None)
+        ).scalar() or 0,
+        "relationships": db.query(func.count(Relationship.id)).scalar() or 0,
+        "relationships_linked": db.query(func.count(Relationship.id)).filter(
+            Relationship.canonical_claim_id.isnot(None)
+        ).scalar() or 0,
+        "events": db.query(func.count(Event.id)).scalar() or 0,
+        "events_linked": db.query(func.count(Event.id)).filter(
+            Event.canonical_claim_id.isnot(None)
         ).scalar() or 0,
     }

@@ -535,6 +535,10 @@ export interface KnowledgeMetrics {
   contradictions: Record<string, number>;
   contradictions_by_type: Record<string, number>;
   stale_wiki_artifacts: number;
+  relationships?: number;
+  relationships_linked?: number;
+  events?: number;
+  events_linked?: number;
 }
 
 export async function apiListConflicts(status?: string): Promise<{ conflicts: KnowledgeConflict[] }> {
