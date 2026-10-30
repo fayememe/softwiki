@@ -168,35 +168,39 @@ def backfill_canonical_claims(db: Session, batch: int = 500) -> dict:
     current_doc_id = None
     doc = None
     chunks: list[Chunk] = []
-    query = (
-        db.query(Claim)
-        .filter(Claim.canonical_id.is_(None))
-        .order_by(Claim.document_id.asc(), Claim.id.asc())
-    )
-    for claim in query.yield_per(batch):
-        if claim.document_id != current_doc_id:
-            current_doc_id = claim.document_id
-            doc = db.query(Document).filter(Document.id == current_doc_id).first()
-            chunks = (
-                db.query(Chunk)
-                .filter(Chunk.document_id == current_doc_id)
-                .order_by(Chunk.chunk_index.asc())
-                .all()
-            )
-        before = db.query(CanonicalClaim).filter(
-            CanonicalClaim.canonical_key == canonical_key(
-                claim.text, claim.actor, claim.topic, claim.stance
-            )
-        ).first()
-        canonicalize_claim(db, claim, doc, chunks, commit=False)
-        if before is None:
-            created += 1
-        total += 1
-        if total % batch == 0:
-            db.commit()
-    db.commit()
+    last_id = ""
+    while True:
+        claims = (
+            db.query(Claim)
+            .filter(Claim.canonical_id.is_(None), Claim.id > last_id)
+            .order_by(Claim.id.asc())
+            .limit(batch)
+            .all()
+        )
+        if not claims:
+            break
+        for claim in claims:
+            if claim.document_id != current_doc_id:
+                current_doc_id = claim.document_id
+                doc = db.query(Document).filter(Document.id == current_doc_id).first()
+                chunks = (
+                    db.query(Chunk)
+                    .filter(Chunk.document_id == current_doc_id)
+                    .order_by(Chunk.chunk_index.asc())
+                    .all()
+                )
+            key = canonical_key(claim.text, claim.actor, claim.topic, claim.stance)
+            before = db.query(CanonicalClaim).filter(
+                CanonicalClaim.canonical_key == key
+            ).first()
+            canonicalize_claim(db, claim, doc, chunks, commit=False)
+            if before is None:
+                created += 1
+            total += 1
+        last_id = claims[-1].id
+        db.commit()
+        print(f"[canonical] {total} raw claims processed, {created} canonical created", flush=True)
     return {"claims": total, "canonical_created": created}
-
 
 def mark_wiki_stale_for_topics(db: Session, topics: Iterable[str], reason: str = "claim_changed") -> int:
     count = 0
