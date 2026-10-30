@@ -10,7 +10,7 @@ graph TD
 | Category | Description |
 |----------|-------------|
 | [01-architecture](./01-architecture/overview.md) | System architecture, data flow, interface definitions |
-| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema |
+| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md) |
 | [03-operations](./03-operations/setup.md) | Setup, CLI, storage operations |
 | [04-guides](./04-guides/quickstart.md) | Quickstart, Shell/WebUI usage, workflows |
 | [05-roadmap](./05-roadmap/status.md) | Project status, phase planning; [agent-web plan](./05-roadmap/agent-web-plan.md) |
@@ -33,5 +33,7 @@ graph TD
 - **工作方式**：[`../AGENTS.md`](../AGENTS.md)（会话一次性、文档持久、小步提交）
 - **本轮报告**：[`06-archive/session-report-2026-10-23.md`](./06-archive/session-report-2026-10-23.md)
 - **Agent Web 计划**：[`05-roadmap/agent-web-plan.md`](./05-roadmap/agent-web-plan.md)
+- **知识系统思想**：[`02-design/knowledge-system-philosophy.md`](./02-design/knowledge-system-philosophy.md)
+- **知识系统实现计划**：[`05-roadmap/knowledge-system-plan.md`](./05-roadmap/knowledge-system-plan.md)
 - **Session / 沙盒 / 审核计划**：[`05-roadmap/agent-session-sandbox-plan.md`](./05-roadmap/agent-session-sandbox-plan.md)
 - **已知限制**：出站 LLM/embedding 许可未确认；OCR 未做；TLS/反代未做；Agent remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；部分 PDF 标题为 `Untitled Document`。

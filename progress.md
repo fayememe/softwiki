@@ -8,6 +8,7 @@
 - **项目**：softwiki = 多策略研究智能引擎（RAG / GraphRAG / LLM-Wiki / ClaimDB / Timeline）。
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
 - **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode `1.18.35` 宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
+- **知识系统思想（2026-10-25）**：已落 `docs/02-design/knowledge-system-philosophy.md`（Claim 为事实源；Graph/Timeline/Wiki 为投影；重复/冲突/版本/人工裁定；LLM-Wiki 方法论与规模策略）。实现计划/难度：`docs/05-roadmap/knowledge-system-plan.md`。
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
@@ -149,6 +150,7 @@
 - [x] **Agent source 元数据**：从答案引用解析出的 source 之前 `Unknown / 0%`；现用 KB 反查 `source_name`/日期/页码/摘录，无检索分数的 source 隐藏百分比。
 - [x] **Agent 链接**：`/agent` 同源 307 → 当前 host:6111，不再写死 localhost。
 - [ ] **Agent Session / 沙盒 / 审核**：设计见 `docs/05-roadmap/agent-session-sandbox-plan.md`；P0/P1 待确认后开工。
+- [!] **知识系统 P0 未实现**：当前无 `ClaimEvidence` / claim status / `Contradiction` / 人工裁定 / 版本 supersede；计划见 `docs/05-roadmap/knowledge-system-plan.md`。
 - [ ] **Wiki 自动重建**：Prompt Studio 已手动闭环；index/ingest 后自动重建待接线（默认只跑策展主题 + 已有页面）。
 - [!] **Claim 覆盖率 15.94%**：1,685/10,573 mapped；7,781 unmapped；1,107 ignored；effective 17.80%。Top unmapped 是零散技术/文档 topic（unpredictable-behavior、ppu-register-summary、software-tests、ip-xact 等）。
 - [ ] **Wiki 页面数量**：当前 4 个 canonical 页面（apb-interface / power-management / rtc-register-map / rtc-reset-generation）。
@@ -160,11 +162,12 @@
 
 ## 下一步（NEXT）
 
-1. **Wiki 自动重建**：把 Prompt Studio 接到 index/ingest；默认只跑策展主题 + 已有页面，带 cap/队列。
-2. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
-3. **Prompt 调优**：用 `docs/04-guides/wiki-prompt-studio.md` 的 IP/协议/技术范例，先 preview 再 apply。
-4. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent + Wiki Prompt Studio；acceptance 11/11。
-5. **Agent L2 产品化**：SSE、独立容器；lsl-kb 重抽。
+1. **知识系统 P0**：Schema v2（ClaimEvidence/status/Contradiction）+ canonical claim v1 + 规则冲突 v0 + 裁定 API + 冲突感知 AnswerEngine；见 `docs/05-roadmap/knowledge-system-plan.md`。
+2. **Wiki 自动重建**：把 Prompt Studio 接到 index/ingest；默认只跑策展主题 + 已有页面，带 cap/队列。
+3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
+4. **Prompt 调优**：用 `docs/04-guides/wiki-prompt-studio.md` 的 IP/协议/技术范例，先 preview 再 apply。
+5. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent + Wiki Prompt Studio；acceptance 11/11。
+6. **Agent L2 产品化**：SSE、独立容器；lsl-kb 重抽。
 
 ## 本 session 状态记录（handoff）
 
@@ -208,4 +211,8 @@
   - 已完成：三级分类 + alias-aware 合并页；12 页生成（amba/pq-channel/instruction-set/system/low-power/soc + cortex-m55/cortex-m85/ethos-u55/nic-400/pl031/pck-600）；旧 4 页归档；PL301 no_docs；DMA 空类目。
   - Claim 覆盖率：**15.94%**（1,685/10,573 mapped；1,107 ignored；7,781 unmapped；effective **17.80%**）。top mapped：AMBA 496、SoC 268、System 218、Low Power 200、P/Q 185、Instruction Set 131、PL031 110、U55 29、CM85 19、NIC-400 14。
   - 未完成：index/ingest 自动重建、7,781 unmapped 的 alias/ignore、PL301 文档。
+- **2026-10-25 知识系统思想追加**：
+  - 新增 `docs/02-design/knowledge-system-philosophy.md`：Claim 事实源、Graph/Timeline/Wiki 投影、重复/冲突/版本/人工裁定、LLM-Wiki 方法论与规模策略。
+  - 新增 `docs/05-roadmap/knowledge-system-plan.md`：A–N 工作流、P0/P1/P2、依赖图、风险、迁移、65–100 人天粗估。
+  - 当前代码仍无 ClaimEvidence/status/Contradiction/人工裁定；Graph 与 Claim 仍并行抽取；Wiki 手动生成。
 - **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` + `docs/04-guides/wiki-prompt-studio.md` 即可接手。
