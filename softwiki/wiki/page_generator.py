@@ -1,12 +1,13 @@
 import os
 import hashlib
+from collections import Counter
 import yaml
 import json
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from datetime import datetime
 from softwiki.source_store.document_repo import DocumentRepository
-from softwiki.source_store.models import Claim
+from softwiki.source_store.models import Claim, CanonicalClaim, WikiArtifactState
 from softwiki.config import get_export_dir, get_session_id
 
 class WikiPageGenerator:
@@ -401,8 +402,36 @@ Please generate the updated full Markdown Wiki Page:"""
         with open(json_filepath, "w", encoding="utf-8") as f:
             json.dump(structured_data, f, indent=2, ensure_ascii=False)
         print(f"Wiki state JSON updated: {json_filepath}")
+        if not output_dir:
+            try:
+                self._update_artifact_state(db, topic_id, claims)
+            except Exception as exc:
+                print(f"Wiki artifact state update failed: {exc}")
 
         return output_filepath
+
+    def _update_artifact_state(self, db: Session, topic_id: str, claims: list) -> None:
+        """Record claim hash/status/model so claim changes can mark this page stale."""
+        canonical = db.query(CanonicalClaim).filter(CanonicalClaim.topic == topic_id).all()
+        if canonical:
+            ids = sorted(c.id for c in canonical)
+            counts = Counter(c.status for c in canonical)
+        else:
+            ids = sorted(c.id for c in claims)
+            counts = Counter("active" for _ in claims)
+        claim_set_hash = hashlib.sha256("|".join(ids).encode("utf-8")).hexdigest()
+        prompt_version = hashlib.sha256((self.last_intervention or "").encode("utf-8")).hexdigest()[:16]
+        state = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic_id).first()
+        if state is None:
+            state = WikiArtifactState(topic=topic_id)
+            db.add(state)
+        state.prompt_version = prompt_version
+        state.model = self.last_model
+        state.claim_set_hash = claim_set_hash
+        state.status_counts_json = json.dumps(dict(counts), ensure_ascii=False)
+        state.built_at = datetime.utcnow()
+        state.stale_at = None
+        db.commit()
 
     def _fallback_generate_topic_page(self, db: Session, topic_id: str, claims: list, sorted_docs: list, topic_title: str, output_filepath: str, json_filepath: str) -> str:
         """Template-based fallback page generator (no external LLM key needed)."""

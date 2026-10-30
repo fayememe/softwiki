@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.rag.citations import CitationManager
 from softwiki.config import get_config_path, is_module_enabled, get_export_dir, get_session_id
-from softwiki.source_store.models import Claim, Entity, Relationship, Event, Document
+from softwiki.source_store.models import Claim, Entity, Relationship, Event, Document, CanonicalClaim, Contradiction, WikiArtifactState
 
 logger = logging.getLogger(__name__)
 
@@ -398,20 +398,58 @@ class AnswerEngine:
                     context_parts.append(entry)
                 context_str = "\n\n".join(context_parts)
 
-        # 2. Claim DB Retrieve
+        # 2. Claim DB Retrieve — canonical claims when available; raw fallback.
         claims_context = []
+        conflict_context = []
+        canonical_claims = []
         if is_module_enabled("claimdb"):
             words = [w for w in question.lower().split() if len(w) > 3]
-            query = db.query(Claim)
-            if words:
-                filters = [Claim.text.like(f"%{w}%") for w in words]
-                query = query.filter(or_(*filters))
-            claims = query.limit(10).all()
-            for c in claims:
-                date_str = c.published_at.strftime('%Y-%m-%d') if c.published_at else 'unknown'
-                doc_cit = cite_doc(c.document_id)
-                prefix = f"[{doc_cit}] " if doc_cit else ""
-                claims_context.append(f"- {prefix}Actor: {c.actor} | Stance: {c.stance} | Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f})")
+            has_canonical = db.query(CanonicalClaim.id).limit(1).first() is not None
+            if has_canonical:
+                query = db.query(CanonicalClaim).filter(
+                    CanonicalClaim.status.in_(["active", "disputed"])
+                )
+                if words:
+                    filters = [CanonicalClaim.text.like(f"%{w}%") for w in words]
+                    query = query.filter(or_(*filters))
+                canonical_claims = query.limit(12).all()
+                for c in canonical_claims:
+                    date_str = c.valid_from.strftime('%Y-%m-%d') if c.valid_from else 'unknown'
+                    doc_cit = cite_doc(c.primary_document_id)
+                    prefix = f"[{doc_cit}] " if doc_cit else ""
+                    claims_context.append(
+                        f"- {prefix}Actor: {c.actor} | Topic: {c.topic} | Status: {c.status} | "
+                        f"Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f}, Evidence: {c.evidence_count})"
+                    )
+                for c in canonical_claims:
+                    rows = (
+                        db.query(Contradiction)
+                        .filter(or_(
+                            Contradiction.claim_a_id == c.id,
+                            Contradiction.claim_b_id == c.id,
+                        ))
+                        .filter(Contradiction.status.in_(["open", "needs_evidence"]))
+                        .all()
+                    )
+                    for row in rows:
+                        other_id = row.claim_b_id if row.claim_a_id == c.id else row.claim_a_id
+                        other = db.query(CanonicalClaim).filter(CanonicalClaim.id == other_id).first()
+                        if other:
+                            conflict_context.append(
+                                f"- [{row.type}/{row.status}] A: {c.text} | B: {other.text} "
+                                f"(A status={c.status}, B status={other.status})"
+                            )
+            else:
+                query = db.query(Claim)
+                if words:
+                    filters = [Claim.text.like(f"%{w}%") for w in words]
+                    query = query.filter(or_(*filters))
+                claims = query.limit(10).all()
+                for c in claims:
+                    date_str = c.published_at.strftime('%Y-%m-%d') if c.published_at else 'unknown'
+                    doc_cit = cite_doc(c.document_id)
+                    prefix = f"[{doc_cit}] " if doc_cit else ""
+                    claims_context.append(f"- {prefix}Actor: {c.actor} | Stance: {c.stance} | Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f})")
 
         # 3. Graph Retrieve — try LightRAG first, fallback to SQL LIKE
         graph_context = []
@@ -422,7 +460,7 @@ class AnswerEngine:
             else:
                 # Fallback: SQL LIKE on existing Entity/Relationship tables
                 words = [w for w in question.lower().split() if len(w) > 3]
-                query = db.query(Relationship)
+                query = db.query(Relationship).filter(Relationship.status == "active")
                 if words:
                     filters = [Relationship.description.like(f"%{w}%") | Relationship.source_name.like(f"%{w}%") | Relationship.target_name.like(f"%{w}%") for w in words]
                     query = query.filter(or_(*filters))
@@ -436,7 +474,7 @@ class AnswerEngine:
         timeline_context = []
         if is_module_enabled("timeline"):
             words = [w for w in question.lower().split() if len(w) > 3]
-            query = db.query(Event)
+            query = db.query(Event).filter(Event.status == "active")
             if words:
                 filters = [Event.title.like(f"%{w}%") | Event.description.like(f"%{w}%") for w in words]
                 query = query.filter(or_(*filters))
@@ -456,6 +494,9 @@ class AnswerEngine:
                     if filename.endswith(".md"):
                         topic_name = filename[:-3]
                         if topic_name.lower().replace("-", " ") in question.lower():
+                            state = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic_name).first()
+                            if state is not None and state.stale_at is not None:
+                                continue
                             try:
                                 with open(os.path.join(wiki_dir, filename), "r", encoding="utf-8") as f:
                                     wiki_context.append(f"--- Compiled Wiki Page: {topic_name} ---\n{f.read()[:800]}...\n")
@@ -472,6 +513,8 @@ class AnswerEngine:
             prompt_parts.append("### Knowledge Graph Relationships (Graph):\n" + "\n".join(graph_context))
         if timeline_context:
             prompt_parts.append("### Chronological Events (Timeline):\n" + "\n".join(timeline_context))
+        if conflict_context:
+            prompt_parts.append("### Conflicts / Disputed Claims:\n" + "\n".join(conflict_context))
         if wiki_context:
             prompt_parts.append("### Existing Topic Synthesis (llm-wiki):\n" + "\n\n".join(wiki_context))
 
@@ -501,7 +544,12 @@ class AnswerEngine:
             print("No valid LLM client found. Generating answer using local fallback mode.")
             answer = self._generate_fallback_answer_modular(question, search_results, claims_context, graph_context, timeline_context, wiki_context, citation_manager)
         else:
-            system_prompt = mode_config["system_prompt"] + workflow_prompt
+            conflict_rule = (
+                "\n\nConflict rule: if the provided claims conflict or are disputed, "
+                "state both sides explicitly with source, date, revision, and page; "
+                "do not silently pick one. If a version update is known, say which is newer."
+            )
+            system_prompt = mode_config["system_prompt"] + workflow_prompt + conflict_rule
 
             user_content = f"""Question: {question}
 

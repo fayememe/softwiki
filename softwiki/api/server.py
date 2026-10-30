@@ -21,13 +21,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces, get_workspaces_root, set_request_workspace
 from softwiki.source_store.db import SessionLocal
-from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event, User, WorkspaceMember
+from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event, User, WorkspaceMember, CanonicalClaim, ClaimEvidence, Contradiction, WikiArtifactState
 from softwiki.auth import auth_enabled, create_token, verify_password, verify_token
 from softwiki.auth_db import get_auth_session
 from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.ingestion.web_loader import extract_web_content
 from softwiki.ingestion.pdf_loader import extract_pdf_content
 from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash, is_duplicate_url
+from softwiki.knowledge.versioning import assign_document_version
+from softwiki.knowledge.conflicts import list_conflicts, scan_conflicts, adjudicate, metrics as knowledge_metrics
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -209,6 +211,14 @@ class WikiApplyRequest(BaseModel):
     topics: List[str]
     intervention: Optional[str] = None
     include_saved: bool = True
+
+class ConflictScanRequest(BaseModel):
+    topic: Optional[str] = None
+
+class ConflictAdjudicateRequest(BaseModel):
+    action: str
+    actor: str = "wiki-admin"
+    reason: str = ""
 
 @app.get("/api/status")
 def get_status():
@@ -650,6 +660,105 @@ def agent_delete(session_id: str):
     return {"status": "deleted", "session_id": session_id}
 
 
+@app.get("/api/knowledge/metrics")
+def get_knowledge_metrics():
+    db = SessionLocal()
+    try:
+        return knowledge_metrics(db)
+    finally:
+        db.close()
+
+
+@app.get("/api/conflicts")
+def get_conflicts(status: Optional[str] = None):
+    db = SessionLocal()
+    try:
+        return {"conflicts": list_conflicts(db, status=status)}
+    finally:
+        db.close()
+
+
+@app.post("/api/conflicts/scan")
+def scan_knowledge_conflicts(req: ConflictScanRequest):
+    check_read_only()
+    db = SessionLocal()
+    try:
+        return scan_conflicts(db, topic=req.topic)
+    finally:
+        db.close()
+
+
+@app.post("/api/conflicts/{conflict_id}/adjudicate")
+def adjudicate_conflict(conflict_id: int, req: ConflictAdjudicateRequest):
+    check_read_only()
+    db = SessionLocal()
+    try:
+        try:
+            return adjudicate(db, conflict_id, req.action, actor=req.actor, reason=req.reason)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/canonical-claims")
+def list_canonical_claims(status: Optional[str] = None, topic: Optional[str] = None,
+                          limit: int = 100):
+    db = SessionLocal()
+    try:
+        query = db.query(CanonicalClaim).order_by(CanonicalClaim.updated_at.desc())
+        if status:
+            query = query.filter(CanonicalClaim.status == status)
+        if topic:
+            query = query.filter(CanonicalClaim.topic == topic)
+        rows = query.limit(min(max(limit, 1), 500)).all()
+        return {"claims": [
+            {
+                "id": c.id,
+                "text": c.text,
+                "actor": c.actor,
+                "topic": c.topic,
+                "stance": c.stance,
+                "confidence": c.confidence,
+                "status": c.status,
+                "value_normalized": c.value_normalized,
+                "evidence_count": c.evidence_count,
+                "primary_document_id": c.primary_document_id,
+                "primary_page_start": c.primary_page_start,
+                "primary_page_end": c.primary_page_end,
+                "valid_from": c.valid_from.isoformat() if c.valid_from else None,
+                "valid_to": c.valid_to.isoformat() if c.valid_to else None,
+            }
+            for c in rows
+        ]}
+    finally:
+        db.close()
+
+
+@app.get("/api/canonical-claims/{claim_id}/evidence")
+def canonical_claim_evidence(claim_id: str):
+    db = SessionLocal()
+    try:
+        rows = db.query(ClaimEvidence).filter(ClaimEvidence.canonical_id == claim_id).all()
+        return {"evidence": [
+            {
+                "id": e.id,
+                "claim_id": e.claim_id,
+                "document_id": e.document_id,
+                "page_start": e.page_start,
+                "page_end": e.page_end,
+                "quote": e.quote,
+                "source_name": e.source_name,
+                "source_revision": e.source_revision,
+                "trust_level": e.trust_level,
+                "published_at": e.published_at.isoformat() if e.published_at else None,
+            }
+            for e in rows
+        ]}
+    finally:
+        db.close()
+
+
 @app.post("/api/ask")
 def ask_question(req: AskRequest):
     """Executes CJK-aware hybrid search and synthesizes an answer using LLM."""
@@ -750,8 +859,9 @@ def ingest_url(req: IngestUrlRequest):
         text_hash = calculate_hash(cleaned_text)
         if is_duplicate_hash(db, text_hash):
             return {"status": "skipped", "reason": "content hash duplicate"}
-        if is_duplicate_url(db, req.url):
-            return {"status": "skipped", "reason": "url duplicate"}
+        existing_url = DocumentRepository.get_document_by_url(db, req.url) if req.url else None
+        if existing_url and existing_url.hash == text_hash:
+            return {"status": "skipped", "reason": "url and content duplicate"}
             
         doc = Document(
             title=title,
@@ -768,7 +878,10 @@ def ingest_url(req: IngestUrlRequest):
             published_at=published_at,
             collected_at=datetime.utcnow()
         )
+        assign_document_version(db, doc)
         doc = DocumentRepository.create_document(db, doc)
+        assign_document_version(db, doc)
+        db.commit()
         
         # Run extraction pipeline in background
         run_extraction_pipeline(db, doc.id, cleaned_text, published_at, background=True)
@@ -863,7 +976,10 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
             published_at=published_at,
             collected_at=datetime.utcnow()
         )
+        assign_document_version(db, doc)
         doc = DocumentRepository.create_document(db, doc)
+        assign_document_version(db, doc)
+        db.commit()
         
         # Run extraction pipeline in background
         run_extraction_pipeline(db, doc.id, cleaned_text, published_at, background=True)

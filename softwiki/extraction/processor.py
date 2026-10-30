@@ -160,6 +160,11 @@ def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime
         print(f"[Worker] Starting background extraction for Document ID {doc_id}...")
 
         _extract_document(db, doc_id, cleaned_text, published_at)
+        try:
+            from softwiki.knowledge.canonical import canonicalize_document
+            canonicalize_document(db, doc_id)
+        except Exception as exc:
+            logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
 
         doc = DocumentRepository.get_document(db, doc_id)
         if doc:
@@ -216,6 +221,11 @@ def run_extraction_pipeline(db: Session, doc_id: int, cleaned_text: str, publish
         db.commit()
         
     results = _extract_document(db, doc_id, cleaned_text, published_at)
+    try:
+        from softwiki.knowledge.canonical import canonicalize_document
+        canonicalize_document(db, doc_id)
+    except Exception as exc:
+        logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
 
     doc = DocumentRepository.get_document(db, doc_id)
     if doc:

@@ -6,6 +6,7 @@ import ChatPanel from '@/components/ChatPanel';
 import IngestPanel from '@/components/IngestPanel';
 import DocumentsPanel from '@/components/DocumentsPanel';
 import ClaimsPanel from '@/components/ClaimsPanel';
+import ConflictsPanel from '@/components/ConflictsPanel';
 import WikiPanel from '@/components/WikiPanel';
 import DashboardPanel from '@/components/DashboardPanel';
 import GraphPanel from '@/components/GraphPanel';
@@ -318,6 +319,7 @@ export default function Home() {
         {activePanel === 'ingest' && <IngestPanel />}
         {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} />}
         {activePanel === 'claims' && <ClaimsPanel />}
+        {activePanel === 'conflicts' && <ConflictsPanel />}
         {activePanel === 'graph' && <GraphPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
         {activePanel === 'wiki' && <WikiPanel />}

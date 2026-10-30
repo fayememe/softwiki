@@ -26,6 +26,7 @@ from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.ingestion.web_loader import extract_web_content
 from softwiki.ingestion.pdf_loader import extract_pdf_content
 from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash, is_duplicate_url
+from softwiki.knowledge.versioning import assign_document_version
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -114,8 +115,9 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
         text_hash = calculate_hash(cleaned_text)
         if is_duplicate_hash(db, text_hash):
             return "Skip: Document with identical content hash already exists."
-        if url and is_duplicate_url(db, url):
-            return "Skip: Document with identical URL already exists."
+        existing_url = DocumentRepository.get_document_by_url(db, url) if url else None
+        if existing_url and existing_url.hash == text_hash:
+            return "Skip: Document with identical URL and content already exists."
 
         doc = Document(
             title=title,
@@ -133,7 +135,10 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
             collected_at=datetime.utcnow()
         )
 
+        assign_document_version(db, doc)
         doc = DocumentRepository.create_document(db, doc)
+        assign_document_version(db, doc)
+        db.commit()
         doc_id = doc.id
 
         # Stage 1: save raw source file

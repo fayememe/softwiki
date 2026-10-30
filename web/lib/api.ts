@@ -492,3 +492,90 @@ export async function apiApplyWiki(
   }
   return res.json();
 }
+
+// ─── Knowledge v2: conflicts / canonical claims ──────────────────────────────
+
+export interface ConflictClaim {
+  id: string;
+  text: string;
+  actor: string;
+  topic: string;
+  stance: string;
+  status: string;
+  confidence: number;
+  value_normalized: string | null;
+  document_id: number | null;
+  title: string | null;
+  source_name: string | null;
+  published_at: string | null;
+  revision: string | null;
+  page_start: number | null;
+  page_end: number | null;
+}
+
+export interface KnowledgeConflict {
+  id: number;
+  type: string;
+  severity: string;
+  status: string;
+  auto_resolved: boolean;
+  resolution: string | null;
+  created_at: string | null;
+  claim_a: ConflictClaim | null;
+  claim_b: ConflictClaim | null;
+}
+
+export interface KnowledgeMetrics {
+  raw_claims: number;
+  canonical_claims: number;
+  evidence: number;
+  canonical_status: Record<string, number>;
+  contradictions: Record<string, number>;
+  contradictions_by_type: Record<string, number>;
+  stale_wiki_artifacts: number;
+}
+
+export async function apiListConflicts(status?: string): Promise<{ conflicts: KnowledgeConflict[] }> {
+  const url = status
+    ? `${API_BASE}/api/conflicts?status=${encodeURIComponent(status)}`
+    : `${API_BASE}/api/conflicts`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to list conflicts: ${res.status}`);
+  return res.json();
+}
+
+export async function apiScanConflicts(topic?: string): Promise<{ canonical_claims: number; pairs: number; created: number }> {
+  const res = await fetch(`${API_BASE}/api/conflicts/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic: topic || null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Conflict scan failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiAdjudicateConflict(
+  id: number,
+  action: string,
+  reason: string = '',
+): Promise<{ id: number; status: string; claim_a: string; claim_b: string }> {
+  const res = await fetch(`${API_BASE}/api/conflicts/${id}/adjudicate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, actor: 'wiki-admin', reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Adjudication failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiKnowledgeMetrics(): Promise<KnowledgeMetrics> {
+  const res = await fetch(`${API_BASE}/api/knowledge/metrics`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to load knowledge metrics: ${res.status}`);
+  return res.json();
+}

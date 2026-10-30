@@ -10,6 +10,7 @@ from softwiki.source_store.document_repo import DocumentRepository
 from softwiki.ingestion.web_loader import extract_web_content
 from softwiki.ingestion.pdf_loader import extract_pdf_content
 from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash, is_duplicate_url
+from softwiki.knowledge.versioning import assign_document_version
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
 from softwiki.rag.vector_store import LocalVectorStore
@@ -193,8 +194,9 @@ def ingest(url, file, source_id):
         if is_duplicate_hash(db, text_hash):
             click.echo("Skip: Document with identical content hash already exists.")
             sys.exit(0)
-        if url and is_duplicate_url(db, url):
-            click.echo("Skip: Document with identical URL already exists.")
+        existing_url = DocumentRepository.get_document_by_url(db, url) if url else None
+        if existing_url and existing_url.hash == text_hash:
+            click.echo("Skip: Document with identical URL and content already exists.")
             sys.exit(0)
 
         doc = Document(
@@ -213,7 +215,10 @@ def ingest(url, file, source_id):
             collected_at=datetime.utcnow()
         )
         
+        assign_document_version(db, doc)
         doc = DocumentRepository.create_document(db, doc)
+        assign_document_version(db, doc)
+        db.commit()
         click.echo(f"Created Document ID {doc.id}: '{doc.title}'")
 
         click.echo("Running extraction pipeline...")
