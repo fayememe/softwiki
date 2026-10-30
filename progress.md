@@ -160,7 +160,7 @@
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
-- [x] **测试基线**：75 passed（离线；含 knowledge v2）。
+- [x] **测试基线**：76 passed（离线；含 knowledge v2）。
 - [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
