@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from softwiki.knowledge.canonical import jaccard, mark_wiki_stale_for_topics, normalize_text
+from softwiki.knowledge.canonical import mark_wiki_stale_for_topics, normalize_text
 from softwiki.source_store.models import (
     Adjudication,
     CanonicalClaim,
@@ -18,8 +19,24 @@ from softwiki.source_store.models import (
     WikiArtifactState,
 )
 
-SIMILARITY_THRESHOLD = 0.55
 MAX_GROUP = 240
+_VALUE_RE = re.compile(r"0x[0-9a-f]+|(?<![a-z0-9])\d+(?:\.\d+)?(?![a-z0-9])", re.IGNORECASE)
+
+
+def _single_value_template(text: str):
+    """Conservative v0: only claims with exactly one number/hex value.
+
+    Replace that value with # and require the rest of the sentence to be
+    identical. This avoids treating different scenarios (Google vs Microsoft,
+    regular vs injected, 22ULL vs 5LPE) as contradictions.
+    """
+    matches = list(_VALUE_RE.finditer(text or ""))
+    if len(matches) != 1:
+        return None
+    m = matches[0]
+    value = m.group(0).lower()
+    template = (text[:m.start()] + "#" + text[m.end():])
+    return normalize_text(template), value
 
 
 def _doc(db: Session, canonical: CanonicalClaim) -> Optional[Document]:
@@ -72,11 +89,13 @@ def _compare(db: Session, a: CanonicalClaim, b: CanonicalClaim) -> Optional[Cont
         return None
     if a.status not in ("active", "disputed") or b.status not in ("active", "disputed"):
         return None
-    if not a.value_normalized or not b.value_normalized:
+    ta = _single_value_template(a.text)
+    tb = _single_value_template(b.text)
+    if not ta or not tb:
         return None
-    if a.value_normalized == b.value_normalized:
-        return None
-    if jaccard(a.text, b.text) < SIMILARITY_THRESHOLD:
+    template_a, value_a = ta
+    template_b, value_b = tb
+    if template_a != template_b or value_a == value_b:
         return None
 
     da, db_doc = _doc(db, a), _doc(db, b)
