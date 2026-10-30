@@ -124,3 +124,17 @@ def test_metrics_returns_canonical_counts(db):
     assert m["raw_claims"] == 1
     assert m["canonical_claims"] == 1
     assert m["evidence"] >= 1
+
+
+def test_claim_topic_maps_to_curated_page(monkeypatch, tmp_path):
+    import yaml
+    cfg = tmp_path / "topics.yaml"
+    cfg.write_text(yaml.safe_dump({
+        "pl031": {"name": "PL031", "kind": "page", "aliases": ["rtc-*"]},
+        "amba": {"name": "AMBA", "kind": "page", "aliases": ["apb-*"]},
+    }), encoding="utf-8")
+    from softwiki.wiki.interventions import page_topics_for_claim_topic
+    monkeypatch.setattr("softwiki.wiki.interventions.get_config_path", lambda name: str(cfg) if name == "topics.yaml" else str(tmp_path / name))
+    assert page_topics_for_claim_topic("rtc-register-map") == ["pl031"]
+    assert page_topics_for_claim_topic("apb-interface") == ["amba"]
+    assert page_topics_for_claim_topic("unknown-topic") == []

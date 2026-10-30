@@ -247,8 +247,12 @@ def backfill_wiki_states(db: Session, mark_stale: bool = True) -> dict:
 
 
 def mark_wiki_stale_for_topics(db: Session, topics: Iterable[str], reason: str = "claim_changed") -> int:
-    count = 0
+    from softwiki.wiki.interventions import page_topics_for_claim_topic
+    pages = set()
     for topic in {t for t in topics if t}:
+        pages.update(page_topics_for_claim_topic(topic))
+    count = 0
+    for topic in pages:
         state = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic).first()
         if state is None:
             state = WikiArtifactState(topic=topic)

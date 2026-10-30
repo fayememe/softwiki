@@ -6,6 +6,7 @@ receives the composed text as an additional highest-priority instruction.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import os
 import re
@@ -185,3 +186,30 @@ def preview_dir(run_id: str) -> str:
     path = os.path.join(get_export_dir("wiki/preview"), run_id)
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def page_topics_for_claim_topic(claim_topic: str) -> list[str]:
+    """Map a raw claim topic (e.g. rtc-register-map) to curated page topics.
+
+    A page owns an alias pattern such as ``rtc-*``; this is the reverse lookup
+    used for staleness after claim/adjudication changes.
+    """
+    path = get_config_path("topics.yaml")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        topics = data.get("topics", data) if isinstance(data, dict) else {}
+    except Exception:
+        return []
+    pages = []
+    for page, info in (topics.items() if isinstance(topics, dict) else []):
+        if not isinstance(info, dict):
+            continue
+        if info.get("kind") not in ("page", None):
+            continue
+        aliases = [str(a) for a in (info.get("aliases") or []) if str(a).strip()]
+        if claim_topic == page or any(fnmatch.fnmatch(claim_topic, a) for a in aliases):
+            pages.append(page)
+    return pages
