@@ -63,16 +63,20 @@ class WikiPageGenerator:
         if not is_in_scope:
             raise ValueError(f"Reject: The topic '{topic_id}' is out of scope. Reason: {reason}")
 
-        # 1. Fetch data from DB, including alias/pattern topics merged into this page.
-        from softwiki.wiki.interventions import topic_aliases, topic_name
+        # 1. Fetch canonical claims for this page, including alias/pattern topics.
+        from softwiki.wiki.interventions import topic_aliases, topic_name, topic_info
         aliases = topic_aliases(topic_id)
-        conds = [Claim.topic == topic_id]
-        for alias in aliases:
-            if "*" in alias or "?" in alias:
-                conds.append(Claim.topic.like(alias.replace("*", "%").replace("?", "_")))
-            else:
-                conds.append(Claim.topic == alias)
-        claims = db.query(Claim).filter(or_(*conds)).all()
+        canonical = canonical_claims_for_topic(db, topic_id)
+        claims = [c for c in canonical if c.status in ("active", "disputed")]
+        if not claims:
+            # Pre-migration/degraded fallback: raw claims.
+            conds = [Claim.topic == topic_id]
+            for alias in aliases:
+                if "*" in alias or "?" in alias:
+                    conds.append(Claim.topic.like(alias.replace("*", "%").replace("?", "_")))
+                else:
+                    conds.append(Claim.topic == alias)
+            claims = db.query(Claim).filter(or_(*conds)).all()
         self.last_claims_total = len(claims)
         max_claims = int(os.getenv("WIKI_MAX_CLAIMS", "250"))
         if len(claims) > max_claims:
@@ -82,7 +86,11 @@ class WikiPageGenerator:
                 reverse=True,
             )[:max_claims]
         self.last_claims_used = len(claims)
-        doc_ids = list(set(c.document_id for c in claims if c.document_id))
+        doc_ids = list(set(
+            getattr(c, "primary_document_id", None) or getattr(c, "document_id", None)
+            for c in claims
+            if (getattr(c, "primary_document_id", None) or getattr(c, "document_id", None))
+        ))
         docs = [DocumentRepository.get_document(db, d_id) for d_id in doc_ids if d_id]
         docs = [d for d in docs if d]
         
@@ -103,6 +111,12 @@ class WikiPageGenerator:
             self.last_fallback = True
             print("No valid LLM client found for wiki compilation. Falling back to template-based generation.")
             return self._fallback_generate_topic_page(db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath)
+
+        # A stale artifact must be fully rebuilt even if claim IDs look unchanged
+        # (status/adjudication changes do not create new claim IDs).
+        state_row = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic_id).first()
+        if state_row is not None and state_row.stale_at is not None:
+            force_rebuild = True
 
         # 3. Read compiled state from JSON if it exists
         compiled_claim_ids = []
@@ -141,9 +155,12 @@ class WikiPageGenerator:
                 "id": c.id,
                 "actor": c.actor,
                 "stance": c.stance,
+                "status": getattr(c, "status", "active"),
                 "confidence": c.confidence,
                 "claim_description": c.text,
-                "source_name": next((d.source_name for d in docs if d.id == c.document_id), "Source"),
+                "page": getattr(c, "primary_page_start", None),
+                "evidence_count": getattr(c, "evidence_count", None),
+                "source_name": next((d.source_name for d in docs if d.id == (getattr(c, "primary_document_id", None) or getattr(c, "document_id", None))), "Source"),
                 "date": c.published_at.strftime("%Y-%m-%d") if c.published_at else "Unknown Date"
             }
             for c in claims
@@ -185,46 +202,67 @@ class WikiPageGenerator:
         # LLM Logic
         if not is_incremental:
             print(f"Compiling first-time Wiki page for topic: '{topic_id}' using {model_name}...")
-            system_prompt = """You are a Research Wiki Compiler.
-Your goal is to synthesize structured evidence (Claims, Events, Relationships) into a unified, professional, human-readable Markdown Wiki Page.
-
-You MUST follow the layout specified below:
-# [Topic Title]
-
+            info = topic_info(topic_id)
+            category = str(info.get("category") or "")
+            subcategory = str(info.get("subcategory") or "")
+            if category == "IP Products":
+                structure = """
 ## Summary
-[A high-level synthesis of the topic, key findings, and context.]
-
-## Current Status
-[A brief paragraph summarizing current tracking stats, document count, and overall sentiment/activity.]
-
-## Key Actors
-[A list of key actors and organizations involved.]
-
-## Timeline
-[A bulleted timeline of the key chronological events in YYYY-MM-DD format with short summaries.]
-
-## Claims and Evidence
-[A markdown table comparing claims from different actors. Table Columns: | Actor | Stance | Confidence | Claim Description | Source | Date |]
-
-## Areas of Agreement
-- [Summarize the consensus or points of agreement among the actors.]
-
-## Areas of Disagreement
-- [Summarize the disputes, cautions, and conflicting viewpoints.]
-
-## Official Actions vs Political Rhetoric
-- [Analyze differences between concrete policy declarations/actions vs media reports or rhetoric.]
-
+## Block Overview
+## Key Features
+## Register Map
+[Use a Markdown table: Offset | Name | Type | Width | Reset | Description. Cite page numbers.]
+## Interfaces and Signals
+## Interrupts / DMA / Memory
+## Configuration Notes
+## Known Limits and Errata
+## Disputed or Version-Dependent Facts
 ## Open Questions
-- [List critical unresolved issues or future questions.]
-
 ## Sources
-- [A list of source documents with titles, publishers, URLs (if available), and dates.]
+"""
+            elif category == "Protocols":
+                structure = """
+## Summary
+## Protocol Overview
+## Layers and Channels
+## Signals and Transactions
+## Ordering / QoS / Flow Control
+## Power and Low-Power Behavior
+## Version Differences
+## Disputed or Version-Dependent Facts
+## Open Questions
+## Sources
+"""
+            else:
+                structure = """
+## Summary
+## Architecture Overview
+## Key Mechanisms
+## Power / Performance / Area
+## Implementation Notes
+## Tradeoffs and Limits
+## Disputed or Version-Dependent Facts
+## Open Questions
+## Sources
+"""
+            system_prompt = f"""You are a Technical Wiki Compiler for ARM IP and SoC documentation.
+Synthesize canonical claims into a precise, professional Markdown page.
+
+Topic: {topic_title}
+Category: {category or "Technical"}
+Subcategory: {subcategory or "General"}
+
+Use this structure:
+# {topic_title}
+{structure}
 
 Rules:
-1. Every paragraph and row MUST cite sources.
-2. Keep the table formatted perfectly as a Markdown table.
-3. Be objective, precise, and academic.
+1. Use only the supplied active/disputed claims. Do NOT invent register values, offsets, or dates.
+2. Cite page numbers when available, e.g. "(p. 23)".
+3. Claims with status "disputed" must be listed under "Disputed or Version-Dependent Facts"; do not silently pick a side.
+4. Prefer tables for registers, signals, and version differences.
+5. Keep the page technical and concise; no political/editorial framing.
+6. Every factual row/paragraph must carry a source citation.
 """
             system_prompt = self._apply_intervention(system_prompt, intervention)
             user_content = f"""Topic: {topic_title}
@@ -375,6 +413,7 @@ Please generate the updated full Markdown Wiki Page:"""
                     "claim_description": c.text,
                     "source_name": (DocumentRepository.get_document(db, c.document_id).source_name if c.document_id and DocumentRepository.get_document(db, c.document_id) else "Source"),
                     "source_url": (DocumentRepository.get_document(db, c.document_id).url if c.document_id and DocumentRepository.get_document(db, c.document_id) else None),
+                    "status": getattr(c, "status", "active"),
                     "date": c.published_at.strftime("%Y-%m-%d") if c.published_at else "Unknown Date"
                 }
                 for c in claims

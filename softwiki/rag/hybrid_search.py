@@ -1,3 +1,4 @@
+import re
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from softwiki.rag.vector_store import LocalVectorStore
@@ -27,7 +28,9 @@ class HybridSearcher:
             cid = res["chunk_id"]
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (constant + rank + 1)
 
-        sorted_chunks = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+        # Fetch extra candidates so exact/normalized duplicate chunks can be
+        # collapsed without starving the final top_k.
+        sorted_chunks = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[:top_k * 2]
 
         if not sorted_chunks:
             return []
@@ -37,10 +40,19 @@ class HybridSearcher:
         chunk_map = {c.id: c for c in fetched}
 
         results = []
+        seen = set()
         for cid, score in sorted_chunks:
             chunk = chunk_map.get(cid)
-            if chunk:
-                doc = DocumentRepository.get_document(db, chunk.document_id)
-                results.append({"chunk": chunk, "document": doc, "score": score})
+            if not chunk:
+                continue
+            normalized = re.sub(r"\s+", " ", (chunk.text or "").lower()).strip()
+            key = (chunk.document_id, normalized)
+            if key in seen:
+                continue
+            seen.add(key)
+            doc = DocumentRepository.get_document(db, chunk.document_id)
+            results.append({"chunk": chunk, "document": doc, "score": score})
+            if len(results) >= top_k:
+                break
 
         return results

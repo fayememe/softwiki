@@ -143,6 +143,14 @@ class CanonicalClaim(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+    @property
+    def document_id(self):
+        return self.primary_document_id
+
+    @property
+    def published_at(self):
+        return self.valid_from
+
 
 class ClaimEvidence(Base):
     __tablename__ = "claim_evidence"
