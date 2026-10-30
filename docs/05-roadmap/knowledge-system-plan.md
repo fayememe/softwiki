@@ -51,13 +51,13 @@ claim coverage:        15.94%（effective 17.80%）
 
 ### A. Knowledge Schema v2
 
-- [ ] `Document`: `family_id`, `revision`, `supersedes_document_id`, `document_hash`
-- [ ] `Claim`: `canonical_id`, `status`, `valid_from`, `valid_to`, `supersedes_claim_id`, `contradicts_claim_id`
-- [ ] `ClaimEvidence`: `claim_id`, `document_id`, `page_start`, `page_end`, `quote`, `source_revision`, `trust_level`
-- [ ] `Contradiction`: `claim_a_id`, `claim_b_id`, `type`, `severity`, `status`, `auto_resolved`, `resolution`
-- [ ] `Adjudication`: `contradiction_id`, `action`, `before`, `after`, `actor`, `reason`, `created_at`
+- [x] `Document`: `family_id`, `revision`, `supersedes_document_id`, `document_hash`
+- [x] `Claim`: `canonical_id`, `canonical_key`, `status`, `valid_from`, `valid_to`, `value_normalized`
+- [x] `ClaimEvidence`: `claim_id`, `canonical_id`, `document_id`, `page_start`, `page_end`, `quote`, `source_revision`, `trust_level`
+- [x] `Contradiction`: `claim_a_id`, `claim_b_id`, `type`, `severity`, `status`, `auto_resolved`, `resolution`
+- [x] `Adjudication`: `contradiction_id`, `action`, `before_json`, `after_json`, `actor`, `reason`, `created_at`
 - [ ] `WikiArtifactState`: `topic`, `prompt_version`, `model`, `claim_set_hash`, `status_counts`, `built_at`, `stale_at`
-- [ ] Alembic/迁移脚本；SQLite/PG 双支持
+- [x] 迁移脚本；SQLite/PG 双支持
 
 **难度：L（8–12d）**  
 **依赖：无**  
@@ -67,12 +67,12 @@ claim coverage:        15.94%（effective 17.80%）
 
 ### B. Ingestion / Versioning
 
-- [ ] 完全重复：hash + URL（已有）
-- [ ] 同 URL 内容变化：新版本，不 skip
-- [ ] `family_id` 识别：URL / source+title / 显式输入
-- [ ] `revision`：PDF metadata / 标题 / 手工字段
-- [ ] `supersedes_document_id`
-- [ ] 旧文档不删除；新文档继承 family
+- [x] 完全重复：hash + URL（已有）
+- [x] 同 URL 内容变化：新版本，不 skip
+- [x] `family_id` 识别：URL / source+title / 显式输入
+- [x] `revision`：published_at / 显式字段 / 手工覆盖（v0）
+- [x] `supersedes_document_id`
+- [x] 旧文档不删除；新文档继承 family
 
 **难度：M（4–6d）**  
 **依赖：A**  
@@ -82,13 +82,13 @@ claim coverage:        15.94%（effective 17.80%）
 
 ### C. Claim Canonicalization v1
 
-- [ ] normalized text（空白/标点/页眉页脚）
-- [ ] canonical key：`(normalized_text, actor, topic, stance)`
-- [ ] 同一 key → 一条 canonical claim + 多条 evidence
-- [ ] 合并 confidence（max/加权）
-- [ ] 保留 raw claim 用于审计
-- [ ] 对现有 353 组 / 1,491 条冗余做一次性回填
-- [ ] 不做矛盾合并
+- [x] normalized text（空白/标点/页眉页脚）
+- [x] canonical key：`(normalized_text, actor, topic, stance)`
+- [x] 同一 key → 一条 canonical claim + 多条 evidence
+- [x] 合并 confidence（max）
+- [x] 保留 raw claim 用于审计
+- [x] 对现有冗余做一次性回填（807 merged）
+- [x] 不做矛盾合并
 
 **难度：L（8–12d）**  
 **依赖：A**  
@@ -98,11 +98,11 @@ claim coverage:        15.94%（effective 17.80%）
 
 ### D. Version Supersede（自动）
 
-- [ ] 同 family + 新 revision + 同 subject/predicate/scope + 不同值
-- [ ] 旧 claim → `superseded`；新 claim → `active`
-- [ ] `supersedes` 关系 + 自动 `Contradiction`
-- [ ] 审计 + 可撤销
-- [ ] 人工“保留双方”优先于自动
+- [x] 同 family + 新 revision + 同模板/不同值（v0）
+- [x] 旧 claim → `superseded`；新 claim → `active`
+- [x] `supersedes` 关系 + 自动 `Contradiction`
+- [x] 审计（Adjudication）+ reopen
+- [x] 人工“保留双方”优先于自动
 
 **难度：M（4–6d）**  
 **依赖：A/B/C**  
@@ -114,16 +114,16 @@ claim coverage:        15.94%（effective 17.80%）
 
 P0 规则：
 
-- [ ] 同 `subject + predicate` 不同 `object/value`
-- [ ] 数值/日期/寄存器地址/位宽/复位值
-- [ ] 同 register/field 不同值
-- [ ] 同文档/跨文档
-- [ ] severity：high/medium/low
+- [~] 同模板 + 不同单值（v0 保守；真实库 0）
+- [~] 数值/寄存器值（v0；日期/位宽未覆盖）
+- [~] 同模板/单值（v0）
+- [x] 同文档/跨文档
+- [x] severity：high/medium（v0）
 
 P2 语义：
 
 - [ ] embedding 相似 + NLI/LLM judge
-- [ ] 时间/版本/来源上下文一起判断
+- [~] 版本/来源上下文（v0）；时间未覆盖
 - [ ] 误报评测集
 
 **难度：L（规则 8–12d；NLI 另 8–12d）**  
@@ -134,13 +134,13 @@ P2 语义：
 
 ### F. Human Adjudication
 
-- [ ] `POST /api/claims/{id}/adjudicate`
-- [ ] 动作：accept A/B、keep both、merge、split、mark error、needs evidence、reopen
-- [ ] 事务：claim status + evidence + contradiction + audit
-- [ ] 权限：wiki-manage/admin
-- [ ] 冲突队列 API
-- [ ] 最小审核 UI（侧栏/卡片）
-- [ ] 裁定后标记相关 Wiki stale
+- [x] `POST /api/conflicts/{id}/adjudicate`
+- [x] 动作：accept A/B、keep both、mark error、needs evidence、reopen（merge/split 未做）
+- [x] 事务：claim status + contradiction + audit
+- [~] 权限：demo 阶段 admin 单用户
+- [x] 冲突队列 API
+- [x] 最小审核 UI（Sidebar Conflicts）
+- [x] 裁定后标记相关 Wiki stale
 
 **难度：M（5–8d）**  
 **依赖：A/E**  
@@ -150,12 +150,12 @@ P2 语义：
 
 ### G. AnswerEngine 冲突感知
 
-- [ ] 只取 `active` claims
-- [ ] `disputed` 并列展示
-- [ ] `superseded` 默认排除，历史问题可返回
-- [ ] 引用带 status/source/date/revision/page
-- [ ] 冲突未裁决时明确说“存在冲突”
-- [ ] 不静默选一个
+- [x] 只取 `active` claims
+- [x] `disputed` 并列展示
+- [~] `superseded` 默认排除；历史问题未做
+- [~] 引用带 status/source/date/page；revision 部分
+- [x] 冲突未裁决时明确说“存在冲突”
+- [x] 不静默选一个
 
 **难度：M（4–6d）**  
 **依赖：A/C/E**  
@@ -165,13 +165,13 @@ P2 语义：
 
 ### H. Graph 投影
 
-- [ ] GraphEdge 挂 `claim_id` / `evidence_id`
-- [ ] 关系继承 claim `status/version`
+- [~] GraphEdge 挂 `canonical_claim_id` / status 列；回填未做
+- [~] status 列 + 查询过滤；版本继承未做
 - [ ] 关系型 claim → triple → edge
 - [ ] 属性型 claim 不进图
 - [ ] Entity resolution（CM55 / Cortex-M55）
 - [ ] GraphExtractor prompt 改 ARM 技术关系
-- [ ] 查询只返回 active
+- [x] 查询只返回 active
 
 **难度：L（6–10d）**  
 **依赖：C**  
@@ -181,10 +181,10 @@ P2 语义：
 
 ### I. Timeline 投影
 
-- [ ] Event 挂 claim/evidence
-- [ ] 事件 status/version
+- [~] Event 挂 canonical_claim_id / status 列；回填未做
+- [~] status 列 + 查询过滤；版本未做
 - [ ] 时间冲突/版本差异
-- [ ] 与 Timeline UI 对接
+- [x] Timeline UI 保留；status 过滤
 
 **难度：M（3–5d）**  
 **依赖：A/C**  
@@ -195,11 +195,11 @@ P2 语义：
 ### J. LLM-Wiki 状态与重建
 
 - [ ] `WikiArtifactState`：claim hash / prompt version / status counts / stale
-- [ ] `stale` 事件：claim 状态/版本/裁定变化
+- [x] `stale` 事件：claim 变化/裁定
 - [ ] 重建队列（单页/批量）
-- [ ] 增量 vs 全量规则
+- [~] 手动单页/全量；增量未做
 - [ ] 页面 Current / History / Disputed 结构
-- [ ] stale 页面不参与权威回答
+- [x] stale 页面不参与权威回答
 
 **难度：M（4–6d）**  
 **依赖：A/C**  
@@ -209,11 +209,11 @@ P2 语义：
 
 ### K. Wiki 规模策略
 
-- [ ] Tier 1 curated（100–300 页）
+- [~] Tier 1 策展 12 页；100–300 未做
 - [ ] Tier 2 on-demand（缓存）
-- [ ] Tier 3 不建页
-- [ ] 单页 claim 上限 250
-- [ ] 子页拆分（IP/协议/技术）
+- [~] Tier 3 只检索；策略未固化
+- [x] 单页 claim 上限 250
+- [~] 三级分类；IP 子页未做
 - [ ] usage/coverage 优先级
 - [ ] 后台批处理
 
@@ -251,14 +251,14 @@ P2 语义：
 
 ### N. Metrics / Evaluation
 
-- [ ] duplicate doc/claim rate
-- [ ] canonical claim count
-- [ ] conflict count by type/severity
-- [ ] auto-resolved vs pending
+- [x] duplicate doc/claim rate（metrics）
+- [x] canonical claim count
+- [x] conflict count by type/severity
+- [x] auto-resolved vs pending
 - [ ] review SLA
-- [ ] wiki coverage/stale rate
+- [~] wiki stale count；coverage 已有
 - [ ] answer conflict compliance
-- [ ] regression golden set
+- [~] synthetic tests；黄金集未做
 
 **难度：S（2–3d）**  
 **依赖：A/C/E/J**  
@@ -378,7 +378,21 @@ N Metrics depends on A/C/E/J
 
 ---
 
-## 8. 工作量粗估
+## 8. v0 实施记录（2026-10-30）
+
+- Schema：`CanonicalClaim` / `ClaimEvidence` / `Contradiction` / `Adjudication` / `WikiArtifactState`；Document/Claim/Relationship/Event 新列。
+- 迁移脚本：`scripts/knowledge_v2_migrate.py`、`scripts/knowledge_v2_rescan.py`、`scripts/knowledge_v2_wiki_states.py`。
+- 数据：10,573 raw claims → 9,766 canonical + 10,573 evidence；807 merged；当前 0 open conflicts（保守模板规则）。
+- API：`/api/knowledge/metrics`、`/api/conflicts`、`/api/conflicts/scan`、`/api/conflicts/{id}/adjudicate`、`/api/canonical-claims`、`/api/canonical-claims/{id}/evidence`。
+- UI：Sidebar **Conflicts**；accept A/B、keep both、mark error、needs evidence、reopen；Wiki stale banner。
+- AnswerEngine：canonical active/disputed + conflict context + 不静默选边。
+- 12 个策展 Wiki 页面标记 stale；重建后 state 清除 stale。
+- 备份：`/tmp/armkb_before_knowledge_v2.sql`（116MB）。
+- 未完成：Graph/Timeline claim 回填、chunk dedup、Wiki 重建队列/自动重建、NLI/近重复文档。
+
+---
+
+## 9. 工作量粗估
 
 | 工作流 | 难度 | 粗估 |
 |---|---|---|
