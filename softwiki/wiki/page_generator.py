@@ -168,7 +168,7 @@ class WikiPageGenerator:
                 event_conds.append(Event.topic.like(alias.replace("*", "%").replace("?", "_")))
             else:
                 event_conds.append(Event.topic == alias)
-        events = db.query(Event).filter(or_(*event_conds)).order_by(Event.event_date.asc()).all()
+        events = db.query(Event).filter(or_(*event_conds), Event.status == "active").order_by(Event.event_date.asc()).all()
         events_data = [
             {
                 "date": e.event_date.strftime("%Y-%m-%d"),

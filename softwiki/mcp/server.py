@@ -580,7 +580,7 @@ def graph_query(entity: str = None, relation_type: str = None, limit: int = 20) 
             entity_q = entity_q.filter(Entity.name.ilike(f"%{entity}%"))
         entities = entity_q.limit(limit).all()
 
-        rel_q = db.query(Relationship)
+        rel_q = db.query(Relationship).filter(Relationship.status == "active")
         if entity:
             rel_q = rel_q.filter(
                 (Relationship.source_name.ilike(f"%{entity}%")) |
@@ -711,7 +711,7 @@ def timeline_query(topic: str = None, start_date: str = None, end_date: str = No
         from softwiki.source_store.models import Event
         from datetime import datetime as dt
 
-        q = db.query(Event).order_by(Event.event_date)
+        q = db.query(Event).filter(Event.status == "active").order_by(Event.event_date)
         if topic:
             q = q.filter(Event.topic.ilike(f"%{topic}%"))
         if start_date:

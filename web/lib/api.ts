@@ -122,6 +122,8 @@ export interface WikiPageResponse {
   content: string;
   filepath: string;
   built_at: string;
+  stale?: boolean;
+  stale_at?: string | null;
 }
 
 export interface IngestResult {

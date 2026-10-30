@@ -1275,11 +1275,20 @@ def get_wiki_page(topic: str):
         content = f.read()
     import time
     mtime = os.path.getmtime(filepath)
+    db = SessionLocal()
+    try:
+        state = db.query(WikiArtifactState).filter(WikiArtifactState.topic == topic).first()
+        stale = bool(state and state.stale_at)
+        stale_at = state.stale_at.isoformat() if state and state.stale_at else None
+    finally:
+        db.close()
     return {
         "topic": topic,
         "content": content,
         "filepath": filepath,
         "built_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)),
+        "stale": stale,
+        "stale_at": stale_at,
     }
 
 
@@ -1355,7 +1364,7 @@ def list_timeline():
     """Lists all timeline events sorted chronologically."""
     db = SessionLocal()
     try:
-        events = db.query(Event).order_by(Event.event_date.asc()).all()
+        events = db.query(Event).filter(Event.status == "active").order_by(Event.event_date.asc()).all()
         return [
             {
                 "id": ev.id,
@@ -1379,7 +1388,7 @@ def list_graph():
     db = SessionLocal()
     try:
         entities = db.query(Entity).all()
-        relationships = db.query(Relationship).all()
+        relationships = db.query(Relationship).filter(Relationship.status == "active").all()
         return {
             "entities": [
                 {

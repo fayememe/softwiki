@@ -56,6 +56,7 @@ export default function WikiPanel() {
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [rawMarkdown, setRawMarkdown] = useState('');
   const [builtAt, setBuiltAt] = useState('');
+  const [stale, setStale] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [linkedMarkdown, setLinkedMarkdown] = useState('');
@@ -136,7 +137,8 @@ export default function WikiPanel() {
       const linked = buildLinkedMarkdown(page.content, keys, map, topic);
       setLinkedMarkdown(linked);
       setBuiltAt(page.built_at);
-    } catch { setRawMarkdown(''); setBuiltAt(''); }
+      setStale(Boolean(page.stale));
+    } catch { setRawMarkdown(''); setBuiltAt(''); setStale(false); }
     finally { setLoading(false); }
   };
 
@@ -436,6 +438,11 @@ export default function WikiPanel() {
         ) : (
           <>
             <div className={styles.articleHeader}>
+              {stale && (
+                <div className={styles.staleBanner}>
+                  This wiki page is stale relative to the canonical claims. Regenerate it before using it as an authoritative source.
+                </div>
+              )}
               <h1 className={styles.articleTitle}>{topicName(selectedTopic)}</h1>
               <div className={styles.articleMeta}>
                 <span className={styles.builtAt}>Built {builtAt}</span>
