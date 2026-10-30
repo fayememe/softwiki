@@ -35,6 +35,6 @@ graph TD
 - **Agent Web 计划**：[`05-roadmap/agent-web-plan.md`](./05-roadmap/agent-web-plan.md)
 - **知识系统思想**：[`02-design/knowledge-system-philosophy.md`](./02-design/knowledge-system-philosophy.md)
 - **知识系统实现计划**：[`05-roadmap/knowledge-system-plan.md`](./05-roadmap/knowledge-system-plan.md)
-- **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 WikiArtifact stale；备份 `/tmp/armkb_before_knowledge_v2.sql`。
+- **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 Wiki 已用 canonical claims 重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 claim；备份 `/tmp/armkb_before_knowledge_v2.sql`。
 - **Session / 沙盒 / 审核计划**：[`05-roadmap/agent-session-sandbox-plan.md`](./05-roadmap/agent-session-sandbox-plan.md)
 - **已知限制**：出站 LLM/embedding 许可未确认；OCR 未做；TLS/反代未做；Agent remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；部分 PDF 标题为 `Untitled Document`。

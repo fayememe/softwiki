@@ -125,6 +125,6 @@ Current workspace: default (0 documents) / eva-kb (30 documents, 2173 claims, 11
 - **P0**：Schema v2（ClaimEvidence/status/Contradiction）、版本 supersede、canonical claim、人工裁定、冲突感知 AnswerEngine。
 - **P1**：Graph/Timeline 挂 claim、WikiArtifact stale/rebuild、chunk dedup、Wiki 规模策略。
 - **P2**：近重复文档、NLI 冲突检测、自动 family/revision。
-- **v0 已完成**：Schema v2、canonical claim + evidence、版本 supersede（新文档）、规则冲突（保守）、Adjudication API/UI、冲突感知 AnswerEngine、WikiArtifact stale、metrics。
-- 当前：9,766 canonical / 10,573 evidence；0 open conflicts（模板规则保守）；12 页 stale。
-- 未完成：Graph/Timeline claim 回填、chunk dedup、Wiki 重建队列/自动重建、NLI/近重复文档。
+- **v0 已完成**：Schema v2、canonical claim + evidence、版本 supersede（新文档）、规则冲突（保守）、Adjudication API/UI、冲突感知 AnswerEngine、WikiArtifact stale/rebuild、chunk dedup、Graph/Timeline claim 回填、metrics。
+- 当前：9,766 canonical / 10,573 evidence；0 open conflicts；12 页 Wiki 已重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 已挂 claim；近重复 6 对（仅报告）。
+- 未完成：Wiki 自动重建触发、Graph/Timeline 版本继承、NLI、近重复自动合并。

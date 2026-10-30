@@ -165,8 +165,8 @@ P2 语义：
 
 ### H. Graph 投影
 
-- [~] GraphEdge 挂 `canonical_claim_id` / status 列；回填未做
-- [~] status 列 + 查询过滤；版本继承未做
+- [x] GraphEdge 挂 `canonical_claim_id` / status：6,994/7,211 已回填
+- [x] status 列 + 查询过滤；版本继承未做
 - [ ] 关系型 claim → triple → edge
 - [ ] 属性型 claim 不进图
 - [ ] Entity resolution（CM55 / Cortex-M55）
@@ -181,8 +181,8 @@ P2 语义：
 
 ### I. Timeline 投影
 
-- [~] Event 挂 canonical_claim_id / status 列；回填未做
-- [~] status 列 + 查询过滤；版本未做
+- [x] Event 挂 canonical_claim_id / status：599/639 已回填
+- [x] status 列 + 查询过滤；版本未做
 - [ ] 时间冲突/版本差异
 - [x] Timeline UI 保留；status 过滤
 
@@ -197,7 +197,7 @@ P2 语义：
 - [ ] `WikiArtifactState`：claim hash / prompt version / status counts / stale
 - [x] `stale` 事件：claim 变化/裁定
 - [ ] 重建队列（单页/批量）
-- [~] 手动单页/全量；增量未做
+- [~] 手动批量 `rebuild_stale_wiki.py`；增量未做
 - [ ] 页面 Current / History / Disputed 结构
 - [x] stale 页面不参与权威回答
 
@@ -225,7 +225,7 @@ P2 语义：
 
 ### L. Near-duplicate Documents（P2）
 
-- [ ] SimHash/MinHash/embedding
+- [~] bottom-k MinHash 报告（6 对候选）
 - [ ] `duplicate_of_document_id`
 - [ ] 不重复抽取
 - [ ] 保留 occurrence
@@ -238,9 +238,9 @@ P2 语义：
 
 ### M. Chunk Dedup（P1）
 
-- [ ] normalized chunk hash
-- [ ] canonical chunk + occurrence
-- [ ] 检索折叠重复/重叠
+- [x] normalized chunk text 检索折叠（v0；未落 chunk hash）
+- [~] canonical chunk + occurrence 未做
+- [x] 检索折叠重复（exact normalized text）
 - [ ] MMR/多样性
 
 **难度：M（3–5d）**  
@@ -388,7 +388,8 @@ N Metrics depends on A/C/E/J
 - AnswerEngine：canonical active/disputed + conflict context + 不静默选边。
 - 12 个策展 Wiki 页面标记 stale；重建后 state 清除 stale。
 - 备份：`/tmp/armkb_before_knowledge_v2.sql`（116MB）。
-- 未完成：Graph/Timeline claim 回填、chunk dedup、Wiki 重建队列/自动重建、NLI/近重复文档。
+- 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；MinHash 近重复 6 对报告。
+- 未完成：Wiki 自动重建触发、Graph/Timeline 版本继承、NLI、近重复自动合并。
 
 ---
 
