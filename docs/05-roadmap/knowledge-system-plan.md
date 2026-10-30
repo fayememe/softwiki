@@ -3,6 +3,7 @@
 > status: 🚧 讨论中（2026-10-25）
 > 原则文档：`docs/02-design/knowledge-system-philosophy.md`
 > 目标：把当前“按文档并行的抽取结果”升级为“以 Claim 为中心、可去重、可版本化、可人工裁决、可投影”的知识系统。
+> 术语：**LLM-Wiki** 是叙事层；**WikiArtifact / WikiArtifactState** 是页面工件；**Static Wiki Site** 是发布层，三者不是一回事。
 
 ---
 
@@ -55,7 +56,7 @@ claim coverage:        15.94%（effective 17.80%）
 - [ ] `ClaimEvidence`: `claim_id`, `document_id`, `page_start`, `page_end`, `quote`, `source_revision`, `trust_level`
 - [ ] `Contradiction`: `claim_a_id`, `claim_b_id`, `type`, `severity`, `status`, `auto_resolved`, `resolution`
 - [ ] `Adjudication`: `contradiction_id`, `action`, `before`, `after`, `actor`, `reason`, `created_at`
-- [ ] `WikiPageState`: `topic`, `prompt_version`, `model`, `claim_set_hash`, `status_counts`, `built_at`, `stale_at`
+- [ ] `WikiArtifactState`: `topic`, `prompt_version`, `model`, `claim_set_hash`, `status_counts`, `built_at`, `stale_at`
 - [ ] Alembic/迁移脚本；SQLite/PG 双支持
 
 **难度：L（8–12d）**  
@@ -193,7 +194,7 @@ P2 语义：
 
 ### J. LLM-Wiki 状态与重建
 
-- [ ] `WikiPageState`：claim hash / prompt version / status counts / stale
+- [ ] `WikiArtifactState`：claim hash / prompt version / status counts / stale
 - [ ] `stale` 事件：claim 状态/版本/裁定变化
 - [ ] 重建队列（单页/批量）
 - [ ] 增量 vs 全量规则

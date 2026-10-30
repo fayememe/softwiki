@@ -126,6 +126,35 @@
 - [ ] 继续 alias/新 canonical 收编 7,781 unmapped
 - [ ] PL301/NIC-400 等 IP 文档补齐；DMA/其他产品后续加入
 
+
+### M6 — 知识系统（Claim / 冲突 / 版本 / 投影）
+> 原则：`docs/02-design/knowledge-system-philosophy.md`
+> 计划：`docs/05-roadmap/knowledge-system-plan.md`
+> 术语：LLM-Wiki = 叙事层；WikiArtifact = 页面工件；Static Wiki Site = 发布层
+
+**P0 — 事实层可裁决**
+- [ ] A Schema v2：ClaimEvidence / claim status / Contradiction / WikiArtifactState
+- [ ] B Ingestion/versioning：family_id / revision / supersedes
+- [ ] C Claim canonicalization v1：跨文档合并 + evidence
+- [ ] D Version supersede：版本更新自动
+- [ ] E Conflict rules v0：数值/寄存器/日期
+- [ ] F Adjudication API + 最小审核 UI
+- [ ] G Conflict-aware AnswerEngine
+- [ ] N Metrics：重复/冲突/覆盖/审核
+
+**P1 — 投影层可控**
+- [ ] H GraphEdge 挂 claim/evidence/status
+- [ ] I Timeline 挂 claim/evidence
+- [ ] J WikiArtifact stale / rebuild queue / Current-History-Disputed
+- [ ] M Chunk dedup
+- [ ] K Wiki 规模策略：Tier 1/2/3、子页、限额
+
+**P2 — 大库与自动化**
+- [ ] L Near-duplicate documents
+- [ ] E NLI/LLM conflict detection
+- [ ] 自动文档家族/revision
+- [ ] 冲突严重度/成本/队列优化
+
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。

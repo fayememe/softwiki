@@ -29,7 +29,7 @@ Document（原始、不可变）
              ├─ ClaimEvidence（文档/页码/原文/版本）
              ├─ RelationTriple → Graph（关系投影）
              ├─ EventRecord   → Timeline（时间投影）
-             └─ WikiPage      → LLM-Wiki（叙事投影）
+             └─ WikiArtifact  → LLM-Wiki（叙事投影）
 ```
 
 | 层 | 职责 | 事实源 |
@@ -44,6 +44,17 @@ Document（原始、不可变）
 一句话：
 
 > **Chunk 负责找得到，Claim 负责可裁决，Graph/Timeline 负责结构，LLM-Wiki 负责讲给人听。**
+
+### 1.1 术语（避免混淆）
+
+| 术语 | 含义 | 不是什么 |
+|---|---|---|
+| **LLM-Wiki** | Claim/Evidence 的叙事投影层 | 不是事实源 |
+| **WikiArtifact** | 某个 topic 生成出的 Markdown + 状态 JSON 工件 | 不是静态 HTML 站点 |
+| **WikiPanel** | WebUI 里的动态预览/编辑入口 | 不是站点生成器 |
+| **Static Wiki Site** | 由 WikiArtifact 构建出的静态 HTML 站点（MkDocs/Docusaurus/Next export 等） | 不参与 claim/冲突/版本逻辑 |
+
+当前代码中的 `WikiPageGenerator` 是 **WikiArtifact compiler**；`WikiPanel` 是动态 UI；目前还没有静态站点生成/发布层。
 
 ---
 
@@ -128,7 +139,7 @@ ClaimCandidate
 CanonicalClaim
   ├─ RelationTriple → GraphEdge
   ├─ EventRecord   → TimelineEvent
-  └─ WikiPage      → LLM-Wiki
+  └─ WikiArtifact  → LLM-Wiki
 ```
 
 投影可以重建；投影不反向覆盖 claim。

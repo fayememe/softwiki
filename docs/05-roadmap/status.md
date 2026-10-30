@@ -113,3 +113,16 @@ Current workspace: default (0 documents) / eva-kb (30 documents, 2173 claims, 11
 - L1 已上线：宿主 opencode `:6111` + WebUI Agent 入口；L2 已上线：`/api/agent/*` + Quick/Agent + research steps（非流式）。
 - 验证：`/api/agent/status` available；acceptance 11/11；浏览器 Agent 模式已实测。
 - 产品化：独立 `softwiki-agent` 容器，pin opencode `1.18.35`，固定配置，升级冒烟测试。
+
+
+---
+
+## Workstream — Knowledge System
+
+> 原则：`docs/02-design/knowledge-system-philosophy.md`
+> 计划：`docs/05-roadmap/knowledge-system-plan.md`
+
+- **P0**：Schema v2（ClaimEvidence/status/Contradiction）、版本 supersede、canonical claim、人工裁定、冲突感知 AnswerEngine。
+- **P1**：Graph/Timeline 挂 claim、WikiArtifact stale/rebuild、chunk dedup、Wiki 规模策略。
+- **P2**：近重复文档、NLI 冲突检测、自动 family/revision。
+- 当前：Graph 与 Claim 并行、无 ClaimEvidence/status/Contradiction、Wiki 手动重建。
