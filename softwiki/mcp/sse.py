@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from softwiki.config import get_workspace_dir
 from softwiki.permissions import can, current_role
+from softwiki.knowledge.versioning import assign_document_version
 
 def create_mcp_server():
     """Build the FastMCP server with all SoftWiki tools registered (transport-agnostic)."""
@@ -67,8 +68,9 @@ def create_mcp_server():
             text_hash = calculate_hash(cleaned_text)
             if is_duplicate_hash(db, text_hash):
                 return "Skipped: duplicate content."
-            if is_duplicate_url(db, url):
-                return "Skipped: duplicate URL."
+            existing_url = DocumentRepository.get_document_by_url(db, url) if url else None
+            if existing_url and existing_url.hash == text_hash:
+                return "Skipped: duplicate URL and content."
 
             doc = Document(
                 title=content.get("title", "Untitled"),
@@ -80,7 +82,10 @@ def create_mcp_server():
                 cleaned_text=cleaned_text,
                 collected_at=datetime.utcnow(),
             )
+            assign_document_version(db, doc)
             doc = DocumentRepository.create_document(db, doc)
+            assign_document_version(db, doc)
+            db.commit()
             run_extraction_pipeline(db, doc.id, cleaned_text, content.get("published_at"), background=True)
             return f"Ingested: {doc.title} (id={doc.id})"
         except Exception as e:
@@ -131,7 +136,10 @@ def create_mcp_server():
                     hash=text_hash, raw_text=text, cleaned_text=text,
                     collected_at=datetime.utcnow(),
                 )
+                assign_document_version(db, doc)
                 doc = DocumentRepository.create_document(db, doc)
+                assign_document_version(db, doc)
+                db.commit()
                 run_extraction_pipeline(db, doc.id, text, None, background=True)
                 return f"Ingested: {title} (id={doc.id})"
             finally:
@@ -158,7 +166,10 @@ def create_mcp_server():
                     hash=text_hash, raw_text=content.get("raw_text", ""), cleaned_text=cleaned,
                     collected_at=datetime.utcnow(),
                 )
+                assign_document_version(db, doc)
                 doc = DocumentRepository.create_document(db, doc)
+                assign_document_version(db, doc)
+                db.commit()
                 run_extraction_pipeline(db, doc.id, cleaned, content.get("published_at"), background=True)
                 return f"Ingested: {doc.title} (id={doc.id})"
             finally:
