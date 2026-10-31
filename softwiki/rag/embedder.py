@@ -39,7 +39,8 @@ def get_openai_client():
         from openai import OpenAI
         api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
         api_base = os.getenv("EMBEDDING_API_BASE") or os.getenv("OPENAI_API_BASE")
-        _openai_client = OpenAI(api_key=api_key, base_url=api_base)
+        timeout = float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "20"))
+        _openai_client = OpenAI(api_key=api_key, base_url=api_base, timeout=timeout)
     return _openai_client
 
 def get_local_model(model_name: str):
@@ -89,16 +90,17 @@ class WikiEmbedder:
         concurrency = max(1, int(os.getenv("EMBEDDING_CONCURRENCY", "4")))
         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
 
+        max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "1")))
         def embed_batch(batch):
             _RATE_LIMITER.acquire(sum(len(text) for text in batch))
-            for attempt in range(5):
+            for attempt in range(max_retries + 1):
                 try:
                     response = client.embeddings.create(input=batch, model=self.model_name)
                     return [data.embedding for data in response.data]
                 except Exception:
-                    if attempt == 4:
+                    if attempt >= max_retries:
                         raise
-                    time.sleep(min(60, 5 * (attempt + 1)))
+                    time.sleep(min(5, 0.5 * (attempt + 1)))
 
         results: List[List[List[float]] | None] = [None] * len(batches)
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
