@@ -532,6 +532,10 @@ export interface ConflictClaim {
   status: string;
   confidence: number;
   value_normalized: string | null;
+  subject?: string | null;
+  predicate?: string | null;
+  object?: string | null;
+  qualifiers?: string | null;
   document_id: number | null;
   title: string | null;
   source_name: string | null;

@@ -36,7 +36,8 @@ function ClaimSide({ label, claim }: { label: string; claim: ConflictClaim | nul
         <span>{claim.published_at || 'unknown date'}</span>
         {claim.revision && <span>rev {claim.revision}</span>}
         <span>{pages}</span>
-        {claim.value_normalized && <span className={styles.valueChip}>{claim.value_normalized}</span>}
+        {claim.subject && <span>{claim.subject}{claim.predicate ? ` · ${claim.predicate}` : ''}</span>}
+        {claim.object && <span className={styles.valueChip}>{claim.object}</span>}
       </div>
     </div>
   );
