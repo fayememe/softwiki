@@ -196,3 +196,21 @@ def test_wiki_artifact_history_archive(db, tmp_path):
     # Archiving the same content again is idempotent.
     gen._archive_previous(db, "pl031", str(md), None, str(js))
     assert db.query(WikiArtifactVersion).count() == 1
+
+
+def test_structured_conflict_same_subject_predicate(db):
+    from softwiki.knowledge.canonical import canonicalize_claim
+    from softwiki.knowledge.conflicts import scan_conflicts
+    from softwiki.source_store.models import CanonicalClaim, Contradiction
+    d1 = _doc(db, "A", "https://a/x", datetime(2024, 1, 1))
+    d2 = _doc(db, "B", "https://b/x", datetime(2024, 1, 1))
+    c1 = _claim(db, d1, "s1", "RTCCR reset value is 0x0.")
+    c2 = _claim(db, d2, "s2", "The RTCCR reset value equals 0x1.")
+    a = canonicalize_claim(db, c1, d1)
+    b = canonicalize_claim(db, c2, d2)
+    for c, obj in ((a, "0x0"), (b, "0x1")):
+        c.subject = "RTCCR"; c.predicate = "reset value"; c.object = obj; c.qualifiers = "{}"
+    db.commit()
+    scan_conflicts(db)
+    row = db.query(Contradiction).first()
+    assert row is not None and row.type == "source_conflict"

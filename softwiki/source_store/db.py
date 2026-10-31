@@ -82,6 +82,18 @@ def init_tables():
             ("valid_from", "TIMESTAMP"),
             ("valid_to", "TIMESTAMP"),
             ("value_normalized", "VARCHAR(200)"),
+            ("subject", "VARCHAR(300)"),
+            ("predicate", "VARCHAR(200)"),
+            ("object", "VARCHAR(500)"),
+            ("qualifiers", "TEXT"),
+            ("structure_hash", "VARCHAR(64)"),
+        ])
+        _ensure_columns(engine, "canonical_claims", [
+            ("subject", "VARCHAR(300)"),
+            ("predicate", "VARCHAR(200)"),
+            ("object", "VARCHAR(500)"),
+            ("qualifiers", "TEXT"),
+            ("structure_hash", "VARCHAR(64)"),
         ])
         _ensure_columns(engine, "relationships", [
             ("canonical_claim_id", "VARCHAR(100)"),
@@ -98,6 +110,8 @@ def init_tables():
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_id ON claims (canonical_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_key ON claims (canonical_key)",
             "CREATE INDEX IF NOT EXISTS ix_claims_status ON claims (status)",
+            "CREATE INDEX IF NOT EXISTS ix_claims_structure_hash ON claims (structure_hash)",
+            "CREATE INDEX IF NOT EXISTS ix_canonical_claims_structure_hash ON canonical_claims (structure_hash)",
             "CREATE INDEX IF NOT EXISTS ix_relationships_canonical_claim_id ON relationships (canonical_claim_id)",
             "CREATE INDEX IF NOT EXISTS ix_relationships_status ON relationships (status)",
             "CREATE INDEX IF NOT EXISTS ix_events_canonical_claim_id ON events (canonical_claim_id)",

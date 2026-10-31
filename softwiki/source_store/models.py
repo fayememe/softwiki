@@ -76,6 +76,11 @@ class Claim(Base):
     valid_from = Column(DateTime, nullable=True)
     valid_to = Column(DateTime, nullable=True)
     value_normalized = Column(String(200), nullable=True)
+    subject = Column(String(300), nullable=True)
+    predicate = Column(String(200), nullable=True)
+    object = Column(String(500), nullable=True)
+    qualifiers = Column(Text, nullable=True)
+    structure_hash = Column(String(64), nullable=True, index=True)
 
     document = relationship("Document", back_populates="claims")
 
@@ -139,6 +144,11 @@ class CanonicalClaim(Base):
     primary_page_start = Column(Integer, nullable=True)
     primary_page_end = Column(Integer, nullable=True)
     value_normalized = Column(String(200), nullable=True)
+    subject = Column(String(300), nullable=True)
+    predicate = Column(String(200), nullable=True)
+    object = Column(String(500), nullable=True)
+    qualifiers = Column(Text, nullable=True)
+    structure_hash = Column(String(64), nullable=True, index=True)
     evidence_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
@@ -208,6 +218,23 @@ class Adjudication(Base):
     actor = Column(String(80), nullable=False)
     reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ClaimPairJudgement(Base):
+    __tablename__ = "claim_pair_judgements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    claim_a_id = Column(String(100), nullable=False, index=True)
+    claim_b_id = Column(String(100), nullable=False, index=True)
+    model = Column(String(120), nullable=True)
+    verdict = Column(String(30), nullable=False)
+    reason = Column(Text, nullable=True)
+    severity = Column(String(20), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("claim_a_id", "claim_b_id", "model", name="uq_claim_pair_judgement"),
+    )
 
 
 class WikiArtifactState(Base):

@@ -84,19 +84,37 @@ def _create(db: Session, a: CanonicalClaim, b: CanonicalClaim, ctype: str,
     return row
 
 
+def _structured(c: CanonicalClaim):
+    if not c.subject or not c.predicate:
+        return None
+    return (
+        normalize_text(c.subject),
+        normalize_text(c.predicate),
+        normalize_text(c.qualifiers or ""),
+        normalize_text(c.object or ""),
+    )
+
+
 def _compare(db: Session, a: CanonicalClaim, b: CanonicalClaim) -> Optional[Contradiction]:
     if a.id == b.id:
         return None
     if a.status not in ("active", "disputed") or b.status not in ("active", "disputed"):
         return None
-    ta = _single_value_template(a.text)
-    tb = _single_value_template(b.text)
-    if not ta or not tb:
-        return None
-    template_a, value_a = ta
-    template_b, value_b = tb
-    if template_a != template_b or value_a == value_b:
-        return None
+    sa = _structured(a)
+    sb = _structured(b)
+    if sa and sb:
+        # Same subject/predicate/qualifiers, different object = candidate conflict.
+        if sa[:3] != sb[:3] or sa[3] == sb[3]:
+            return None
+    else:
+        ta = _single_value_template(a.text)
+        tb = _single_value_template(b.text)
+        if not ta or not tb:
+            return None
+        template_a, value_a = ta
+        template_b, value_b = tb
+        if template_a != template_b or value_a == value_b:
+            return None
 
     da, db_doc = _doc(db, a), _doc(db, b)
     if da and db_doc and da.family_id and da.family_id == db_doc.family_id:
@@ -195,6 +213,10 @@ def _claim_payload(c: Optional[CanonicalClaim], doc: Optional[Document]) -> Opti
         "status": c.status,
         "confidence": c.confidence,
         "value_normalized": c.value_normalized,
+        "subject": c.subject,
+        "predicate": c.predicate,
+        "object": c.object,
+        "qualifiers": c.qualifiers,
         "document_id": c.primary_document_id,
         "title": doc.title if doc else None,
         "source_name": doc.source_name if doc else None,
