@@ -79,7 +79,7 @@ docker compose -f ~/softwiki-ci/docker-compose.yml --project-name softwiki resta
 ## 7. 当前 Session 边界
 
 - Web chat sessions：浏览器 `localStorage`，不同浏览器分开；同一浏览器 profile 共享
-- Agent session：Web session -> opencode session 映射存在 localStorage
+- SWAgent session：Web session -> opencode session 映射存在 localStorage
 - MCP：transport session + role header
 - 还没有服务端 `chat_sessions` / 跨设备恢复 / 用户级隔离
 

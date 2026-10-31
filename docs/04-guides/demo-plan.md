@@ -13,7 +13,7 @@
 1. **答案有出处**：页码、source、原文片段。
 2. **事实可裁决**：claim / evidence / disputed / 人工裁定。
 3. **知识可投影**：Wiki、Graph、Timeline 都来自同一事实层。
-4. **研究可外包**：Agent 能多步检索，但只读、有工具轨迹。
+4. **研究可外包**：SWAgent 能多步检索，但只读、有工具轨迹。
 
 一句话话术：
 
@@ -52,7 +52,7 @@ open conflicts >= 1（演示冲突面板时）
 Agent status = available
 ```
 
-如果 Agent 离线：
+如果 SWAgent 离线：
 
 ```bash
 sudo systemctl restart softwiki-agent-web
@@ -155,7 +155,7 @@ Compare the interrupt behavior of PL031 and NIC-400, with page citations.
 
 收尾话术：
 
-> “Quick 负责快问快答，Agent 负责多步研究；两者共用同一个只读知识库。”
+> “Quick 负责快问快答，SWAgent 负责多步研究；两者共用同一个只读知识库。”
 
 ---
 
@@ -198,7 +198,7 @@ curl -s http://127.0.0.1:6200/api/wiki/coverage
 | 问题 | 处理 |
 |---|---|
 | LLM 慢/超时 | 改用已生成 Wiki 页面 + Claims；说明后台生成 |
-| Agent 离线 | 用 Quick 模式；或重启 `softwiki-agent-web` |
+| SWAgent 离线 | 用 Quick 模式；或重启 `softwiki-agent-web` |
 | 答案不完整 | 换更具体的问题；展示 source 页码，不硬撑 |
 | 冲突队列为空 | 用 NLI 脚本生成候选，或只讲机制不现场开 |
 | Wiki stale | 点击 Regenerate；worker 会自动跑 |
@@ -222,7 +222,7 @@ curl -s http://127.0.0.1:6200/api/wiki/coverage
 1. 答案能回到页码/原文
 2. Claim 有 evidence，冲突可人工审核
 3. Wiki/Graph/Timeline 是 Claim 投影
-4. Agent 只读、有工具轨迹
+4. SWAgent 只读、有工具轨迹
 5. 这是自部署、单库、准商用版本
 ```
 

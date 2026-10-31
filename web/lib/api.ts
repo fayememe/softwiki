@@ -192,7 +192,7 @@ export interface AgentStatusResponse {
 }
 
 export async function apiAgentStatus(): Promise<AgentStatusResponse> {
-  const res = await fetch(`${API_BASE}/api/agent/status`);
+  const res = await fetch(`${API_BASE}/api/swa/status`);
   const data = await res.json().catch(() => ({ available: false, url: '', error: 'Invalid response' }));
   return data;
 }
@@ -202,7 +202,7 @@ export async function apiAgentAsk(
   sessionId?: string,
   agent?: string,
 ): Promise<AgentAskResponse> {
-  const res = await fetch(`${API_BASE}/api/agent/ask`, {
+  const res = await fetch(`${API_BASE}/api/swa/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, session_id: sessionId || null, agent: agent || null }),
@@ -230,7 +230,7 @@ export async function apiAgentAsk(
 }
 
 export async function apiAgentAbort(sessionId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/agent/session/${encodeURIComponent(sessionId)}/abort`, {
+  await fetch(`${API_BASE}/api/swa/session/${encodeURIComponent(sessionId)}/abort`, {
     method: 'POST',
   });
 }

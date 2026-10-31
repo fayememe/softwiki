@@ -44,7 +44,7 @@
 | 答案不可信 | 问 ChatGPT，无法回溯 | Claim + evidence + source page |
 | 文档版本冲突 | 人肉比对 | version supersede + 冲突队列 |
 | 知识散落 | 人写 Wiki | Claim 投影 + stale/rebuild |
-| 新人上手慢 | 老工程师带 | Agent 多步检索 + Wiki |
+| 新人上手慢 | 老工程师带 | SWAgent 多步检索 + Wiki |
 | 冲突没人管 | 邮件/口头 | 人工裁定 + audit |
 
 ---

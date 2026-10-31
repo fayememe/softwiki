@@ -103,7 +103,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       content: '',
       isLoading: true,
       agent: engine === 'agent',
-      loadingLabel: engine === 'agent' ? 'Researching with the agent…' : undefined,
+      loadingLabel: engine === 'agent' ? 'Researching with SWAgent…' : undefined,
       timestamp: new Date(),
     };
 
@@ -127,8 +127,8 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
           id: genId(),
           role: 'assistant',
           content: agentError
-            ? `Agent error: ${agentError}`
-            : (response.answer || 'The agent returned an empty answer.'),
+            ? `SWAgent error: ${agentError}`
+            : (response.answer || 'SWAgent returned an empty answer.'),
           sources: response.sources || [],
           tools: response.tools || [],
           agent: true,
@@ -160,7 +160,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
         id: genId(),
         role: 'assistant',
         content: engine === 'agent'
-          ? `Agent request failed: ${errText}\n\nTry again, or open **Agent ↗** for the full opencode UI.`
+          ? `SWAgent request failed: ${errText}\n\nTry again, or open **SWSWAgent ↗** for the full agent UI.`
           : `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
         error: true,
         timestamp: new Date(),
@@ -233,11 +233,11 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 </svg>
               </div>
               <h2 className={styles.emptyTitle}>
-                {engine === 'agent' ? 'Deep Research Agent' : 'Research Chat'}
+                {engine === 'agent' ? 'SWAgent' : 'Research Chat'}
               </h2>
               <p className={styles.emptyDesc}>
                 {engine === 'agent'
-                  ? 'opencode agent with read-only knowledge-base tools and web research. It shows its research steps and cites datasheet pages.'
+                  ? 'SWAgent uses read-only knowledge-base tools and web research. It shows research steps and cites datasheet pages.'
                   : 'Ask questions about your ingested documents. The system searches across full-text, vectors, claims, and knowledge graph to give you grounded answers.'}
               </p>
               <div className={styles.suggestions}>
@@ -288,9 +288,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               className={`${styles.engineBtn} ${engine === 'agent' ? styles.engineActive : ''}`}
               onClick={() => setEngine('agent')}
               disabled={isLoading}
-              title="opencode agent; read-only KB + web research"
+              title="SWAgent; read-only KB + web research"
             >
-              Agent
+              SWAgent
             </button>
           </div>
           {engine === 'quick' ? MODES.map(m => (
@@ -303,7 +303,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
             </button>
           )) : (
             <span className={styles.agentHint}>
-              {agentAvailable === false ? 'Agent offline' : 'Read-only KB · opencode'}
+              {agentAvailable === false ? 'SWAgent offline' : 'Read-only KB · SWAgent'}
             </span>
           )}
           <div className={styles.modeRight}>
@@ -323,10 +323,10 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
             )}
             <a
               className={styles.agentBtn}
-              href="/agent"
+              href="/swagent"
               target="_blank"
               rel="noopener noreferrer"
-              title="Open the opencode Agent / Deep Research in a new tab"
+              title="Open SWAgent in a new tab"
             >
               Agent ↗
             </a>
@@ -354,7 +354,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={engine === 'agent' ? 'Ask the research agent…' : 'Ask a research question…'}
+              placeholder={engine === 'agent' ? 'Ask SWAgent…' : 'Ask a research question…'}
               rows={1}
               disabled={isLoading}
               aria-label="Research question"
@@ -393,7 +393,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
           </div>
           <p className={styles.hint}>
             {engine === 'agent'
-              ? 'The agent uses read-only KB tools and web search; it may take longer than Quick Answer.'
+              ? 'SWAgent uses read-only KB tools and web search; it may take longer than Quick Answer.'
               : 'Answers are grounded in your indexed documents.'} Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line.
           </p>
         </div>

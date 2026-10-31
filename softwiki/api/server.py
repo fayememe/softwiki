@@ -56,8 +56,8 @@ from softwiki.wiki.coverage import compute_coverage
 
 app = FastAPI(title="Softwiki REST API", version="0.1.0")
 
-AGENT_WEB_URL = os.getenv("AGENT_WEB_URL", "http://127.0.0.1:6111").rstrip("/")
-AGENT_DEFAULT = os.getenv("AGENT_DEFAULT", "wiki-research")
+AGENT_WEB_URL = (os.getenv("SWAGENT_URL") or os.getenv("AGENT_WEB_URL") or "http://127.0.0.1:6111").rstrip("/")
+AGENT_DEFAULT = os.getenv("SWAGENT_DEFAULT") or os.getenv("AGENT_DEFAULT") or "wiki-research"
 AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "300"))
 
 def _safe_db_url():
@@ -604,6 +604,7 @@ def _agent_answer_text(message: dict) -> str:
     return "\n\n".join(texts).strip()
 
 
+@app.get("/api/swa/status")
 @app.get("/api/agent/status")
 def agent_status():
     """Health and agent inventory for the opencode browser agent."""
@@ -631,12 +632,14 @@ def agent_status():
     }
 
 
+@app.post("/api/swa/session")
 @app.post("/api/agent/session")
 def agent_create_session(req: AgentSessionRequest):
-    session = _agent_request("POST", "/session", {"title": req.title or "SoftWiki Agent"})
+    session = _agent_request("POST", "/session", {"title": req.title or "SWAgent"})
     return {"session_id": session.get("id"), "session": session}
 
 
+@app.post("/api/swa/ask")
 @app.post("/api/agent/ask")
 def agent_ask(req: AgentAskRequest):
     """Send a question to the opencode agent and wait for the final answer.
@@ -710,12 +713,14 @@ def agent_ask(req: AgentAskRequest):
     }
 
 
+@app.post("/api/swa/session/{session_id}/abort")
 @app.post("/api/agent/session/{session_id}/abort")
 def agent_abort(session_id: str):
     _agent_request("POST", f"/session/{session_id}/abort", timeout=15)
     return {"status": "aborted", "session_id": session_id}
 
 
+@app.delete("/api/swa/session/{session_id}")
 @app.delete("/api/agent/session/{session_id}")
 def agent_delete(session_id: str):
     _agent_request("DELETE", f"/session/{session_id}", timeout=15)

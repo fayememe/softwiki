@@ -153,13 +153,13 @@ export default function Sidebar({
         })}
         <a
           className={`${styles.navItem} ${styles.navLink}`}
-          href="/agent"
+          href="/swagent"
           target="_blank"
           rel="noopener noreferrer"
-          title="Open the opencode Agent / Deep Research (new tab)"
+          title="Open SWAgent (new tab)"
         >
           <span className={styles.navIcon}><AgentIcon /></span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>Agent</span>}
+          {!effectiveCollapsed && <span className={styles.navLabel}>SWAgent</span>}
           {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
         </a>
       </nav>

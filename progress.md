@@ -7,7 +7,7 @@
 
 - **项目**：softwiki = 多策略研究智能引擎（RAG / GraphRAG / LLM-Wiki / ClaimDB / Timeline）。
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
-- **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode engine pin **1.19.5**（内置路径 `/opt/aitools/apps/softwiki/engine/opencode/1.19.5/opencode`）宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
+- **SWAgent（2026-10-24）**：L1/L2 已上线。WebUI **Quick / SWAgent** 双模式；opencode engine pin **1.19.5**（内置路径 `/opt/aitools/apps/softwiki/engine/opencode/1.19.5/opencode`）宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
 - **知识系统思想（2026-10-25）**：已落 `docs/02-design/knowledge-system-philosophy.md`（Claim 为事实源；Graph/Timeline/Wiki 为投影；重复/冲突/版本/人工裁定；LLM-Wiki 方法论与规模策略）。实现计划/难度：`docs/05-roadmap/knowledge-system-plan.md`。
 - **Knowledge v2 v0（2026-10-30）**：schema v2 + canonical claim 9,766 / evidence 10,573；Conflicts API/UI；Adjudication API/UI；AnswerEngine 只读 active/disputed；12 个 Wiki 页面已用 canonical claims 重建，stale 0；Graph 6,994/7,211、Timeline 599/639 已挂 canonical claim；Wiki rebuild worker + artifact history；structured claim fields + NLI judge（1 个真实冲突，2 claims disputed）；近重复候选 6 对；备份 `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。

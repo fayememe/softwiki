@@ -24,7 +24,7 @@ graph TD
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
 - **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量索引完成）。
-- **Agent Web（2026-10-24）**：WebUI **Quick / Agent** 双模式；opencode `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/agent/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
+- **SWAgent（2026-10-24）**：WebUI **Quick / SWAgent** 双模式；opencode engine `1.19.5` `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/swa/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
 - **Demo 流程**：[`04-guides/demo.md`](./04-guides/demo.md)（Quick / Agent / Workflow / Report / 验收）。
 - **Demo 计划（销售）**：[`04-guides/demo-plan.md`](./04-guides/demo-plan.md)（15/30 分钟脚本、失败预案）。
 - **销售培训**：[`04-guides/sales-training.md`](./04-guides/sales-training.md)（话术、异议、边界）。
