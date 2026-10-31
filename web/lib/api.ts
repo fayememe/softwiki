@@ -557,6 +557,19 @@ export interface KnowledgeConflict {
   claim_b: ConflictClaim | null;
 }
 
+export interface CanonicalEvidence {
+  id: number;
+  claim_id: string;
+  document_id: number;
+  page_start: number | null;
+  page_end: number | null;
+  quote: string | null;
+  source_name: string | null;
+  source_revision: string | null;
+  trust_level: string | null;
+  published_at: string | null;
+}
+
 export interface KnowledgeMetrics {
   raw_claims: number;
   canonical_claims: number;
@@ -608,6 +621,12 @@ export async function apiAdjudicateConflict(
     const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(err.detail || `Adjudication failed: ${res.status}`);
   }
+  return res.json();
+}
+
+export async function apiCanonicalEvidence(claimId: string): Promise<{ evidence: CanonicalEvidence[] }> {
+  const res = await fetch(`${API_BASE}/api/canonical-claims/${encodeURIComponent(claimId)}/evidence`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to load evidence: ${res.status}`);
   return res.json();
 }
 

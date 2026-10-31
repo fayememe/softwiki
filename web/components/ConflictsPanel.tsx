@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   apiAdjudicateConflict,
   apiKnowledgeMetrics,
+  apiCanonicalEvidence,
   apiListConflicts,
   apiScanConflicts,
 } from '@/lib/api';
-import type { ConflictClaim, KnowledgeConflict, KnowledgeMetrics } from '@/lib/api';
+import type { CanonicalEvidence, ConflictClaim, KnowledgeConflict, KnowledgeMetrics } from '@/lib/api';
 import styles from './ConflictsPanel.module.css';
 
 const ACTIONS: { id: string; label: string; danger?: boolean }[] = [
@@ -19,7 +20,7 @@ const ACTIONS: { id: string; label: string; danger?: boolean }[] = [
   { id: 'needs_evidence', label: 'Needs evidence' },
 ];
 
-function ClaimSide({ label, claim }: { label: string; claim: ConflictClaim | null }) {
+function ClaimSide({ label, claim, onEvidence }: { label: string; claim: ConflictClaim | null; onEvidence?: (c: ConflictClaim) => void }) {
   if (!claim) return <div className={styles.claimSide}><span className={styles.claimLabel}>{label}</span><div className={styles.claimMissing}>Missing claim</div></div>;
   const pages = claim.page_start != null
     ? `p.${claim.page_start}${claim.page_end != null && claim.page_end !== claim.page_start ? `-${claim.page_end}` : ''}`
@@ -29,6 +30,7 @@ function ClaimSide({ label, claim }: { label: string; claim: ConflictClaim | nul
       <div className={styles.claimHead}>
         <span className={styles.claimLabel}>{label}</span>
         <span className={`${styles.claimStatus} ${claim.status === 'disputed' ? styles.statusDisputed : ''}`}>{claim.status}</span>
+        {onEvidence && <button className={styles.evidenceBtn} onClick={() => onEvidence(claim)}>Evidence</button>}
       </div>
       <div className={styles.claimText}>{claim.text}</div>
       <div className={styles.claimMeta}>
@@ -52,6 +54,7 @@ export default function ConflictsPanel() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [evidence, setEvidence] = useState<{ claimId: string; rows: CanonicalEvidence[] } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +87,15 @@ export default function ConflictsPanel() {
       setError(err instanceof Error ? err.message : 'Scan failed');
     } finally {
       setScanning(false);
+    }
+  };
+
+  const showEvidence = async (claim: ConflictClaim) => {
+    try {
+      const data = await apiCanonicalEvidence(claim.id);
+      setEvidence({ claimId: claim.id, rows: data.evidence || [] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load evidence');
     }
   };
 
@@ -161,9 +173,25 @@ export default function ConflictsPanel() {
                 <span className={styles.conflictId}>#{c.id}</span>
               </div>
               <div className={styles.claims}>
-                <ClaimSide label="A" claim={c.claim_a} />
-                <ClaimSide label="B" claim={c.claim_b} />
+                <ClaimSide label="A" claim={c.claim_a} onEvidence={showEvidence} />
+                <ClaimSide label="B" claim={c.claim_b} onEvidence={showEvidence} />
               </div>
+              {evidence && (c.claim_a?.id === evidence.claimId || c.claim_b?.id === evidence.claimId) && (
+                <div className={styles.evidenceBox}>
+                  <div className={styles.evidenceHead}>Evidence for {evidence.claimId}</div>
+                  {evidence.rows.length === 0 ? <div className={styles.claimMeta}>No evidence rows.</div> : evidence.rows.map(e => (
+                    <div key={e.id} className={styles.evidenceRow}>
+                      <div className={styles.claimMeta}>
+                        <span>{e.source_name || 'Unknown source'}</span>
+                        <span>{e.published_at || 'unknown date'}</span>
+                        {e.source_revision && <span>rev {e.source_revision}</span>}
+                        <span>{e.page_start != null ? `p.${e.page_start}${e.page_end && e.page_end !== e.page_start ? `-${e.page_end}` : ''}` : 'page unavailable'}</span>
+                      </div>
+                      {e.quote && <div className={styles.evidenceQuote}>{e.quote}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {c.resolution && <div className={styles.resolution}>Resolution: {c.resolution}</div>}
               {c.status !== 'resolved' && c.status !== 'auto_resolved' && (
                 <div className={styles.actions}>

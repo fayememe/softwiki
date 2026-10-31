@@ -70,7 +70,7 @@
 - 12 个策展 Wiki 页面
 - 6,994/7,211 relationships、599/639 events 挂 claim
 - NLI 已抓到 1 个真实 DATA1/DATA2 位重叠冲突
-- 80 个测试通过
+- 82 个测试通过
 - 自部署：Docker Compose + PostgreSQL
 
 ---

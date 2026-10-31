@@ -160,7 +160,7 @@
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
-- [x] **测试基线**：80 passed（离线；含 knowledge v2）。
+- [x] **测试基线**：82 passed（离线；含 knowledge v2 / NLI / citation）。
 - [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
@@ -184,10 +184,13 @@
 - [x] **Graph/Timeline claim 投影**：6,994/7,211 relationships、599/639 events 已挂 canonical claim；status 过滤。
 - [x] **Chunk dedup**：HybridSearcher 按 document_id + normalized text 折叠重复。
 - [x] **Wiki 自动重建**：durable `wiki_rebuild_tasks` + API worker；claim 变化/裁定/冲突扫描自动 enqueue；任务测试 done。
-- [~] **NLI/LLM 冲突检测**：`knowledge_v2_nli.py` + `ClaimPairJudgement`；已开 1 个 DATA1/DATA2 位重叠冲突（medium，2 claims disputed）；尚未定时/评测。
+- [~] **NLI/LLM 冲突检测**：`knowledge/nli.py` + `/api/knowledge/nli/scan` + `ClaimPairJudgement`；已开 1 个 DATA1/DATA2 位重叠冲突（medium，2 claims disputed）；尚未定时/评测。
 - [~] **近重复文档**：MinHash 报告 6 对候选（M55/M85、ADI v5/v6 等），不自动合并。
 - [~] **Graph/Timeline 版本继承**：adjudication 后已 reproject status；版本链/supersedes/evidence 多对多未做。
-- [~] **Structured claim**：`subject/predicate/object/qualifiers` 字段 + 可选 LLM 结构脚本；已结构 71 条，未全量。
+- [~] **Structured claim**：`subject/predicate/object/qualifiers` 字段 + 可选 LLM 结构脚本；已结构 569 条，未全量。
+- [x] **Conflict UI/API**：分页 + status/severity/type/topic 过滤 + evidence drawer。
+- [x] **MMR**：HybridSearcher 增加轻量 MMR 去冗余。
+- [x] **Citation check**：`/api/ask` 返回 `citation_check`（unknown/unused/warnings）。
 - [~] **Wiki Artifact History**：`wiki_artifact_versions` + History API/UI；旧页面归档，current 覆盖。
 - [x] **Wiki 自动重建**：canonicalize/裁定后自动 enqueue；worker 串行重建，失败重试 2 次。
 - [!] **Claim 覆盖率 15.94%**：1,685/10,573 mapped；7,781 unmapped；1,107 ignored；effective 17.80%。Top unmapped 是零散技术/文档 topic（unpredictable-behavior、ppu-register-summary、software-tests、ip-xact 等）。

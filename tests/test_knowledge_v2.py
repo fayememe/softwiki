@@ -234,3 +234,12 @@ def test_nli_judge_service_applies_contradiction(db):
     db.refresh(a); db.refresh(b)
     assert a.status == "disputed" and b.status == "disputed"
     assert db.query(Contradiction).filter(Contradiction.type == "source_conflict").count() == 1
+
+
+def test_citation_check():
+    from softwiki.intelligence.citation_check import verify_citations
+    cits = [{"num": 1}, {"num": 2}]
+    r = verify_citations("Claim [1] and unsupported [3].", cits)
+    assert r["unknown"] == [3]
+    assert r["unused"] == [2]
+    assert r["warnings"]

@@ -41,6 +41,7 @@ from softwiki.rag.bm25_store import Bm25Store
 from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.rag.citations import CitationManager
 from softwiki.intelligence.answer_engine import AnswerEngine
+from softwiki.intelligence.citation_check import verify_citations
 from softwiki.wiki.page_generator import WikiPageGenerator
 from softwiki.wiki.interventions import (
     list_interventions,
@@ -810,6 +811,7 @@ def ask_question(req: AskRequest):
         return {
             "answer": answer,
             "sources": _build_sources(engine),
+            "citation_check": verify_citations(answer, getattr(engine, "last_citations", [])),
             "mode": req.mode or "normal",
             "workflow": req.workflow,
         }
