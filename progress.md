@@ -9,7 +9,7 @@
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
 - **Agent Web（2026-10-24）**：L1/L2 已上线。WebUI **Quick / Agent** 双模式；opencode `1.18.35` 宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
 - **知识系统思想（2026-10-25）**：已落 `docs/02-design/knowledge-system-philosophy.md`（Claim 为事实源；Graph/Timeline/Wiki 为投影；重复/冲突/版本/人工裁定；LLM-Wiki 方法论与规模策略）。实现计划/难度：`docs/05-roadmap/knowledge-system-plan.md`。
-- **Knowledge v2 v0（2026-10-30）**：schema v2 + canonical claim 9,766 / evidence 10,573；Conflicts API/UI；Adjudication API/UI；AnswerEngine 只读 active/disputed；12 个 Wiki 页面已用 canonical claims 重建，stale 0；Graph 6,994/7,211、Timeline 599/639 已挂 canonical claim；近重复候选 6 对（仅报告）；备份 `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
+- **Knowledge v2 v0（2026-10-30）**：schema v2 + canonical claim 9,766 / evidence 10,573；Conflicts API/UI；Adjudication API/UI；AnswerEngine 只读 active/disputed；12 个 Wiki 页面已用 canonical claims 重建，stale 0；Graph 6,994/7,211、Timeline 599/639 已挂 canonical claim；Wiki rebuild worker + artifact history；近重复候选 6 对（仅报告）；备份 `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
@@ -146,7 +146,7 @@
 **P1 — 投影层可控**
 - [x] H GraphEdge 挂 claim/evidence/status：status 列 + canonical_claim_id 回填 6,994/7,211；查询过滤 active
 - [x] I Timeline 挂 claim/evidence：status 列 + canonical_claim_id 回填 599/639；查询过滤 active
-- [~] J WikiArtifact stale / rebuild queue / Current-History-Disputed：state/stale/UI banner/手动批量重建已做；自动触发未做
+- [x] J WikiArtifact stale / rebuild queue / Current-History-Disputed：state/stale/UI banner/durable queue + auto worker/History API+UI/Disputed 小节
 - [x] M Chunk dedup：检索按文档 + normalized chunk text 折叠重复
 - [~] K Wiki 规模策略：三级分类 + 12 页已重建；Tier 1/2 代码未做
 
@@ -160,7 +160,7 @@
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
-- [x] **测试基线**：76 passed（离线；含 knowledge v2）。
+- [x] **测试基线**：79 passed（离线；含 knowledge v2）。
 - [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
@@ -183,10 +183,12 @@
 - [x] **Knowledge v2 v0 已落地**：ClaimEvidence / CanonicalClaim / status / Contradiction / Adjudication / WikiArtifactState；迁移脚本与备份完成。
 - [x] **Graph/Timeline claim 投影**：6,994/7,211 relationships、599/639 events 已挂 canonical claim；status 过滤。
 - [x] **Chunk dedup**：HybridSearcher 按 document_id + normalized text 折叠重复。
-- [~] **Wiki 重建队列**：12 页已重建，stale 0；`rebuild_stale_wiki.py` 手动批量；自动触发未做。
+- [x] **Wiki 自动重建**：durable `wiki_rebuild_tasks` + API worker；claim 变化/裁定/冲突扫描自动 enqueue；任务测试 done。
 - [ ] **NLI/LLM 冲突检测**：规则 v0 保守，真实库 0 冲突；语义冲突待 P2。
 - [~] **近重复文档**：MinHash 报告 6 对候选（M55/M85、ADI v5/v6 等），不自动合并。
-- [ ] **Wiki 自动重建**：Prompt Studio 已手动闭环；index/ingest 后自动重建待接线（默认只跑策展主题 + 已有页面）。
+- [~] **Graph/Timeline 版本继承**：adjudication 后已 reproject status；版本链/supersedes/evidence 多对多未做。
+- [~] **Wiki Artifact History**：`wiki_artifact_versions` + History API/UI；旧页面归档，current 覆盖。
+- [x] **Wiki 自动重建**：canonicalize/裁定后自动 enqueue；worker 串行重建，失败重试 2 次。
 - [!] **Claim 覆盖率 15.94%**：1,685/10,573 mapped；7,781 unmapped；1,107 ignored；effective 17.80%。Top unmapped 是零散技术/文档 topic（unpredictable-behavior、ppu-register-summary、software-tests、ip-xact 等）。
 - [x] **Wiki 页面数量**：12 个策展页面已用 canonical claims 重建；stale 0。
 - [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
@@ -197,8 +199,8 @@
 
 ## 下一步（NEXT）
 
-1. **P1 收尾**：Wiki 自动重建接线（index/ingest → stale → rebuild）；Graph/Timeline 版本继承；页面 Current/History/Disputed。
-2. **Wiki 自动重建**：把 Prompt Studio + stale queue 接到 index/ingest；默认只跑策展主题 + 已有页面，带 cap/队列。
+1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
+2. **P2 冲突召回**：structured claim / NLI / 评测集。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
 4. **Prompt 调优**：用 `docs/04-guides/wiki-prompt-studio.md` 的 IP/协议/技术范例，先 preview 再 apply。
 5. **Demo**：按 `docs/04-guides/demo.md` 跑 Quick + Agent + Wiki Prompt Studio；acceptance 11/11。
@@ -258,5 +260,6 @@
   - AnswerEngine：canonical active/disputed + conflict context + 不静默选边；Graph/Timeline 过滤 active。
   - 备份：javis `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
   - 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；近重复 6 对报告。
-  - 未完成：Wiki 自动重建触发、Graph/Timeline 版本继承、NLI/近重复自动合并。
+  - 追加：`wiki_rebuild_tasks` durable queue + API worker（auto enqueue）；`wiki_artifact_versions` + History API/UI；adjudication/scan 后 reproject Graph/Timeline status。
+  - 未完成：Graph/Timeline 版本链与 evidence 多对多、NLI/结构 claim、近重复自动合并、Tier 2。
 - **可回收**：所有结论已落库。下个 session 读 `AGENTS.md` + `progress.md` + `docs/05-roadmap/agent-web-plan.md` + `docs/04-guides/demo.md` + `docs/04-guides/wiki-prompt-studio.md` 即可接手。

@@ -182,7 +182,7 @@ P2 语义：
 ### I. Timeline 投影
 
 - [x] Event 挂 canonical_claim_id / status：599/639 已回填
-- [x] status 列 + 查询过滤；版本未做
+- [x] status 列 + 查询过滤；adjudication 后 reproject；版本未做
 - [ ] 时间冲突/版本差异
 - [x] Timeline UI 保留；status 过滤
 
@@ -196,9 +196,9 @@ P2 语义：
 
 - [x] `WikiArtifactState`：claim hash / prompt version / status counts / stale
 - [x] `stale` 事件：claim 变化/裁定
-- [~] 重建队列：手动批量脚本；durable worker/自动触发未做
-- [~] 手动批量 `rebuild_stale_wiki.py`；增量未做
-- [~] 页面 Disputed 小节已有；Current/History 版本化未做
+- [x] 重建队列：durable `wiki_rebuild_tasks` + API worker + 自动 enqueue
+- [x] 手动批量 `rebuild_stale_wiki.py`；增量未做
+- [x] 页面 Disputed 小节 + `WikiArtifactVersion` + History API/UI
 - [x] stale 页面不参与权威回答
 
 **难度：M（4–6d）**  
@@ -380,7 +380,7 @@ N Metrics depends on A/C/E/J
 
 ## 8. v0 实施记录（2026-10-30）
 
-- Schema：`CanonicalClaim` / `ClaimEvidence` / `Contradiction` / `Adjudication` / `WikiArtifactState`；Document/Claim/Relationship/Event 新列。
+- Schema：`CanonicalClaim` / `ClaimEvidence` / `Contradiction` / `Adjudication` / `WikiArtifactState` / `WikiArtifactVersion` / `WikiRebuildTask`；Document/Claim/Relationship/Event 新列。
 - 迁移脚本：`scripts/knowledge_v2_migrate.py`、`scripts/knowledge_v2_rescan.py`、`scripts/knowledge_v2_wiki_states.py`。
 - 数据：10,573 raw claims → 9,766 canonical + 10,573 evidence；807 merged；当前 0 open conflicts（保守模板规则）。
 - API：`/api/knowledge/metrics`、`/api/conflicts`、`/api/conflicts/scan`、`/api/conflicts/{id}/adjudicate`、`/api/canonical-claims`、`/api/canonical-claims/{id}/evidence`。
@@ -389,7 +389,8 @@ N Metrics depends on A/C/E/J
 - 12 个策展 Wiki 页面标记 stale；重建后 state 清除 stale。
 - 备份：`/tmp/armkb_before_knowledge_v2.sql`（116MB）。
 - 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；MinHash 近重复 6 对报告。
-- 未完成：Wiki 自动重建触发、Graph/Timeline 版本继承、NLI、近重复自动合并。
+- 追加：durable rebuild queue + API worker；artifact history/API/UI；adjudication 后 reproject Graph/Timeline status。
+- 未完成：Graph/Timeline 版本链与 evidence 多对多、NLI/结构 claim、近重复自动合并、Tier 2。
 
 ---
 
