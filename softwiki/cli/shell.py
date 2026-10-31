@@ -509,6 +509,7 @@ Depending on the mode, certain operations are restricted:
             "type": "remote",
             "url": mcp_url,
             "enabled": True,
+            "timeout": int(os.getenv("SWAGENT_MCP_TIMEOUT_MS", "600000")),
         }
     else:
         mcp_config = {
