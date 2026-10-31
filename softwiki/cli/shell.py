@@ -648,7 +648,7 @@ Depending on the mode, certain operations are restricted:
 def _exec_opencode(prepared: dict, tui: bool = True, port: int = 6111, hostname: str = "0.0.0.0",
                    pure: bool = True) -> None:
     """Set the isolated runtime env and exec opencode."""
-    opencode_path = shutil.which("opencode")
+    opencode_path = os.getenv("SOFTWIKI_OPENCODE_BIN") or shutil.which("opencode")
     if not opencode_path:
         if tui:
             print("[!] opencode not found; falling back to the local Softwiki REPL.")
@@ -657,6 +657,18 @@ def _exec_opencode(prepared: dict, tui: bool = True, port: int = 6111, hostname:
         raise RuntimeError(
             "opencode not found in PATH. Install it or set PATH to include the opencode binary."
         )
+
+    expected_version = os.getenv("SOFTWIKI_OPENCODE_EXPECTED_VERSION", "").strip()
+    if expected_version:
+        import subprocess
+        try:
+            actual = subprocess.check_output([opencode_path, "--version"], text=True).strip()
+        except Exception as exc:
+            raise RuntimeError(f"opencode version check failed: {exc}")
+        if actual != expected_version:
+            raise RuntimeError(
+                f"opencode version mismatch: expected {expected_version}, got {actual} ({opencode_path})"
+            )
 
     xdg_config_home = prepared["xdg_config_home"]
     os.environ["XDG_CONFIG_HOME"] = xdg_config_home

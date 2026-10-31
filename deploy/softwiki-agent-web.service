@@ -1,5 +1,5 @@
 [Unit]
-Description=SoftWiki Agent Web (opencode)
+Description=SoftWiki Agent Web (opencode engine)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,9 +11,12 @@ WorkingDirectory=/home/faye/softwiki-ci
 EnvironmentFile=/opt/aitools/apps/softwiki/.env
 Environment=WORKSPACE_DIR=/opt/aitools/apps/softwiki/workspace/armkb
 Environment=SOFTWIKI_MODE=wiki-research
+Environment=SOFTWIKI_ROLE=wiki-research
+Environment=SOFTWIKI_OPENCODE_BIN=/opt/aitools/apps/softwiki/engine/opencode/1.19.5/opencode
+Environment=SOFTWIKI_OPENCODE_EXPECTED_VERSION=1.19.5
 Environment=PYTHONUNBUFFERED=1
 Environment=HOME=/home/faye
-Environment=PATH=/home/faye/.opencode/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/opt/aitools/apps/softwiki/engine/opencode/1.19.5:/home/faye/.opencode/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/usr/bin/python3 -m softwiki.cli.main agent-web --port 6111 --host 0.0.0.0
 Restart=on-failure
 RestartSec=5
