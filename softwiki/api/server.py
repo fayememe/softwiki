@@ -1105,26 +1105,32 @@ def rebuild_index():
             DocumentRepository.create_chunks(db, db_chunks)
             
         all_chunks = DocumentRepository.get_all_chunks(db)
-        embedder = WikiEmbedder()
-        vector_store = LocalVectorStore()
-        
         chunk_ids = [c.id for c in all_chunks]
         chunk_texts = [c.text for c in all_chunks]
-        
-        embeddings = embedder.embed_texts(chunk_texts)
-        if os.path.exists(vector_store.get_current_path()):
-            os.remove(vector_store.get_current_path())
-        vector_store.reset()
 
-        vector_store.add_vectors(chunk_ids, embeddings)
-        
+        vector_ok = False
+        try:
+            embedder = WikiEmbedder()
+            vector_store = LocalVectorStore()
+            embeddings = embedder.embed_texts(chunk_texts)
+            if os.path.exists(vector_store.get_current_path()):
+                os.remove(vector_store.get_current_path())
+            vector_store.reset()
+            vector_store.add_vectors(chunk_ids, embeddings)
+            vector_ok = True
+        except Exception as exc:
+            # Restricted/air-gapped deployments can still use BM25.
+            print(f"[index] vector index skipped: {exc}", flush=True)
+
         bm25_store = Bm25Store()
         chunk_id_to_text = {c.id: c.text for c in all_chunks}
         bm25_store.rebuild_index(chunk_id_to_text)
-        
+
         return {
             "status": "success",
-            "indexed_chunks": len(all_chunks)
+            "indexed_chunks": len(all_chunks),
+            "vector_index": vector_ok,
+            "bm25_index": True,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
