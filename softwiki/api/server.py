@@ -32,6 +32,7 @@ from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash, is_dupli
 from softwiki.knowledge.versioning import assign_document_version
 from softwiki.knowledge.conflicts import list_conflicts, scan_conflicts, adjudicate, metrics as knowledge_metrics
 from softwiki.knowledge.wiki_queue import enqueue_stale_wiki, pending_count
+from softwiki.knowledge.nli import judge_candidates
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -230,6 +231,10 @@ class ConflictAdjudicateRequest(BaseModel):
     action: str
     actor: str = "wiki-admin"
     reason: str = ""
+
+class NliScanRequest(BaseModel):
+    limit: int = 10
+    apply: bool = False
 
 @app.get("/api/status")
 def get_status():
@@ -681,10 +686,13 @@ def get_knowledge_metrics():
 
 
 @app.get("/api/conflicts")
-def get_conflicts(status: Optional[str] = None):
+def get_conflicts(status: Optional[str] = None, topic: Optional[str] = None,
+                  severity: Optional[str] = None, type: Optional[str] = None,
+                  limit: int = 50, offset: int = 0):
     db = SessionLocal()
     try:
-        return {"conflicts": list_conflicts(db, status=status)}
+        return list_conflicts(db, status=status, topic=topic, severity=severity,
+                              ctype=type, limit=limit, offset=offset)
     finally:
         db.close()
 
@@ -708,6 +716,17 @@ def adjudicate_conflict(conflict_id: int, req: ConflictAdjudicateRequest):
             return adjudicate(db, conflict_id, req.action, actor=req.actor, reason=req.reason)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/api/knowledge/nli/scan")
+def scan_nli_conflicts(req: NliScanRequest):
+    if req.apply:
+        check_read_only()
+    db = SessionLocal()
+    try:
+        return judge_candidates(db, limit=min(max(req.limit, 1), 20), apply=req.apply)
     finally:
         db.close()
 

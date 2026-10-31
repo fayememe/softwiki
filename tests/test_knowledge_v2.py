@@ -214,3 +214,23 @@ def test_structured_conflict_same_subject_predicate(db):
     scan_conflicts(db)
     row = db.query(Contradiction).first()
     assert row is not None and row.type == "source_conflict"
+
+
+def test_nli_judge_service_applies_contradiction(db):
+    from datetime import datetime
+    from softwiki.knowledge.canonical import canonicalize_claim
+    from softwiki.knowledge.nli import judge_candidates
+    from softwiki.source_store.models import Contradiction
+    d1 = _doc(db, "A", "https://a/nli", datetime(2024, 1, 1))
+    d2 = _doc(db, "B", "https://b/nli", datetime(2024, 1, 1))
+    c1 = _claim(db, d1, "n1", "The RTCCR reset value is 0x0.")
+    c2 = _claim(db, d2, "n2", "The RTCCR reset value is 0x1.")
+    a = canonicalize_claim(db, c1, d1)
+    b = canonicalize_claim(db, c2, d2)
+    def fake_judge(a, b, da, db_doc):
+        return {"verdict": "contradiction", "severity": "medium", "reason": "test"}
+    result = judge_candidates(db, limit=5, apply=True, judge=fake_judge)
+    assert result["applied"] is True
+    db.refresh(a); db.refresh(b)
+    assert a.status == "disputed" and b.status == "disputed"
+    assert db.query(Contradiction).filter(Contradiction.type == "source_conflict").count() == 1

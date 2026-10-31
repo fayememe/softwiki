@@ -1,3 +1,4 @@
+import os
 import re
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
@@ -39,7 +40,7 @@ class HybridSearcher:
         fetched = DocumentRepository.get_chunks_by_ids(db, candidate_ids)
         chunk_map = {c.id: c for c in fetched}
 
-        results = []
+        candidates = []
         seen = set()
         for cid, score in sorted_chunks:
             chunk = chunk_map.get(cid)
@@ -51,8 +52,38 @@ class HybridSearcher:
                 continue
             seen.add(key)
             doc = DocumentRepository.get_document(db, chunk.document_id)
-            results.append({"chunk": chunk, "document": doc, "score": score})
-            if len(results) >= top_k:
-                break
+            candidates.append({"chunk": chunk, "document": doc, "score": score})
 
-        return results
+        # Lightweight MMR: keep relevance but penalize near-duplicate context.
+        if len(candidates) <= 1:
+            return candidates[:top_k]
+        lam = float(os.getenv("RAG_MMR_LAMBDA", "0.3"))
+        selected = []
+        remaining = list(candidates)
+        token_cache = {}
+
+        def toks(text):
+            key = id(text)
+            if key not in token_cache:
+                token_cache[key] = set(re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]", (text or "").lower()))
+            return token_cache[key]
+
+        while remaining and len(selected) < top_k:
+            best = None
+            best_score = -1e9
+            for cand in remaining:
+                rel = cand["score"]
+                if selected:
+                    sim = max(
+                        (len(toks(cand["chunk"].text) & toks(s["chunk"].text)) /
+                         max(1, len(toks(cand["chunk"].text) | toks(s["chunk"].text))))
+                        for s in selected
+                    )
+                else:
+                    sim = 0.0
+                mmr = rel - lam * sim
+                if mmr > best_score:
+                    best, best_score = cand, mmr
+            selected.append(best)
+            remaining.remove(best)
+        return selected

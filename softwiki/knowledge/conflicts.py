@@ -6,8 +6,8 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
+from sqlalchemy.orm import Session, aliased
 
 from softwiki.knowledge.canonical import mark_wiki_stale_for_topics, normalize_text
 from softwiki.source_store.models import (
@@ -176,11 +176,31 @@ def scan_conflicts(db: Session, topic: Optional[str] = None) -> dict:
     return {"canonical_claims": len(claims), "pairs": compared, "created": created}
 
 
-def list_conflicts(db: Session, status: Optional[str] = None) -> list[dict]:
-    query = db.query(Contradiction).order_by(Contradiction.created_at.desc())
+def list_conflicts(db: Session, status: Optional[str] = None, topic: Optional[str] = None,
+                    severity: Optional[str] = None, ctype: Optional[str] = None,
+                    limit: int = 50, offset: int = 0) -> dict:
+    a = aliased(CanonicalClaim)
+    b = aliased(CanonicalClaim)
+    query = (
+        db.query(Contradiction)
+        .outerjoin(a, Contradiction.claim_a_id == a.id)
+        .outerjoin(b, Contradiction.claim_b_id == b.id)
+    )
     if status:
         query = query.filter(Contradiction.status == status)
-    rows = query.all()
+    if severity:
+        query = query.filter(Contradiction.severity == severity)
+    if ctype:
+        query = query.filter(Contradiction.type == ctype)
+    if topic:
+        query = query.filter(or_(a.topic == topic, b.topic == topic))
+    total = query.count()
+    rows = (
+        query.order_by(Contradiction.created_at.desc())
+        .offset(max(0, offset))
+        .limit(min(max(1, limit), 200))
+        .all()
+    )
     out = []
     for row in rows:
         a = db.query(CanonicalClaim).filter(CanonicalClaim.id == row.claim_a_id).first()
@@ -198,7 +218,7 @@ def list_conflicts(db: Session, status: Optional[str] = None) -> list[dict]:
             "claim_a": _claim_payload(a, da),
             "claim_b": _claim_payload(b, db_doc),
         })
-    return out
+    return {"conflicts": out, "total": total, "limit": limit, "offset": offset}
 
 
 def _claim_payload(c: Optional[CanonicalClaim], doc: Optional[Document]) -> Optional[dict]:
