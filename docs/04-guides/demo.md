@@ -1,3 +1,5 @@
+> 说明：本文是早期 demo 记录；当前演示请以 [`demo-plan.md`](./demo-plan.md) 为准。Wiki 已支持 canonical claims 重建、stale/自动 rebuild worker 和 History；冲突队列支持 NLI 来源冲突。
+
 # Demo 流程（ARM 技术文档库）
 
 > 当前：`armkb` / PostgreSQL / `http://10.3.9.29:6108`
