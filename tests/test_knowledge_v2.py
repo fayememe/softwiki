@@ -178,3 +178,21 @@ def test_wiki_rebuild_queue_dedup(db, monkeypatch):
     assert enqueue_wiki_rebuild(db, ["rtc-register-map"], reason="test2") == 0
     assert db.query(WikiRebuildTask).count() == 1
     assert pending_count(db)["pending"] == 1
+
+
+def test_wiki_artifact_history_archive(db, tmp_path):
+    from softwiki.wiki.page_generator import WikiPageGenerator
+    from softwiki.source_store.models import WikiArtifactVersion
+    md = tmp_path / "pl031.md"
+    js = tmp_path / "pl031.json"
+    md.write_text("# old\n\nold content\n", encoding="utf-8")
+    js.write_text('{"claim_ids":["a","b"],"intervention_hash":"p1"}', encoding="utf-8")
+    gen = WikiPageGenerator()
+    gen._archive_previous(db, "pl031", str(md), None, str(js))
+    rows = db.query(WikiArtifactVersion).all()
+    assert len(rows) == 1
+    assert rows[0].topic == "pl031"
+    assert "old content" in rows[0].content
+    # Archiving the same content again is idempotent.
+    gen._archive_previous(db, "pl031", str(md), None, str(js))
+    assert db.query(WikiArtifactVersion).count() == 1

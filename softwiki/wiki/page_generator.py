@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from datetime import datetime
 from softwiki.source_store.document_repo import DocumentRepository
-from softwiki.source_store.models import Claim, CanonicalClaim, WikiArtifactState
+from softwiki.source_store.models import Claim, CanonicalClaim, WikiArtifactState, WikiArtifactVersion
 from softwiki.knowledge.canonical import canonical_claims_for_topic
 from softwiki.config import get_export_dir, get_session_id
 
@@ -110,7 +110,7 @@ class WikiPageGenerator:
         if not client:
             self.last_fallback = True
             print("No valid LLM client found for wiki compilation. Falling back to template-based generation.")
-            return self._fallback_generate_topic_page(db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath)
+            return self._fallback_generate_topic_page(db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath, output_dir)
 
         # A stale artifact must be fully rebuilt even if claim IDs look unchanged
         # (status/adjudication changes do not create new claim IDs).
@@ -293,7 +293,7 @@ Please compile the initial Markdown Wiki Page:"""
                 print(f"Wiki compilation LLM failed: {e}. Falling back to template generation.")
                 self.last_fallback = True
                 return self._fallback_generate_topic_page(
-                    db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
+                    db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath, output_dir
                 )
         else:
             print(f"Incrementally updating Wiki page for topic: '{topic_id}' using {model_name}...")
@@ -360,7 +360,12 @@ Please generate the updated full Markdown Wiki Page:"""
                     db, topic_id, claims, sorted_docs, topic_title, output_filepath, json_filepath
                 )
 
-        # 4. Save results to disk
+        # 4. Save results to disk; preserve the previous artifact first.
+        if not output_dir:
+            try:
+                self._archive_previous(db, topic_id, output_filepath, output_dir, json_filepath)
+            except Exception as exc:
+                print(f"Wiki artifact history save failed: {exc}")
         with open(output_filepath, "w", encoding="utf-8") as f:
             f.write(markdown_content)
         print(f"Wiki page updated: {output_filepath}")
@@ -450,6 +455,51 @@ Please generate the updated full Markdown Wiki Page:"""
 
         return output_filepath
 
+    def _archive_previous(self, db: Session, topic_id: str, output_filepath: str,
+                          output_dir: str | None, json_filepath: str) -> None:
+        if output_dir or not os.path.exists(output_filepath):
+            return
+        try:
+            with open(output_filepath, "r", encoding="utf-8") as f:
+                old = f.read()
+        except Exception:
+            return
+        if not old.strip():
+            return
+        content_hash = hashlib.sha256(old.encode("utf-8")).hexdigest()
+        existing = db.query(WikiArtifactVersion).filter(
+            WikiArtifactVersion.topic == topic_id,
+            WikiArtifactVersion.content_hash == content_hash,
+        ).first()
+        if existing:
+            return
+        claim_set_hash = None
+        prompt_version = None
+        model = None
+        status_counts = None
+        try:
+            if os.path.exists(json_filepath):
+                with open(json_filepath, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                ids = sorted(state.get("claim_ids", []))
+                claim_set_hash = hashlib.sha256("|".join(ids).encode("utf-8")).hexdigest()
+                prompt_version = state.get("intervention_hash")
+                model = state.get("model")
+                status_counts = state.get("status_counts")
+        except Exception:
+            pass
+        db.add(WikiArtifactVersion(
+            topic=topic_id,
+            content=old,
+            content_hash=content_hash,
+            claim_set_hash=claim_set_hash,
+            prompt_version=prompt_version,
+            model=model,
+            status_counts_json=json.dumps(status_counts, ensure_ascii=False) if status_counts else None,
+            created_at=datetime.fromtimestamp(os.path.getmtime(output_filepath)),
+        ))
+        db.commit()
+
     def _update_artifact_state(self, db: Session, topic_id: str, claims: list) -> None:
         """Record claim hash/status/model so claim changes can mark this page stale."""
         canonical = canonical_claims_for_topic(db, topic_id)
@@ -473,7 +523,7 @@ Please generate the updated full Markdown Wiki Page:"""
         state.stale_at = None
         db.commit()
 
-    def _fallback_generate_topic_page(self, db: Session, topic_id: str, claims: list, sorted_docs: list, topic_title: str, output_filepath: str, json_filepath: str) -> str:
+    def _fallback_generate_topic_page(self, db: Session, topic_id: str, claims: list, sorted_docs: list, topic_title: str, output_filepath: str, json_filepath: str, output_dir: str | None = None) -> str:
         """Template-based fallback page generator (no external LLM key needed)."""
         claims_table_rows = []
         for c in claims:
@@ -564,6 +614,11 @@ Please generate the updated full Markdown Wiki Page:"""
 {sources_section}
 """
 
+        if not output_dir:
+            try:
+                self._archive_previous(db, topic_id, output_filepath, output_dir, json_filepath)
+            except Exception as exc:
+                print(f"Wiki artifact history save failed: {exc}")
         with open(output_filepath, "w", encoding="utf-8") as f:
             f.write(markdown_content)
             

@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from softwiki.config import get_workspace_dir, get_db_url, get_config_path, get_export_dir, is_module_enabled, set_workspace_dir, list_workspaces, get_workspaces_root, set_request_workspace
 from softwiki.source_store.db import SessionLocal
-from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event, User, WorkspaceMember, CanonicalClaim, ClaimEvidence, Contradiction, WikiArtifactState
+from softwiki.source_store.models import Document, Claim, Chunk, Entity, Relationship, Event, User, WorkspaceMember, CanonicalClaim, ClaimEvidence, Contradiction, WikiArtifactState, WikiArtifactVersion
 from softwiki.auth import auth_enabled, create_token, verify_password, verify_token
 from softwiki.auth_db import get_auth_session
 from softwiki.source_store.document_repo import DocumentRepository
@@ -1343,6 +1343,53 @@ def get_wiki_page(topic: str):
         "stale": stale,
         "stale_at": stale_at,
     }
+
+
+@app.get("/api/wiki/history/{topic}")
+def get_wiki_history(topic: str, limit: int = 50):
+    db = SessionLocal()
+    try:
+        rows = db.query(WikiArtifactVersion).filter(
+            WikiArtifactVersion.topic == topic
+        ).order_by(WikiArtifactVersion.created_at.desc()).limit(min(max(limit, 1), 200)).all()
+        return {"versions": [
+            {
+                "id": v.id,
+                "topic": v.topic,
+                "content_hash": v.content_hash,
+                "claim_set_hash": v.claim_set_hash,
+                "prompt_version": v.prompt_version,
+                "model": v.model,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+            }
+            for v in rows
+        ]}
+    finally:
+        db.close()
+
+
+@app.get("/api/wiki/history/{topic}/{version_id}")
+def get_wiki_history_version(topic: str, version_id: int):
+    db = SessionLocal()
+    try:
+        v = db.query(WikiArtifactVersion).filter(
+            WikiArtifactVersion.id == version_id,
+            WikiArtifactVersion.topic == topic,
+        ).first()
+        if v is None:
+            raise HTTPException(status_code=404, detail="Wiki history version not found")
+        return {
+            "id": v.id,
+            "topic": v.topic,
+            "content": v.content,
+            "content_hash": v.content_hash,
+            "claim_set_hash": v.claim_set_hash,
+            "prompt_version": v.prompt_version,
+            "model": v.model,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+    finally:
+        db.close()
 
 
 @app.get("/api/documents")

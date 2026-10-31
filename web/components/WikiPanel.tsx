@@ -8,12 +8,14 @@ import {
   apiBuildWikiPage,
   apiDeleteWikiIntervention,
   apiGetWikiPage,
+  apiGetWikiHistory,
+  apiGetWikiHistoryVersion,
   apiListWikiInterventions,
   apiListWikiTopics,
   apiPreviewWiki,
   apiSaveWikiIntervention,
 } from '@/lib/api';
-import type { WikiIntervention, WikiPreviewResult } from '@/lib/api';
+import type { WikiHistoryVersion, WikiIntervention, WikiPreviewResult } from '@/lib/api';
 import styles from './WikiPanel.module.css';
 
 interface TocItem { id: string; text: string; level: number; }
@@ -57,6 +59,10 @@ export default function WikiPanel() {
   const [rawMarkdown, setRawMarkdown] = useState('');
   const [builtAt, setBuiltAt] = useState('');
   const [stale, setStale] = useState(false);
+  const [history, setHistory] = useState<WikiHistoryVersion[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewingHistory, setViewingHistory] = useState<WikiHistoryVersion | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [linkedMarkdown, setLinkedMarkdown] = useState('');
@@ -120,6 +126,9 @@ export default function WikiPanel() {
     setLinkedMarkdown('');
     setSearchQuery('');
     setBuiltAt('');
+    setHistory([]);
+    setHistoryOpen(false);
+    setViewingHistory(null);
   };
 
   const selectTopic = async (topic: string, topicsMap?: Record<string, any>) => {
@@ -138,7 +147,8 @@ export default function WikiPanel() {
       setLinkedMarkdown(linked);
       setBuiltAt(page.built_at);
       setStale(Boolean(page.stale));
-    } catch { setRawMarkdown(''); setBuiltAt(''); setStale(false); }
+      setViewingHistory(null);
+    } catch { setRawMarkdown(''); setBuiltAt(''); setStale(false); setViewingHistory(null); }
     finally { setLoading(false); }
   };
 
@@ -343,6 +353,33 @@ export default function WikiPanel() {
     return bodyLower.includes(name) && name.length > 2;
   });
 
+  const loadHistory = async () => {
+    if (!selectedTopic) return;
+    setHistoryLoading(true);
+    try {
+      const data = await apiGetWikiHistory(selectedTopic);
+      setHistory(data.versions || []);
+      setHistoryOpen(true);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const viewHistory = async (versionId: number) => {
+    if (!selectedTopic) return;
+    const v = await apiGetWikiHistoryVersion(selectedTopic, versionId);
+    setRawMarkdown(v.content);
+    setLinkedMarkdown(buildLinkedMarkdown(v.content, Object.keys(topics), topics, selectedTopic));
+    setViewingHistory(v);
+    setBuiltAt(v.created_at ? new Date(v.created_at).toLocaleString() : 'Unknown');
+  };
+
+  const backToCurrent = async () => {
+    if (!selectedTopic) return;
+    setViewingHistory(null);
+    await selectTopic(selectedTopic, topics);
+  };
+
   return (
     <div className={styles.panel}>
       <aside className={styles.topicList}>
@@ -449,11 +486,41 @@ export default function WikiPanel() {
                 <button className={styles.studioBtnSmall} onClick={openStudio}>
                   Prompt Studio
                 </button>
+                <button className={styles.studioBtnSmall} onClick={loadHistory} disabled={historyLoading}>
+                  {historyLoading ? 'History…' : 'History'}
+                </button>
                 <button className={styles.regenerateBtn} onClick={handleBuild} disabled={building}>
                   {building ? 'Regenerating…' : 'Regenerate'}
                 </button>
               </div>
             </div>
+
+            {historyOpen && (
+              <div className={styles.historyBar}>
+                {viewingHistory ? (
+                  <>
+                    <span>Viewing history: {new Date(viewingHistory.created_at || '').toLocaleString()}</span>
+                    <button className={styles.historyBtn} onClick={backToCurrent}>Back to current</button>
+                  </>
+                ) : (
+                  <>
+                    <span>History ({history.length})</span>
+                    <select
+                      className={styles.historySelect}
+                      defaultValue=""
+                      onChange={e => { if (e.target.value) viewHistory(Number(e.target.value)); }}
+                    >
+                      <option value="">Select a version…</option>
+                      {history.map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.created_at ? new Date(v.created_at).toLocaleString() : `#${v.id}`} · {v.content_hash.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className={styles.searchBar}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

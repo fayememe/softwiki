@@ -880,3 +880,37 @@
   color: #92400e;
   font-size: 12px;
 }
+
+
+.historyBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-border, #e5e7eb);
+  border-radius: 7px;
+  background: var(--bg-inset, #f8f9fa);
+  font-size: 12px;
+  color: var(--text-secondary, #54595d);
+}
+
+.historySelect {
+  margin-left: auto;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 11px;
+  max-width: 340px;
+}
+
+.historyBtn {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}

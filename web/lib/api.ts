@@ -126,6 +126,20 @@ export interface WikiPageResponse {
   stale_at?: string | null;
 }
 
+export interface WikiHistoryVersion {
+  id: number;
+  topic: string;
+  content_hash: string;
+  claim_set_hash: string | null;
+  prompt_version: string | null;
+  model: string | null;
+  created_at: string | null;
+}
+
+export interface WikiHistoryVersionDetail extends WikiHistoryVersion {
+  content: string;
+}
+
 export interface IngestResult {
   status: string;
   reason?: string;
@@ -339,6 +353,18 @@ export async function apiGetWikiPage(topic: string): Promise<WikiPageResponse> {
     const err = await res.json().catch(() => ({ detail: 'Not found' }));
     throw new Error(err.detail || `Wiki page not found: ${res.status}`);
   }
+  return res.json();
+}
+
+export async function apiGetWikiHistory(topic: string): Promise<{ versions: WikiHistoryVersion[] }> {
+  const res = await fetch(`${API_BASE}/api/wiki/history/${encodeURIComponent(topic)}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to load wiki history: ${res.status}`);
+  return res.json();
+}
+
+export async function apiGetWikiHistoryVersion(topic: string, versionId: number): Promise<WikiHistoryVersionDetail> {
+  const res = await fetch(`${API_BASE}/api/wiki/history/${encodeURIComponent(topic)}/${versionId}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to load wiki history version: ${res.status}`);
   return res.json();
 }
 

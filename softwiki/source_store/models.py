@@ -224,6 +224,20 @@ class WikiArtifactState(Base):
     last_used_at = Column(DateTime, nullable=True)
 
 
+class WikiArtifactVersion(Base):
+    __tablename__ = "wiki_artifact_versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    topic = Column(String(120), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String(64), nullable=False, index=True)
+    claim_set_hash = Column(String(64), nullable=True)
+    prompt_version = Column(String(120), nullable=True)
+    model = Column(String(120), nullable=True)
+    status_counts_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class WikiRebuildTask(Base):
     __tablename__ = "wiki_rebuild_tasks"
 
