@@ -133,6 +133,7 @@ export default function ConflictsPanel() {
           <div className={styles.metric}><span>{metrics.stale_wiki_artifacts}</span>stale wiki pages</div>
           <div className={styles.metric}><span>{metrics.relationships_linked || 0}/{metrics.relationships || 0}</span>graph links</div>
           <div className={styles.metric}><span>{metrics.events_linked || 0}/{metrics.events || 0}</span>timeline links</div>
+          <div className={styles.metric}><span>{metrics.wiki_rebuild_tasks?.pending || 0}</span>wiki queue</div>
         </div>
       )}
 

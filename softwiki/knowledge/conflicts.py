@@ -130,14 +130,31 @@ def scan_conflicts(db: Session, topic: Optional[str] = None) -> dict:
         groups.setdefault((c.topic, c.actor), []).append(c)
     created = 0
     compared = 0
+    affected = set()
+    affected_claims = set()
     for group in groups.values():
         group = group[:MAX_GROUP]
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
                 compared += 1
-                if _compare(db, group[i], group[j]) is not None:
+                row = _compare(db, group[i], group[j])
+                if row is not None:
                     created += 1
+                    affected.update([group[i].topic, group[j].topic])
+                    affected_claims.update([group[i].id, group[j].id])
         db.commit()
+    if affected_claims:
+        try:
+            from softwiki.knowledge.projections import reproject_claims
+            reproject_claims(db, affected_claims)
+        except Exception:
+            pass
+    if affected:
+        try:
+            from softwiki.knowledge.wiki_queue import enqueue_wiki_rebuild
+            enqueue_wiki_rebuild(db, affected, reason="conflict_scan")
+        except Exception:
+            pass
     return {"canonical_claims": len(claims), "pairs": compared, "created": created}
 
 
@@ -245,9 +262,29 @@ def adjudicate(db: Session, contradiction_id: int, action: str,
         actor=actor,
         reason=reason or None,
     ))
+    try:
+        from softwiki.knowledge.projections import reproject_claims
+        reproject_claims(db, [a.id, b.id])
+    except Exception:
+        pass
     mark_wiki_stale_for_topics(db, [a.topic, b.topic], reason=f"adjudication:{action}")
+    try:
+        from softwiki.knowledge.wiki_queue import enqueue_wiki_rebuild
+        enqueue_wiki_rebuild(db, [a.topic, b.topic], reason=f"adjudication:{action}")
+    except Exception:
+        pass
     db.commit()
     return {"id": row.id, "status": row.status, "claim_a": a.status, "claim_b": b.status}
+
+
+def _rebuild_counts(db: Session) -> dict:
+    from softwiki.source_store.models import WikiRebuildTask
+    return {
+        "pending": db.query(WikiRebuildTask).filter(WikiRebuildTask.status == "pending").count(),
+        "running": db.query(WikiRebuildTask).filter(WikiRebuildTask.status == "running").count(),
+        "failed": db.query(WikiRebuildTask).filter(WikiRebuildTask.status == "failed").count(),
+        "done": db.query(WikiRebuildTask).filter(WikiRebuildTask.status == "done").count(),
+    }
 
 
 def metrics(db: Session) -> dict:
@@ -283,4 +320,5 @@ def metrics(db: Session) -> dict:
         "events_linked": db.query(func.count(Event.id)).filter(
             Event.canonical_claim_id.isnot(None)
         ).scalar() or 0,
+        "wiki_rebuild_tasks": _rebuild_counts(db),
     }

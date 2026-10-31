@@ -539,6 +539,7 @@ export interface KnowledgeMetrics {
   relationships_linked?: number;
   events?: number;
   events_linked?: number;
+  wiki_rebuild_tasks?: Record<string, number>;
 }
 
 export async function apiListConflicts(status?: string): Promise<{ conflicts: KnowledgeConflict[] }> {

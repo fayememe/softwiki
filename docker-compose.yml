@@ -10,6 +10,7 @@ x-api-common: &api-common
     SOFTWIKI_ENABLE_WEB_SEARCH: "true"
     AGENT_WEB_URL: ${AGENT_WEB_URL:-http://host.docker.internal:6111}
     AGENT_DEFAULT: ${AGENT_DEFAULT:-wiki-research}
+    WIKI_REBUILD_WORKER: "1"
   extra_hosts:
     - "host.docker.internal:host-gateway"
   volumes:

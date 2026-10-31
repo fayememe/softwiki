@@ -138,3 +138,43 @@ def test_claim_topic_maps_to_curated_page(monkeypatch, tmp_path):
     assert page_topics_for_claim_topic("rtc-register-map") == ["pl031"]
     assert page_topics_for_claim_topic("apb-interface") == ["amba"]
     assert page_topics_for_claim_topic("unknown-topic") == []
+
+
+def test_adjudication_reprojects_graph_and_timeline(db):
+    from datetime import datetime
+    from softwiki.knowledge.canonical import canonicalize_claim
+    from softwiki.knowledge.conflicts import scan_conflicts, adjudicate
+    from softwiki.knowledge.versioning import assign_document_version
+    from softwiki.source_store.models import CanonicalClaim, Contradiction, Event, Relationship
+    d1 = _doc(db, "Vendor A", "https://a/doc", datetime(2024, 1, 1))
+    d2 = _doc(db, "Vendor B", "https://b/doc", datetime(2024, 1, 1))
+    assign_document_version(db, d1); assign_document_version(db, d2); db.commit()
+    c1 = _claim(db, d1, "a1", "The RTCCR reset value is 0x0.")
+    c2 = _claim(db, d2, "b1", "The RTCCR reset value is 0x1.")
+    cc1 = canonicalize_claim(db, c1, d1)
+    cc2 = canonicalize_claim(db, c2, d2)
+    rel = Relationship(source_name="RTCCR", target_name="reset", relation_type="has_value",
+                       document_id=d1.id, confidence=0.9, canonical_claim_id=cc1.id)
+    ev = Event(title="RTCCR reset", event_date=datetime(2024, 1, 1), document_id=d1.id,
+               canonical_claim_id=cc1.id)
+    db.add_all([rel, ev]); db.commit()
+    scan_conflicts(db)
+    row = db.query(Contradiction).first()
+    assert row is not None
+    adjudicate(db, row.id, "accept_b", actor="reviewer")
+    db.refresh(rel); db.refresh(ev)
+    assert rel.status == "superseded"
+    assert ev.status == "superseded"
+
+
+def test_wiki_rebuild_queue_dedup(db, monkeypatch):
+    from softwiki.knowledge.wiki_queue import enqueue_wiki_rebuild, pending_count
+    from softwiki.source_store.models import WikiRebuildTask
+    monkeypatch.setattr(
+        "softwiki.wiki.interventions.page_topics_for_claim_topic",
+        lambda topic: ["pl031"] if topic == "rtc-register-map" else [],
+    )
+    assert enqueue_wiki_rebuild(db, ["rtc-register-map"], reason="test") == 1
+    assert enqueue_wiki_rebuild(db, ["rtc-register-map"], reason="test2") == 0
+    assert db.query(WikiRebuildTask).count() == 1
+    assert pending_count(db)["pending"] == 1

@@ -224,6 +224,22 @@ class WikiArtifactState(Base):
     last_used_at = Column(DateTime, nullable=True)
 
 
+class WikiRebuildTask(Base):
+    __tablename__ = "wiki_rebuild_tasks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    topic = Column(String(120), nullable=False, index=True)
+    reason = Column(String(200), nullable=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    attempts = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=2, nullable=False)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 

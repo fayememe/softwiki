@@ -282,6 +282,11 @@ def canonicalize_document(db: Session, doc_id: int) -> dict:
     if topics:
         mark_wiki_stale_for_topics(db, topics, reason="document_canonicalized")
         try:
+            from softwiki.knowledge.wiki_queue import enqueue_wiki_rebuild
+            enqueue_wiki_rebuild(db, topics, reason="document_canonicalized")
+        except Exception:
+            pass
+        try:
             from softwiki.knowledge.conflicts import scan_conflicts
             for topic in topics:
                 scan_conflicts(db, topic)

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import threading
 import uuid
 import shutil
 import time
@@ -30,6 +31,7 @@ from softwiki.ingestion.pdf_loader import extract_pdf_content
 from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash, is_duplicate_url
 from softwiki.knowledge.versioning import assign_document_version
 from softwiki.knowledge.conflicts import list_conflicts, scan_conflicts, adjudicate, metrics as knowledge_metrics
+from softwiki.knowledge.wiki_queue import enqueue_stale_wiki, pending_count
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -129,6 +131,15 @@ def warm_indexes():
         Bm25Store()
     except Exception as e:
         print(f"Index warmup skipped: {e}")
+
+
+@app.on_event("startup")
+def start_wiki_worker():
+    if os.getenv("WIKI_REBUILD_WORKER", "0") not in ("1", "true", "yes"):
+        return
+    from softwiki.knowledge.wiki_queue import worker_loop
+    threading.Thread(target=worker_loop, name="wiki-rebuild-worker", daemon=True).start()
+    print("Wiki rebuild worker started")
 
 
 @app.get("/api/health")
@@ -1043,6 +1054,48 @@ def rebuild_index():
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+@app.get("/api/wiki/rebuild-tasks")
+def list_wiki_rebuild_tasks(status: Optional[str] = None, limit: int = 50):
+    from softwiki.source_store.models import WikiRebuildTask
+    db = SessionLocal()
+    try:
+        q = db.query(WikiRebuildTask).order_by(WikiRebuildTask.created_at.desc())
+        if status:
+            q = q.filter(WikiRebuildTask.status == status)
+        rows = q.limit(min(max(limit, 1), 200)).all()
+        return {
+            "tasks": [
+                {
+                    "id": t.id,
+                    "topic": t.topic,
+                    "reason": t.reason,
+                    "status": t.status,
+                    "attempts": t.attempts,
+                    "max_attempts": t.max_attempts,
+                    "error": t.error,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "started_at": t.started_at.isoformat() if t.started_at else None,
+                    "finished_at": t.finished_at.isoformat() if t.finished_at else None,
+                }
+                for t in rows
+            ],
+            "counts": pending_count(db),
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/wiki/rebuild-stale")
+def rebuild_stale_wiki():
+    check_read_only()
+    db = SessionLocal()
+    try:
+        created = enqueue_stale_wiki(db)
+        return {"enqueued": created, "counts": pending_count(db)}
+    finally:
+        db.close()
+
 
 @app.get("/api/wiki/topics")
 def list_wiki_topics():
