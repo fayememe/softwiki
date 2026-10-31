@@ -363,7 +363,6 @@ def shell(workspace, model, session):
     from softwiki.cli.shell import start_shell
     start_shell(model_override=model, session_suffix=session)
 
-@cli.command('swagent')
 @cli.command('agent-web')
 @click.option('--port', type=int, default=6111, show_default=True, help='Port for the opencode web UI.')
 @click.option('--host', 'hostname', type=str, default='0.0.0.0', show_default=True, help='Hostname to bind.')
@@ -375,6 +374,8 @@ def agent_web(port, hostname, mode, model):
     os.environ['SOFTWIKI_MODE'] = mode
     from softwiki.cli.shell import start_agent_web
     start_agent_web(port=port, hostname=hostname, mode=mode, model_override=model)
+
+cli.add_command(agent_web, "swagent")
 
 @cli.command()
 @click.option('--port', type=int, default=None, help='Port to run the API server on.')
