@@ -14,8 +14,17 @@ class HybridSearcher:
         self.embedder = WikiEmbedder()
 
     def search(self, db: Session, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        query_vector = self.embedder.embed_query(query)
-        vector_results = self.vector_store.search(query_vector, top_k=top_k * 2)
+        vector_results = []
+        try:
+            query_vector = self.embedder.embed_query(query)
+            vector_results = self.vector_store.search(query_vector, top_k=top_k * 2)
+        except Exception as exc:
+            # Air-gapped/restricted deployments may not reach the embedding API.
+            # BM25 is still local; degrade instead of hanging the whole answer.
+            if os.getenv("RAG_ALLOW_BM25_FALLBACK", "1").lower() not in ("0", "false", "no"):
+                print(f"[rag] embedding unavailable, using BM25 only: {exc}", flush=True)
+            else:
+                raise
         bm25_results = self.bm25_store.search(query, top_k=top_k * 2)
 
         rrf_scores = {}
