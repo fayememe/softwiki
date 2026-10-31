@@ -13,7 +13,7 @@
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **Demo/销售（2026-10-31）**：`docs/04-guides/demo-plan.md`（15/30 分钟脚本、失败预案）；`docs/04-guides/sales-training.md`（话术、异议、边界）。
-- **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup。
+- **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup；**MCP role header 实测**（study 拒绝 ingest，work 放行）；无效 base64 已拒绝。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
@@ -198,7 +198,7 @@
 - [x] **Wiki 自动重建**：canonicalize/裁定后自动 enqueue；worker 串行重建，失败重试 2 次。
 - [!] **Claim 覆盖率 15.94%**：1,685/10,573 mapped；7,781 unmapped；1,107 ignored；effective 17.80%。Top unmapped 是零散技术/文档 topic（unpredictable-behavior、ppu-register-summary、software-tests、ip-xact 等）。
 - [x] **Wiki 页面数量**：12 个策展页面已用 canonical claims 重建；stale 0。
-- [!] **remote MCP 仍暴露写工具**：当前靠 opencode permission 拦截；产品化需只读 MCP sidecar / 网关。
+- [~] **remote MCP 写工具**：现在按 role header 拦截；无 key 时可伪造，内部信任；产品化需 API key/token。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
