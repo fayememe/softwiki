@@ -70,7 +70,7 @@
 - 12 个策展 Wiki 页面
 - 6,994/7,211 relationships、599/639 events 挂 claim
 - NLI 已抓到 1 个真实 DATA1/DATA2 位重叠冲突
-- 82 个测试通过
+- 84 个测试通过
 - 自部署：Docker Compose + PostgreSQL
 
 ---
@@ -139,6 +139,7 @@
 
 ## 9. Demo 纪律
 
+- 开场把左侧角色切到 `Admin`（默认 `Study` 只读）
 - 提前 10 分钟检查 API/Web/Agent
 - 不在客户面前 rebuild index / ingest 大文件
 - 不展示密钥、`.env`、内部日志

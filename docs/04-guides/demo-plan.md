@@ -23,6 +23,10 @@
 
 ## 2. Demo 前检查（5 分钟）
 
+**先把左侧角色切到 `Admin · all` 或 `Manage · ingest`。** 默认是 `wiki-study`，只读。
+
+
+
 ```bash
 # API / Web
 curl -s http://127.0.0.1:6200/api/health

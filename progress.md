@@ -13,6 +13,7 @@
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **Demo/销售（2026-10-31）**：`docs/04-guides/demo-plan.md`（15/30 分钟脚本、失败预案）；`docs/04-guides/sales-training.md`（话术、异议、边界）。
+- **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
@@ -161,7 +162,7 @@
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
-- [x] **测试基线**：82 passed（离线；含 knowledge v2 / NLI / citation）。
+- [x] **测试基线**：84 passed（离线；含 knowledge v2 / NLI / citation / permissions / cleanup）。
 - [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
 - [x] javis deploy key 已加入 Forgejo。
@@ -190,6 +191,7 @@
 - [~] **Graph/Timeline 版本继承**：adjudication 后已 reproject status；版本链/supersedes/evidence 多对多未做。
 - [~] **Structured claim**：`subject/predicate/object/qualifiers` 字段 + 可选 LLM 结构脚本；已结构 569 条，未全量。
 - [x] **Conflict UI/API**：分页 + status/severity/type/topic 过滤 + evidence drawer。
+- [x] **角色 / capability**：`permissions.yaml` + Web role cookie + MCP role header + API/MCP guards；无 key，内部信任。
 - [x] **MMR**：HybridSearcher 增加轻量 MMR 去冗余。
 - [x] **Citation check**：`/api/ask` 返回 `citation_check`（unknown/unused/warnings）。
 - [~] **Wiki Artifact History**：`wiki_artifact_versions` + History API/UI；旧页面归档，current 覆盖。
