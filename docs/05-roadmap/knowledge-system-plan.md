@@ -122,7 +122,7 @@ P0 规则：
 
 P2 语义：
 
-- [~] NLI/LLM judge v0：`knowledge_v2_nli.py` + `ClaimPairJudgement`；已确认 1 个真实冲突
+- [~] NLI/LLM judge v0：`knowledge_v2_nli.py` + `ClaimPairJudgement`；已确认 1 个 DATA1/DATA2 位重叠冲突
 - [~] 版本/来源上下文（v0）；时间未覆盖
 - [ ] NLI 定时/误报评测集
 
@@ -382,7 +382,7 @@ N Metrics depends on A/C/E/J
 
 - Schema：`CanonicalClaim` / `ClaimEvidence` / `Contradiction` / `Adjudication` / `WikiArtifactState` / `WikiArtifactVersion` / `WikiRebuildTask` / `ClaimPairJudgement`；Document/Claim/Relationship/Event 新列。
 - 迁移脚本：`scripts/knowledge_v2_migrate.py`、`scripts/knowledge_v2_rescan.py`、`scripts/knowledge_v2_wiki_states.py`。
-- 数据：10,573 raw claims → 9,766 canonical + 10,573 evidence；807 merged；当前 0 open conflicts（保守模板规则）。
+- 数据：10,573 raw claims → 9,766 canonical + 10,573 evidence；807 merged；当前 1 open conflict（NLI DATA1/DATA2）。
 - API：`/api/knowledge/metrics`、`/api/conflicts`、`/api/conflicts/scan`、`/api/conflicts/{id}/adjudicate`、`/api/canonical-claims`、`/api/canonical-claims/{id}/evidence`。
 - UI：Sidebar **Conflicts**；accept A/B、keep both、mark error、needs evidence、reopen；Wiki stale banner。
 - AnswerEngine：canonical active/disputed + conflict context + 不静默选边。
@@ -390,7 +390,7 @@ N Metrics depends on A/C/E/J
 - 备份：`/tmp/armkb_before_knowledge_v2.sql`（116MB）。
 - 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；MinHash 近重复 6 对报告。
 - 追加：durable rebuild queue + API worker；artifact history/API/UI；adjudication 后 reproject Graph/Timeline status。
-- 追加：subject/predicate/object/qualifiers 字段；`knowledge_v2_structure.py`（已结构 71 条）；`knowledge_v2_nli.py` + `ClaimPairJudgement`；NLI 已确认 1 个 DATA1/DATA2 位重叠冲突。
+- 追加：subject/predicate/object/qualifiers 字段；`knowledge_v2_structure.py`（已结构 71 条）；`knowledge_v2_nli.py` + `ClaimPairJudgement`；NLI 已确认 1 个 DATA1/DATA2 位重叠冲突（2 claims disputed）。
 - 未完成：Graph/Timeline 版本链与 evidence 多对多、NLI 定时/评测、结构 claim 全量、近重复自动合并、Tier 2。
 
 ---
