@@ -56,7 +56,7 @@ claim coverage:        15.94%（effective 17.80%）
 - [x] `ClaimEvidence`: `claim_id`, `canonical_id`, `document_id`, `page_start`, `page_end`, `quote`, `source_revision`, `trust_level`
 - [x] `Contradiction`: `claim_a_id`, `claim_b_id`, `type`, `severity`, `status`, `auto_resolved`, `resolution`
 - [x] `Adjudication`: `contradiction_id`, `action`, `before_json`, `after_json`, `actor`, `reason`, `created_at`
-- [ ] `WikiArtifactState`: `topic`, `prompt_version`, `model`, `claim_set_hash`, `status_counts`, `built_at`, `stale_at`
+- [x] `WikiArtifactState`: `topic`, `prompt_version`, `model`, `claim_set_hash`, `status_counts`, `built_at`, `stale_at`
 - [x] 迁移脚本；SQLite/PG 双支持
 
 **难度：L（8–12d）**  
@@ -194,11 +194,11 @@ P2 语义：
 
 ### J. LLM-Wiki 状态与重建
 
-- [ ] `WikiArtifactState`：claim hash / prompt version / status counts / stale
+- [x] `WikiArtifactState`：claim hash / prompt version / status counts / stale
 - [x] `stale` 事件：claim 变化/裁定
-- [ ] 重建队列（单页/批量）
+- [~] 重建队列：手动批量脚本；durable worker/自动触发未做
 - [~] 手动批量 `rebuild_stale_wiki.py`；增量未做
-- [ ] 页面 Current / History / Disputed 结构
+- [~] 页面 Disputed 小节已有；Current/History 版本化未做
 - [x] stale 页面不参与权威回答
 
 **难度：M（4–6d）**  
