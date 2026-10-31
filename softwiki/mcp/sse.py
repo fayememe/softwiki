@@ -110,9 +110,11 @@ def create_mcp_server():
         from datetime import datetime
 
         try:
-            raw = base64.b64decode(file_data)
+            raw = base64.b64decode(file_data, validate=True)
         except Exception:
             return "Error: invalid base64 data."
+        if not raw:
+            return "Error: empty file."
 
         is_md = file_name.lower().endswith(".md")
         title = file_name.replace(".md", "").replace("_", " ").replace("-", " ").title()
