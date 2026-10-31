@@ -21,6 +21,8 @@ from softwiki.knowledge.projections import reproject_claims
 from softwiki.knowledge.wiki_queue import enqueue_wiki_rebuild
 from softwiki.intelligence.llm_client import get_llm_client_and_params
 
+LEGAL_RE = re.compile(r"copyright|licen[cs]e|warranty|disclaimer|confidential|trademark|patent", re.IGNORECASE)
+
 PROMPT = """You are a technical fact-checker for ARM IP documentation.
 Decide whether claim A and claim B assert incompatible facts for the same subject and scope.
 
@@ -56,6 +58,8 @@ def candidates(db, limit: int):
             for j in range(i + 1, len(group)):
                 a, b = group[i], group[j]
                 if a.value_normalized == b.value_normalized:
+                    continue
+                if LEGAL_RE.search(a.text or "") or LEGAL_RE.search(b.text or ""):
                     continue
                 score = jaccard(a.text, b.text)
                 if score < 0.45:
