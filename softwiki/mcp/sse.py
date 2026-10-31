@@ -4,6 +4,7 @@ import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from softwiki.config import get_workspace_dir
+from softwiki.permissions import can, current_role
 
 def create_mcp_server():
     """Build the FastMCP server with all SoftWiki tools registered (transport-agnostic)."""
@@ -47,6 +48,8 @@ def create_mcp_server():
             url: The URL to ingest.
             source_id: Optional source identifier.
         """
+        if not can("ingest.write"):
+            return f"Error: role '{current_role()}' cannot ingest."
         db = SessionLocal()
         try:
             from softwiki.ingestion.web_loader import extract_web_content
@@ -93,6 +96,8 @@ def create_mcp_server():
             file_data: Base64-encoded file content.
             source_id: Optional source identifier.
         """
+        if not can("ingest.write"):
+            return f"Error: role '{current_role()}' cannot ingest."
         import base64, tempfile
         from softwiki.ingestion.dedup import calculate_hash, is_duplicate_hash
         from softwiki.source_store.document_repo import DocumentRepository
@@ -162,6 +167,8 @@ def create_mcp_server():
     @mcp.tool()
     def rebuild_index() -> str:
         """Rebuild search indexes and auto-generate wiki pages."""
+        if not can("index.write"):
+            return f"Error: role '{current_role()}' cannot rebuild the index."
         import subprocess, sys
         from softwiki.source_store.db import SessionLocal, init_tables
         from softwiki.source_store.models import Document, Chunk
@@ -222,6 +229,8 @@ def create_mcp_server():
         Args:
             name: Workspace name (e.g. 'lsl-kb', 'eva-kb').
         """
+        if not can("system.admin"):
+            return f"Error: role '{current_role()}' cannot switch workspaces."
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         ws_path = os.path.join(project_root, "..", "workspace", name)
         ws_path = os.path.abspath(ws_path)
@@ -387,6 +396,8 @@ def create_mcp_server():
             enabled: Comma-separated list (e.g. "rag,graph,claimdb")
             scope: "global" or "workspace"
         """
+        if not can("system.admin"):
+            return f"Error: role '{current_role()}' cannot change modules."
         valid = {"rag", "graph", "claimdb", "timeline", "llmwiki"}
         modules = [m.strip().lower() for m in enabled.split(",") if m.strip().lower() in valid]
         if scope == "workspace":
@@ -400,12 +411,18 @@ def create_mcp_server():
 
 def create_sse_app():
     """Create a FastMCP app using the legacy HTTP+SSE transport (two endpoints: GET /sse, POST /messages)."""
-    return create_mcp_server().sse_app()
+    from softwiki.mcp.role_middleware import RoleMiddleware
+    app = create_mcp_server().sse_app()
+    app.add_middleware(RoleMiddleware)
+    return app
 
 
 def create_streamable_http_app():
     """Create a FastMCP app using the Streamable HTTP transport (single /mcp endpoint)."""
-    return create_mcp_server().streamable_http_app()
+    from softwiki.mcp.role_middleware import RoleMiddleware
+    app = create_mcp_server().streamable_http_app()
+    app.add_middleware(RoleMiddleware)
+    return app
 
 
 def create_combined_app():
@@ -418,7 +435,10 @@ def create_combined_app():
     mcp = create_mcp_server()
     sse_app = mcp.sse_app()
     http_app = mcp.streamable_http_app()
-    return Starlette(
+    from softwiki.mcp.role_middleware import RoleMiddleware
+    app = Starlette(
         routes=[*sse_app.routes, *http_app.routes],
         lifespan=http_app.router.lifespan_context,
     )
+    app.add_middleware(RoleMiddleware)
+    return app

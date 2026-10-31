@@ -243,3 +243,34 @@ def test_citation_check():
     assert r["unknown"] == [3]
     assert r["unused"] == [2]
     assert r["warnings"]
+
+
+def test_permissions_role_capabilities():
+    from softwiki.permissions import can, normalize_role, role_capabilities
+    assert normalize_role("work") == "wiki-work"
+    assert normalize_role("study") == "wiki-study"
+    assert can("read.ask", "wiki-study")
+    assert not can("ingest.write", "wiki-study")
+    assert not can("ingest.write", "wiki-work")
+    assert can("wiki.build", "wiki-work")
+    assert can("ingest.write", "wiki-manage")
+    assert can("system.admin", "wiki-admin")
+    assert "read.*" in role_capabilities("wiki-study")
+
+
+def test_deleting_document_cleans_canonical_and_evidence(db):
+    from datetime import datetime
+    from softwiki.knowledge.canonical import canonicalize_claim
+    from softwiki.knowledge.cleanup import delete_document_knowledge
+    from softwiki.source_store.models import CanonicalClaim, ClaimEvidence, Document, Relationship
+    d = _doc(db, "Delete me", "https://x/delete", datetime(2024, 1, 1))
+    c = _claim(db, d, "del1", "RTCDR is at offset 0x000.")
+    cc = canonicalize_claim(db, c, d)
+    rel = Relationship(source_name="RTCDR", target_name="offset", relation_type="is",
+                       document_id=d.id, confidence=0.9, canonical_claim_id=cc.id)
+    db.add(rel); db.commit()
+    result = delete_document_knowledge(db, d.id)
+    assert result["document_id"] == d.id
+    assert db.query(Document).filter(Document.id == d.id).first() is None
+    assert db.query(CanonicalClaim).filter(CanonicalClaim.id == cc.id).first() is None
+    assert db.query(ClaimEvidence).filter(ClaimEvidence.document_id == d.id).count() == 0

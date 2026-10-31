@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Session, ThemeMode } from '@/app/page';
+import RoleSelector from './RoleSelector';
 import styles from './Sidebar.module.css';
 
 export type ActivePanel = 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts' | 'graph' | 'timeline' | 'wiki';
@@ -127,6 +128,7 @@ export default function Sidebar({
               <option key={ws} value={ws}>{ws}</option>
             ))}
           </select>
+          <RoleSelector />
         </div>
       )}
 

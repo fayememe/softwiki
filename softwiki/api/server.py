@@ -33,6 +33,8 @@ from softwiki.knowledge.versioning import assign_document_version
 from softwiki.knowledge.conflicts import list_conflicts, scan_conflicts, adjudicate, metrics as knowledge_metrics
 from softwiki.knowledge.wiki_queue import enqueue_stale_wiki, pending_count
 from softwiki.knowledge.nli import judge_candidates
+from softwiki.knowledge.cleanup import delete_document_knowledge
+from softwiki.permissions import can, current_role, normalize_role, role_capabilities, set_role, reset_role
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -64,9 +66,22 @@ def _safe_db_url():
     except Exception:
         return "unknown"
 
+def require_capability(capability: str):
+    if not can(capability):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Role '{current_role()}' does not allow '{capability}' "
+                "(write operations are disabled in study/work modes; "
+                "wiki compilation is disabled in study mode)."
+            ),
+        )
+
+
 def check_read_only():
-    if os.getenv("SOFTWIKI_MODE") in ["study", "work", "wiki-study", "wiki-work"]:
-        raise HTTPException(status_code=403, detail="Write operations are disabled in study/work modes.")
+    # Backward-compatible alias: callers should prefer require_capability().
+    if not can("ingest.write") and not can("index.write") and not can("wiki.apply"):
+        raise HTTPException(status_code=403, detail="Write operations are disabled for this role.")
 
 # Enable CORS for Next.js frontend
 app.add_middleware(
@@ -78,6 +93,26 @@ app.add_middleware(
 )
 
 _AUTH_EXEMPT = {"/api/login", "/api/health", "/health", "/docs", "/openapi.json", "/redoc"}
+
+
+@app.middleware("http")
+async def role_middleware(request: Request, call_next):
+    # Trust-based role selection for the single-window team trial.
+    # Header wins; otherwise cookie; otherwise env/default.
+    role = (
+        request.headers.get("X-SoftWiki-Role")
+        or request.cookies.get("softwiki_role")
+        or os.getenv("SOFTWIKI_ROLE")
+        or os.getenv("SOFTWIKI_MODE")
+        or "wiki-admin"
+    )
+    role = normalize_role(role)
+    token = set_role(role)
+    request.state.role = role
+    try:
+        return await call_next(request)
+    finally:
+        reset_role(token)
 
 
 @app.middleware("http")
@@ -147,6 +182,16 @@ def start_wiki_worker():
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/permissions")
+def get_permissions():
+    role = current_role()
+    return {
+        "role": role,
+        "capabilities": role_capabilities(role),
+        "roles": ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"],
+    }
 
 
 @app.post("/api/login")
@@ -700,7 +745,7 @@ def get_conflicts(status: Optional[str] = None, topic: Optional[str] = None,
 
 @app.post("/api/conflicts/scan")
 def scan_knowledge_conflicts(req: ConflictScanRequest):
-    check_read_only()
+    require_capability("conflict.adjudicate")
     db = SessionLocal()
     try:
         return scan_conflicts(db, topic=req.topic)
@@ -710,7 +755,7 @@ def scan_knowledge_conflicts(req: ConflictScanRequest):
 
 @app.post("/api/conflicts/{conflict_id}/adjudicate")
 def adjudicate_conflict(conflict_id: int, req: ConflictAdjudicateRequest):
-    check_read_only()
+    require_capability("conflict.adjudicate")
     db = SessionLocal()
     try:
         try:
@@ -724,7 +769,7 @@ def adjudicate_conflict(conflict_id: int, req: ConflictAdjudicateRequest):
 @app.post("/api/knowledge/nli/scan")
 def scan_nli_conflicts(req: NliScanRequest):
     if req.apply:
-        check_read_only()
+        require_capability("nli.scan")
     db = SessionLocal()
     try:
         return judge_candidates(db, limit=min(max(req.limit, 1), 20), apply=req.apply)
@@ -863,7 +908,7 @@ def report_manifest(report_id: str):
 @app.post("/api/ingest/url")
 def ingest_url(req: IngestUrlRequest):
     """Ingest a web URL into the active workspace database and extracts claims."""
-    check_read_only()
+    require_capability("ingest.write")
     db = SessionLocal()
     try:
         source_meta = {}
@@ -937,7 +982,7 @@ def ingest_url(req: IngestUrlRequest):
 @app.post("/api/ingest/file")
 def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(None)):
     """Uploads a PDF file, saves it to workspace, and extracts claims."""
-    check_read_only()
+    require_capability("ingest.write")
     db = SessionLocal()
     try:
         # Resolve destination path in workspace raw/pdf directory
@@ -1035,7 +1080,7 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
 @app.post("/api/index")
 def rebuild_index():
     """Chunk all documents and rebuild dense embeddings and BM25 index files."""
-    check_read_only()
+    require_capability("index.write")
     db = SessionLocal()
     try:
         documents = DocumentRepository.get_all_documents(db)
@@ -1114,7 +1159,7 @@ def list_wiki_rebuild_tasks(status: Optional[str] = None, limit: int = 50):
 
 @app.post("/api/wiki/rebuild-stale")
 def rebuild_stale_wiki():
-    check_read_only()
+    require_capability("wiki.build")
     db = SessionLocal()
     try:
         created = enqueue_stale_wiki(db)
@@ -1174,6 +1219,7 @@ def get_wiki_interventions():
 
 @app.post("/api/wiki/interventions")
 def create_or_update_wiki_intervention(req: WikiInterventionRequest):
+    require_capability("wiki.apply")
     try:
         saved = save_intervention(
             scope=req.scope,
@@ -1189,6 +1235,7 @@ def create_or_update_wiki_intervention(req: WikiInterventionRequest):
 
 @app.delete("/api/wiki/interventions/{intervention_id}")
 def remove_wiki_intervention(intervention_id: str):
+    require_capability("wiki.apply")
     if not delete_intervention(intervention_id):
         raise HTTPException(status_code=404, detail="Intervention not found")
     return {"status": "deleted", "id": intervention_id}
@@ -1228,6 +1275,7 @@ def preview_wiki_page(req: WikiPreviewRequest):
     This is the closed-loop testing endpoint: change the optional intervention,
     preview selected topics, inspect, and iterate.
     """
+    require_capability("wiki.preview")
     topics = [t.strip() for t in (req.topics or ([req.topic] if req.topic else [])) if t and t.strip()]
     if not topics:
         raise HTTPException(status_code=400, detail="Provide topic or topics")
@@ -1278,7 +1326,7 @@ def apply_wiki_interventions(req: WikiApplyRequest):
 
     Preview first, then apply. The caller is responsible for choosing topics.
     """
-    check_read_only()
+    require_capability("wiki.apply")
     topics = [t.strip() for t in req.topics if t and t.strip()]
     if not topics:
         raise HTTPException(status_code=400, detail="Provide topics")
@@ -1319,8 +1367,7 @@ def apply_wiki_interventions(req: WikiApplyRequest):
 @app.post("/api/wiki/build")
 def build_wiki_page(req: WikiBuildRequest):
     """Generates and writes topic wiki page to workspace exports."""
-    if os.getenv("SOFTWIKI_MODE") in ["study", "wiki-study"]:
-        raise HTTPException(status_code=403, detail="Wiki compilation is disabled in study mode.")
+    require_capability("wiki.build")
     db = SessionLocal()
     try:
         generator = WikiPageGenerator()
@@ -1470,15 +1517,14 @@ def list_claims():
 @app.delete("/api/documents/{doc_id}")
 def delete_document(doc_id: int):
     """Deletes a document from the database (cascade deletes chunks, claims, events, relationships)."""
-    check_read_only()
+    require_capability("document.delete")
     db = SessionLocal()
     try:
-        doc = db.query(Document).filter(Document.id == doc_id).first()
-        if not doc:
+        try:
+            result = delete_document_knowledge(db, doc_id)
+        except ValueError:
             raise HTTPException(status_code=404, detail="Document not found")
-        db.delete(doc)
-        db.commit()
-        return {"status": "success", "message": f"Document {doc_id} successfully deleted."}
+        return {"status": "success", "message": f"Document {doc_id} successfully deleted.", **result}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1576,6 +1622,7 @@ class WorkspaceSwitchRequest(BaseModel):
 @app.post("/api/workspace")
 def switch_workspace(req: WorkspaceSwitchRequest, request: Request):
     """Switch the active workspace at runtime."""
+    require_capability("system.admin")
     ws_path = os.path.join(get_workspaces_root(), req.workspace)
     ws_path = os.path.abspath(ws_path)
     if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
@@ -1684,6 +1731,7 @@ def wiki_index():
 @app.post("/wiki/switch")
 def wiki_switch_workspace(workspace: str = Form(...)):
     """Switch workspace from the wiki UI."""
+    require_capability("system.admin")
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ws_path = os.path.join(project_root, "workspace", workspace)
     ws_path = os.path.abspath(ws_path)

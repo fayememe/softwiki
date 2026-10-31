@@ -1,0 +1,30 @@
+version: 1
+# Copy to <workspace>/configs/permissions.yaml to override defaults.
+# Roles are trusted self-declared identities in the team-trial phase.
+roles:
+  wiki-study:
+    allow:
+      - read.*
+  wiki-work:
+    allow:
+      - read.*
+      - wiki.build
+      - wiki.preview
+      - wiki.submit
+      # team trial: Hermes direct document input
+      - ingest.write
+      - index.write
+  wiki-manage:
+    allow:
+      - read.*
+      - wiki.build
+      - wiki.preview
+      - wiki.apply
+      - ingest.write
+      - index.write
+      - document.delete
+      - conflict.adjudicate
+      - nli.scan
+  wiki-admin:
+    allow:
+      - "*"

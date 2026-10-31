@@ -34,6 +34,7 @@ from softwiki.rag.vector_store import LocalVectorStore
 from softwiki.rag.bm25_store import Bm25Store
 from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.wiki.page_generator import WikiPageGenerator
+from softwiki.permissions import can, current_role
 
 mcp = FastMCP("softwiki")
 
@@ -287,8 +288,8 @@ def wiki_build(topic: str) -> str:
     Args:
         topic: The topic ID (e.g. 'de-dollarization') to compile.
     """
-    if os.getenv("SOFTWIKI_MODE") in ["study", "wiki-study", "wiki-research"]:
-        return "Error: Wiki compilation is disabled in this mode."
+    if not can("wiki.build"):
+        return f"Error: role '{current_role()}' cannot build wiki pages."
     db = SessionLocal()
     try:
         generator = WikiPageGenerator()
@@ -836,8 +837,8 @@ def workspace_set(name: str) -> str:
     Args:
         name: Workspace directory name (e.g. 'eva-kb', 'default').
     """
-    if os.getenv("SOFTWIKI_MODE") == "wiki-research":
-        return "Error: workspace switching is disabled in wiki-research mode."
+    if not can("system.admin"):
+        return f"Error: role '{current_role()}' cannot switch workspaces."
     from softwiki.config import set_workspace_dir, get_workspaces_root
     ws_path = os.path.join(get_workspaces_root(), name)
     ws_path = os.path.abspath(ws_path)
@@ -872,8 +873,8 @@ def modules_set(enabled: str, scope: str = "global") -> str:
                  Modules not in the list will be disabled. Valid names: rag, graph, claimdb, timeline, llmwiki.
         scope: "global" — runtime (resets on restart), "workspace" — persisted for this workspace.
     """
-    if os.getenv("SOFTWIKI_MODE") == "wiki-research":
-        return "Error: module changes are disabled in wiki-research mode."
+    if not can("system.admin"):
+        return f"Error: role '{current_role()}' cannot change modules."
     from softwiki.config import set_enabled_modules, set_workspace_modules
     valid = {"rag", "graph", "claimdb", "timeline", "llmwiki"}
     modules = [m.strip().lower() for m in enabled.split(",") if m.strip().lower() in valid]
