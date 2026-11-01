@@ -30,7 +30,7 @@
   - 切流完成：Docker 接管 6200/6100/6108，旧 systemd 已 stop + disable；CI timer 已安装并验证；
   - 新建 `armkb`：3 篇 ARM 试点 → 454 chunks / 101 claims / 39 entities / 17 events；`search` + `ask` 验证通过；
   - 全量 81 篇 ARM PDF 后台入库中（日志 `/tmp/armkb-ingest.log`），完成后需 `/api/index`。
-- **157 部署注意**：目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；embedding 不可达，当前 BM25 fallback。
+- **157 部署注意**：目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；embedding 不可达，当前 BM25 fallback；交付/运维手册见 `docs/03-operations/operator-manual.md`。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
