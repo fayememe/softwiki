@@ -58,11 +58,15 @@ Dashboard：http://117.133.38.157:9119
 Gateway：http://127.0.0.1:8642（仅本机）
 数据：/opt/aitools/apps/hermes（挂载 /opt/data）
 版本：0.22.5
-模型：deepseek-v4-flash
+模型：deepseek-v4-flash（**当前未配置 key**；Hermes 可启动，模型调用不可用）
 ```
 
 Dashboard 使用 basic auth（用户名 `admin`；密码见目标机
 `/opt/aitools/apps/hermes/.env`，不要提交到 git）。
+
+> 2026-11-01 更新：已从 157 移除个人 DeepSeek/OpenAI/embedding key；SoftWiki
+> `model_profiles.yaml` 的 `api_key` 已置空。需要 157 专用 key 后再启用 LLM。
+> SWAgent 已停用；Hermes dashboard/MCP 仍可访问，但模型调用需要新 key。
 
 MCP：
 
