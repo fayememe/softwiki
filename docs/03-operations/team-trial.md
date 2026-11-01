@@ -37,6 +37,19 @@ softwiki_role=wiki-admin
 
 ## 4. Hermes / MCP
 
+157 上已部署 Hermes Agent + WebUI：
+
+```text
+Dashboard: http://117.133.38.157:9119
+Gateway:   127.0.0.1:8642 only
+MCP:       softwiki -> http://host.docker.internal:6100/mcp
+Role:      wiki-work
+```
+
+Dashboard 登录：`admin` / 见 `/opt/aitools/apps/hermes/.env`。
+
+
+
 Hermes 配置：
 
 ```json

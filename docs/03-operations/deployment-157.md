@@ -49,6 +49,41 @@ events:         0
 - 模型：`deepseek-v4-flash`
 - 角色：`wiki-research`（只读）
 
+## Hermes Agent + WebUI
+
+```text
+容器：hermes
+镜像：nousresearch/hermes-agent:latest
+Dashboard：http://117.133.38.157:9119
+Gateway：http://127.0.0.1:8642（仅本机）
+数据：/opt/aitools/apps/hermes（挂载 /opt/data）
+版本：0.22.5
+模型：deepseek-v4-flash
+```
+
+Dashboard 使用 basic auth（用户名 `admin`；密码见目标机
+`/opt/aitools/apps/hermes/.env`，不要提交到 git）。
+
+MCP：
+
+```yaml
+mcp_servers:
+  softwiki:
+    url: http://host.docker.internal:6100/mcp
+    headers:
+      X-SoftWiki-Role: wiki-work
+    timeout: 600
+```
+
+验证：
+
+```bash
+sudo docker exec -i hermes hermes mcp test softwiki
+# Connected, 16 tools
+sudo docker exec -i hermes hermes chat -q "Use SoftWiki to list documents." --oneshot -Q
+# 0
+```
+
 ## 网络限制
 
 该机器无法访问：
