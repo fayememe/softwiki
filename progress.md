@@ -16,6 +16,7 @@
 - **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup；**MCP role header 实测**（study 拒绝 ingest，work 放行）；无效 base64 已拒绝。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
 - **157 team trial（2026-11-02）**：`117.133.38.157`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，armkb 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-157.md`。
+- **157 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 157 出口封锁（见 `deployment-157.md`「出口封锁实测」）。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
@@ -208,7 +209,7 @@
 
 ## 下一步（NEXT）
 
-0. **157 pilot 已结束（未达 20/20）**：coffee 4 docs / 34 chunks / 76 claims；AI 8 / 67 / 146；index 已自动完成。失败主因是 157 DNS 污染/路由不可达（Wikipedia→Facebook IP、Guardian→Dropbox IP、NewYorker 等），需换可达来源后扩到 150/库。
+0. **157 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
@@ -218,6 +219,14 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-03 语料补齐**：
+  - 结论：157 的网络是**两层封锁**——DNS 污染（Guardian/Atlantic → `face:b00c` Facebook 段、Wikipedia → `2001::1`）+ TCP 层 RST（用真实 IP + 正确 SNI 仍 `000`）。**改 DNS 救不回**，157 也无 IPv6 / 无代理。
+  - 做法：开发机抓正文 → 清洗成 markdown（front matter: title/author/date/url）→ tar 推到 157 → `trial_ingest.sh` 节流入库 → `/api/index`。
+  - 结果：coffee 185 docs / 6,691 claims；ai-history 160 docs / 9,526 claims；两者均 0 stale wiki，ask 带来源名与引用。
+  - 途中修了 4 个会静默毁掉整篇抽取的 bug：`published_at` 为 None 时 strftime 崩溃；事件无日期写 NULL 违反 NOT NULL；失败后不 rollback 导致 status 卡在 `extracting`；varchar(100) 字段未截断导致 `StringDataRightTruncation`。
+  - 新增脚本：`scripts/trial_sources.py`、`scripts/trial_fetch.py`、`scripts/trial_ingest.sh`。
+  - 仍未做：markdown 无页码（`page_start` 为 None）；`scope_guard` 会判掉约 20 篇企业/预测类稿件；Wiki 覆盖率未重算。
 
 - **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证；完成 javis 切流；修复 OpenAI embedding 与 chunk 上限，重建索引并验证 `search`/`ask`；新建 `armkb` 并启动 81 篇 ARM 技术文档入库。
 - **关键产物**：

@@ -23,7 +23,8 @@ graph TD
 > 给「下一个 session」看的快照。保持更新。
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
-- **当前知识库**：`armkb`（ARM 技术文档，73 篇 / 39,870 chunks；全量索引完成）。
+- **当前知识库**：javis `armkb`（ARM 技术文档，73 篇 / 39,870 chunks）；157 试用库 `coffee-kb` 185 篇 / 3,489 chunks、`ai-history-kb` 160 篇 / 5,497 chunks。
+- **157 语料管线（2026-11-03）**：开发机抓正文 → markdown(front matter) → 推送入库；见 [`03-operations/deployment-157.md`](./03-operations/deployment-157.md)。157 对 Wikipedia/Guardian/NewYorker/Atlantic 是 TCP 层封锁，改 DNS 无效。
 - **SWAgent（2026-10-24）**：WebUI **Quick / SWAgent** 双模式；opencode engine `1.19.5` `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/swa/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
 - **Demo 流程**：[`04-guides/demo.md`](./04-guides/demo.md)（Quick / Agent / Workflow / Report / 验收）。
 - **Demo 计划（销售）**：[`04-guides/demo-plan.md`](./04-guides/demo-plan.md)（15/30 分钟脚本、失败预案）。

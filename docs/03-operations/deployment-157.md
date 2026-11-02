@@ -43,8 +43,8 @@ Compose：/usr/local/bin/docker-compose v5.6.1
 ## 当前状态
 
 ```text
-coffee-kb:      documents 4 / chunks 34 / claims 76
-ai-history-kb:  documents 8 / chunks 67 / claims 146
+coffee-kb:      documents 185 / chunks 3,489 / claims 6,691 / relationships 8,179 / events 2,297
+ai-history-kb:  documents 160 / chunks 5,497 / claims 9,526 / relationships 12,067 / events 3,279
 ```
 
 - `team` 已删除
@@ -159,4 +159,54 @@ sudo journalctl -u swagent-ai -f
 - 目标机没有 CI timer；更新代码需要手动同步 + rebuild。
 - `armkb` 仍在 javis；本机不再有 `armkb`。
 - `team` 已删除；不要再把 `swagent` 指回 `team`。
-- 2026-11-02 pilot 因 157 DNS 污染/路由不可达，Wikipedia/Guardian/NewYorker 等大量 URL 失败；需换可达来源。
+- 2026-11-02 pilot 因 157 出口封锁只入库 12 篇（4 + 8），已由「本地抓取 + 远侧入库」弥补，见下节。
+- 目标机不要直接抓外网 URL 入库（见「出口封锁实测」）。
+
+## 语料构建管线（2026-11-03）
+
+157 的出口限制无法绕过 DNS 修好，改为**在开发机抓正文、以 markdown 推送入库**。
+
+```bash
+# 1. 本地抓取（front matter 带 title/author/date/url）
+python scripts/trial_fetch.py --kb coffee --out /tmp/trial/coffee \
+    --sources wiki,rss,urls,europepmc --target 190
+python scripts/trial_fetch.py --kb ai-history --out /tmp/trial/ai-history \
+    --sources wiki,urls,rss --target 185
+
+# 2. 打包推到目标机
+tar -czf - -C /tmp/trial coffee | ssh faye@117.133.38.157 'tar -xzf - -C /tmp/trial-ingest'
+
+# 3. 节流入库（按 pending/extracting 文档数限流，卡死 8 分钟自动置 failed）
+bash /tmp/trial_ingest.sh /tmp/trial-ingest/coffee http://127.0.0.1:6200 \
+    softwiki-postgres-1 softwiki_coffee 3
+
+# 4. 建 chunk + 向量 + BM25
+curl -s -X POST -H "X-SoftWiki-Role: wiki-manage" http://127.0.0.1:6200/api/index
+```
+
+来源目录：`scripts/trial_sources.py`。当前构成：
+
+| KB | Wikipedia | arXiv(ar5iv) | SEP | 行业/媒体 RSS | Europe PMC |
+|---|---|---|---|---|---|
+| coffee | 115 | — | — | 41 | 34 |
+| ai-history | 121 | 17 | 10 | 15 | — |
+
+### 出口封锁实测（2026-11-03）
+
+DNS 与 TCP 是两层独立封锁，**改 DNS 解决不了后者**：
+
+| 目标 | 当前 resolver | 用真实 IP + 正确 SNI 强制访问 |
+|---|---|---|
+| en.wikipedia.org | `2001::1`（伪造） | 3 个真实 IP 全部黑洞超时 |
+| theguardian.com | `face:b00c`（Facebook 段） | `000` / 0.11s（TCP RST） |
+| www.newyorker.com | `2001::9f8a:1414`（伪造） | `000` / 0.22s |
+| www.theatlantic.com | `face:b00c` | `000` / 0.17s |
+
+- 157 无全局 IPv6，无 `*_PROXY`；AliDNS DoH 返回的也是污染结果，Cloudflare DoH 不可达。
+- 可达且已在使用：`en.wikipedia.org`（仅开发机）、ar5iv、SEP、Europe PMC、dailycoffeenews、baristamagazine、coffeegeek、IEEE Spectrum、MIT Tech Review、computerhistory.org。
+- 排除：Guardian / NewYorker / Atlantic / BBC / ai.stanford.edu（TCP 封锁）、perfectdailygrind（feed 403）、science.org / smithsonianmag（403，UA 可解但未采用）。
+
+### 已知缺口
+
+- markdown 文档没有页码，`/api/ask` 的 `page_start` 为 `None`；页码引用只在 PDF 上有意义。
+- ai-history 的 RSS 稿件里约 20 篇被 `scope_guard` 判为越界（企业治理、预测类新闻），因此 184 篇只入库 160。
