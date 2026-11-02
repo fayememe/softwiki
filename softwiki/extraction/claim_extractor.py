@@ -25,6 +25,7 @@ class ClaimExtractor:
 
     def extract_claims(self, doc_id: int, text: str, published_at: datetime) -> List[Claim]:
         self.load_configs()
+        year_str = published_at.strftime("%Y") if published_at else "unknown"
         
         from softwiki.intelligence.llm_client import get_llm_client_and_params
         client, model_name, temperature, max_tokens = get_llm_client_and_params("cheap_extraction")
@@ -90,7 +91,7 @@ Example Output:
             claims = []
             for i, c in enumerate(extracted):
                 base = f"{doc_id}|{c.get('actor', 'Unknown')}|{c.get('stance', 'unclear')}|{c.get('topic', 'general')}|{c.get('text', '')}"
-                claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
+                claim_id = f"claim_{year_str}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
                 claims.append(Claim(
                     id=claim_id,
                     document_id=doc_id,
@@ -109,6 +110,7 @@ Example Output:
 
     def _fallback_extract_claims(self, doc_id: int, text: str, published_at: datetime) -> List[Claim]:
         claims = []
+        year_str = published_at.strftime("%Y") if published_at else "unknown"
         text_lower = text.lower()
         
         # Generalize fallback heuristics: we can map any of the configured topics dynamically!
@@ -159,7 +161,7 @@ Example Output:
                             stance = "opposed"
                             
                         base = f"{doc_id}|{actor}|{stance}|{topic}|{claim_text}"
-                        claim_id = f"claim_{published_at.strftime('%Y')}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
+                        claim_id = f"claim_{year_str}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
                         claims.append(Claim(
                              id=claim_id,
                              document_id=doc_id,

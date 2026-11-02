@@ -1021,16 +1021,40 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
                 md_text = src.read()
                 dst.write(md_text)
             title = os.path.splitext(file.filename)[0]
+            author = "Unknown"
+            published_at = None
+            source_url = None
+            body = md_text
+            if md_text.startswith("---"):
+                end = md_text.find("\n---", 3)
+                if end != -1:
+                    try:
+                        import yaml
+                        meta = yaml.safe_load(md_text[3:end]) or {}
+                        if isinstance(meta, dict):
+                            title = meta.get("title") or title
+                            author = meta.get("author") or author
+                            source_url = meta.get("url") or meta.get("source")
+                            raw_date = meta.get("date") or meta.get("published_at")
+                            if raw_date:
+                                if isinstance(raw_date, datetime):
+                                    published_at = raw_date
+                                else:
+                                    published_at = datetime.fromisoformat(str(raw_date)[:10])
+                            body = md_text[end + 4:].lstrip("\n")
+                    except Exception as e:
+                        print(f"Front matter parse failed for {file.filename}: {e}")
             content = {
                 "title": title,
-                "author": "Unknown",
-                "raw_text": md_text,
-                "cleaned_text": md_text,
-                "published_at": None,
+                "author": author,
+                "raw_text": body,
+                "cleaned_text": body,
+                "published_at": published_at,
             }
+            content["url"] = source_url
         else:
             content = extract_pdf_content(dest_path)
-        content["url"] = None
+        content.setdefault("url", None)
         
         title = content["title"] or file.filename
         author = content["author"]
@@ -1050,7 +1074,7 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
             
         doc = Document(
             title=title,
-            url=None,
+            url=content.get("url"),
             source_name=source_meta.get("source_name", "Manual Import"),
             source_type=source_meta.get("source_type", "manual_import"),
             source_country=source_meta.get("source_country", "unknown"),

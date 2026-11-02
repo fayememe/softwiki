@@ -39,6 +39,8 @@ class TimelineExtractor:
             topic_instruction = "The topic area (determine this dynamically based on the subject of the event, keeping it concise, lowercase, and hyphen-separated, e.g. 'de-dollarization', 'low-altitude-economy')."
             predefined_section = "Predefined topics: None (infer dynamically from the text)"
 
+        publish_date_str = published_at.strftime("%Y-%m-%d") if published_at else "unknown"
+
         system_prompt = f"""You are a Timeline Event Extraction Assistant.
 Your task is to extract concrete chronological events mentioned in the text.
 An event represents a specific occurrence at a particular time (e.g. an agreement, a summit, an announcement, a version launch).
@@ -48,7 +50,7 @@ An event represents a specific occurrence at a particular time (e.g. an agreemen
 For each event, you must extract:
 1. "title": A short summary of what happened.
 2. "description": A details sentence describing the event.
-3. "event_date": The date of the event in "YYYY-MM-DD" format. If only a year is mentioned, default to "YYYY-01-01". If only month and year are mentioned, default to "YYYY-MM-01". If no date is found, use the document publish date: "{published_at.strftime('%Y-%m-%d')}".
+3. "event_date": The date of the event in "YYYY-MM-DD" format. If only a year is mentioned, default to "YYYY-01-01". If only month and year are mentioned, default to "YYYY-MM-01". If no date is found, use the document publish date: "{publish_date_str}".
 4. "topic": {topic_instruction}
 5. "confidence": A float from 0.0 to 1.0.
 
