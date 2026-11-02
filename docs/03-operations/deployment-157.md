@@ -3,13 +3,25 @@
 > 2026-11-01
 > 目标：只部署 SoftWiki；**不部署 `armkb`**。新知识库后续单独建。
 
+## 两个知识库
+
+| KB | Web | MCP | API | database |
+|---|---|---|---|---|
+| `coffee-kb` | 6108 | 6100 | 127.0.0.1:6200 | `softwiki_coffee` |
+| `ai-history-kb` | 6109 | 6102 | 127.0.0.1:6202 | `softwiki_ai_history` |
+
+`team` 已删除；`armkb` 未部署。
+
 ## 入口
 
 ```text
-Web:   http://117.133.38.157:6108
-MCP:   http://117.133.38.157:6100/mcp
-SWA:   http://117.133.38.157:6111
-API:   http://127.0.0.1:6200  （仅本机）
+Coffee Web:      http://117.133.38.157:6108
+AI History Web:  http://117.133.38.157:6109
+Coffee MCP:      http://117.133.38.157:6100/mcp
+AI History MCP:  http://117.133.38.157:6102/mcp
+SWA:             http://117.133.38.157:6111（停用）
+Coffee API:      http://127.0.0.1:6200
+AI History API:  http://127.0.0.1:6202
 ```
 
 API 已绑定 `127.0.0.1:6200`，不公网暴露。
@@ -19,8 +31,8 @@ API 已绑定 `127.0.0.1:6200`，不公网暴露。
 ```text
 用户：faye
 代码：/opt/aitools/apps/softwiki
-workspace：/opt/aitools/apps/softwiki/workspace/team
-数据库：softwiki_team
+workspace：/opt/aitools/apps/softwiki/workspace/{coffee,ai-history}
+数据库：softwiki_coffee / softwiki_ai_history
 Docker：28.5.2
 Compose：/usr/local/bin/docker-compose v5.6.1
 ```
@@ -28,17 +40,13 @@ Compose：/usr/local/bin/docker-compose v5.6.1
 ## 当前状态
 
 ```text
-documents:      0
-chunks:         0
-claims:         0
-entities:       0
-relationships:  0
-events:         0
+coffee-kb:      documents 0 / chunks 0 / claims 0
+ai-history-kb:  documents 0 / chunks 0 / claims 0
 ```
 
-- `armkb` workspace 已从本机移除
-- `softwiki_armkb` 数据库已删除
-- 保留 `team` 空 workspace + 配置（topics / permissions / model_profiles / scope）
+- `team` 已删除
+- `armkb` 未部署
+- 每个 KB 独立 topics / permissions / model_profiles / scope
 
 ## SWAgent
 
@@ -72,8 +80,13 @@ MCP：
 
 ```yaml
 mcp_servers:
-  softwiki:
+  softwiki_coffee:
     url: http://host.docker.internal:6100/mcp
+    headers:
+      X-SoftWiki-Role: wiki-work
+    timeout: 600
+  softwiki_ai:
+    url: http://host.docker.internal:6102/mcp
     headers:
       X-SoftWiki-Role: wiki-work
     timeout: 600

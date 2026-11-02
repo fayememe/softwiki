@@ -15,7 +15,7 @@
 - **Demo/销售（2026-10-31）**：`docs/04-guides/demo-plan.md`（15/30 分钟脚本、失败预案）；`docs/04-guides/sales-training.md`（话术、异议、边界）。
 - **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup；**MCP role header 实测**（study 拒绝 ingest，work 放行）；无效 base64 已拒绝。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
-- **157 team trial（2026-11-01）**：`117.133.38.157`，faye，`/opt/aitools/apps/softwiki`；Web `6108`、MCP `6100`、SWA `6111`、API 仅 `127.0.0.1:6200`；空 `team` workspace / `softwiki_team`，**未部署 armkb**；opencode 1.19.5；DeepSeek；BM25 fallback（无 OpenAI/Gemini 出站）；Hermes Agent + WebUI `9119`（gateway 仅本机 `8642`，MCP `softwiki` 角色 `wiki-work`，实测 16 tools / 0 docs）；**157 已移除个人 DeepSeek/OpenAI/embedding key，SWAgent 停用，Hermes 模型待 157 专用 key**；详见 `docs/03-operations/deployment-157.md`。
+- **157 team trial（2026-11-02）**：`117.133.38.157`，两个独立 KB：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，armkb 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-157.md`。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
@@ -30,7 +30,7 @@
   - 切流完成：Docker 接管 6200/6100/6108，旧 systemd 已 stop + disable；CI timer 已安装并验证；
   - 新建 `armkb`：3 篇 ARM 试点 → 454 chunks / 101 claims / 39 entities / 17 events；`search` + `ask` 验证通过；
   - 全量 81 篇 ARM PDF 后台入库中（日志 `/tmp/armkb-ingest.log`），完成后需 `/api/index`。
-- **157 部署注意**：目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；embedding 不可达，当前 BM25 fallback；交付/运维手册见 `docs/03-operations/operator-manual.md`；模型要求见 `docs/03-operations/model-requirements.md`；已支持 `EMBEDDING_DIMENSIONS` 与 `LLM_DISABLE_THINKING`（opencode API 适配）。
+- **157 部署注意**：两个独立 KB（coffee / ai-history）；目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；当前 embedding 走 oneroute，仍有 BM25 fallback；交付/运维手册见 `docs/03-operations/operator-manual.md`；模型要求见 `docs/03-operations/model-requirements.md`；已支持 `EMBEDDING_DIMENSIONS` 与 `LLM_DISABLE_THINKING`。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
@@ -208,6 +208,7 @@
 
 ## 下一步（NEXT）
 
+0. **157 两个 KB 开始灌数据**：coffee + ai-history；Hermes 已配置两个 MCP，按来源清单启动抓取。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
