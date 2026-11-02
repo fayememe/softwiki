@@ -3,6 +3,10 @@
 > 版本：2026-11-01  
 > 适用：远端机器（当前 `117.133.38.157`）的 opencode / Hermes 操作者  
 > 原则：**按手册执行；不确定先查状态；不要猜命令；不要提交密钥。**
+>
+> **2026-11-02 更新**：157 已拆成两个独立 KB：`coffee-kb`（6108/6100/6200）和
+> `ai-history-kb`（6109/6102/6202）。`team` 已删除。Hermes 已配置
+> `softwiki_coffee` / `softwiki_ai` 两个 MCP。详见 `deployment-157.md`。
 
 ---
 
@@ -29,15 +33,13 @@ Hermes   = 外部 Agent + WebUI，用 MCP 调 SoftWiki
 ### 0.3 当前 157 状态
 
 ```text
-Web:      http://117.133.38.157:6108
-API:      http://127.0.0.1:6200        （仅本机）
-MCP:      http://117.133.38.157:6100/mcp
-SWAgent:  :6111                         （当前停用，等专用 key）
-Hermes:   http://117.133.38.157:9119    （dashboard；basic auth）
-Gateway:  http://127.0.0.1:8642         （仅本机）
-workspace: team
-documents: 0
-armkb:     未部署
+Coffee:      http://117.133.38.157:6108   MCP 6100   API 127.0.0.1:6200
+AI History:  http://117.133.38.157:6109   MCP 6102   API 127.0.0.1:6202
+SWAgent:     :6111                         （停用）
+Hermes:      http://117.133.38.157:9119    （basic auth）
+Gateway:     http://127.0.0.1:8642         （仅本机）
+armkb:       未部署
+team:        已删除
 ```
 
 ### 0.4 操作纪律
