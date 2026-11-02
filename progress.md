@@ -15,7 +15,7 @@
 - **Demo/销售（2026-10-31）**：`docs/04-guides/demo-plan.md`（15/30 分钟脚本、失败预案）；`docs/04-guides/sales-training.md`（话术、异议、边界）。
 - **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup；**MCP role header 实测**（study 拒绝 ingest，work 放行）；无效 base64 已拒绝。
 - **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
-- **157 team trial（2026-11-02）**：`117.133.38.157`，两个独立 KB：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，armkb 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-157.md`。
+- **157 team trial（2026-11-02）**：`117.133.38.157`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，armkb 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-157.md`。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
