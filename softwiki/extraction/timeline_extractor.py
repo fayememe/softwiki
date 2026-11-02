@@ -116,7 +116,7 @@ Example Output:
                     document_id=doc_id,
                     confidence=float(ev.get("confidence", 0.75))
                 ))
-            return events
+            return [event for event in events if event.event_date is not None]
 
         except Exception as e:
             print(f"API event extraction failed: {e}. Falling back to local rules.")
@@ -163,7 +163,7 @@ Example Output:
                 ))
                 
         # If no date references, add a single fallback event for the publish date
-        if not events:
+        if not events and published_at is not None:
             events.append(Event(
                 title=f"Publication of Document: {text[:40].strip()}...",
                 description=f"Document published containing research material.",
@@ -173,4 +173,4 @@ Example Output:
                 confidence=0.80
             ))
             
-        return events
+        return [event for event in events if event.event_date is not None]

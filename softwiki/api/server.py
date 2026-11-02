@@ -10,6 +10,7 @@ import shutil
 import time
 from datetime import datetime
 from typing import List, Optional, Dict
+from urllib.parse import urlparse
 import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
@@ -953,8 +954,8 @@ def ingest_url(req: IngestUrlRequest):
         doc = Document(
             title=title,
             url=req.url,
-            source_name=source_meta.get("source_name", "Manual Import"),
-            source_type=source_meta.get("source_type", "manual_import"),
+            source_name=source_meta.get("source_name") or content.get("source_name") or "Manual Import",
+            source_type=source_meta.get("source_type") or ("web" if content.get("url") else "manual_import"),
             source_country=source_meta.get("source_country", "unknown"),
             trust_level=source_meta.get("trust_level", "medium"),
             language=source_meta.get("language", "en"),
@@ -1052,6 +1053,8 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
                 "published_at": published_at,
             }
             content["url"] = source_url
+            if source_url:
+                content["source_name"] = urlparse(source_url).netloc.replace("www.", "") or "Web Import"
         else:
             content = extract_pdf_content(dest_path)
         content.setdefault("url", None)
@@ -1075,8 +1078,8 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
         doc = Document(
             title=title,
             url=content.get("url"),
-            source_name=source_meta.get("source_name", "Manual Import"),
-            source_type=source_meta.get("source_type", "manual_import"),
+            source_name=source_meta.get("source_name") or content.get("source_name") or "Manual Import",
+            source_type=source_meta.get("source_type") or ("web" if content.get("url") else "manual_import"),
             source_country=source_meta.get("source_country", "unknown"),
             trust_level=source_meta.get("trust_level", "medium"),
             language=source_meta.get("language", "en"),

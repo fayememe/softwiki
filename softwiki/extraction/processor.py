@@ -176,7 +176,7 @@ def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime
     except Exception as e:
         print(f"[Worker] Background extraction failed for Document ID {doc_id}: {e}")
         try:
-            # Re-fetch document using a fresh session query
+            db.rollback()
             doc = DocumentRepository.get_document(db, doc_id)
             if doc:
                 doc.status = "failed"

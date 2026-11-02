@@ -2,6 +2,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from softwiki.source_store.models import Document, Chunk, Claim, SourceConfig, Entity, Relationship, Event
 
+
+def _clamp(value, limit: int):
+    if value is None:
+        return value
+    text = str(value)
+    return text if len(text) <= limit else text[:limit]
+
+
 class DocumentRepository:
     @staticmethod
     def get_document(db: Session, doc_id: int) -> Optional[Document]:
@@ -65,6 +73,9 @@ class DocumentRepository:
 
     @staticmethod
     def create_claim(db: Session, claim: Claim) -> Claim:
+        claim.actor = _clamp(claim.actor, 100)
+        claim.topic = _clamp(claim.topic, 100)
+        claim.canonical_id = _clamp(claim.canonical_id, 100)
         existing = db.query(Claim).filter(Claim.id == claim.id).first()
         if existing:
             existing.text = claim.text
@@ -132,6 +143,8 @@ class DocumentRepository:
 
     @staticmethod
     def create_entity(db: Session, entity: Entity) -> Entity:
+        entity.name = _clamp(entity.name, 150)
+        entity.type = _clamp(entity.type, 100)
         existing = db.query(Entity).filter(Entity.name == entity.name).first()
         if existing:
             if entity.type: existing.type = entity.type
@@ -151,6 +164,10 @@ class DocumentRepository:
     # --- Relationship operations ---
     @staticmethod
     def create_relationship(db: Session, rel: Relationship) -> Relationship:
+        rel.source_name = _clamp(rel.source_name, 150)
+        rel.target_name = _clamp(rel.target_name, 150)
+        rel.relation_type = _clamp(rel.relation_type, 100)
+        rel.canonical_claim_id = _clamp(rel.canonical_claim_id, 100)
         existing = db.query(Relationship).filter(
             Relationship.document_id == rel.document_id,
             Relationship.source_name == rel.source_name,
@@ -181,6 +198,9 @@ class DocumentRepository:
     # --- Event operations ---
     @staticmethod
     def create_event(db: Session, event: Event) -> Event:
+        event.title = _clamp(event.title, 250)
+        event.topic = _clamp(event.topic, 100)
+        event.canonical_claim_id = _clamp(event.canonical_claim_id, 100)
         existing = db.query(Event).filter(
             Event.document_id == event.document_id,
             Event.title == event.title,
