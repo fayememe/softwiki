@@ -120,6 +120,7 @@ OPENAI_API_KEY=
 OPENAI_API_BASE=
 EMBEDDING_PROVIDER=
 EMBEDDING_MODEL=
+EMBEDDING_DIMENSIONS=1536
 EMBEDDING_API_KEY=
 EMBEDDING_API_BASE=
 
@@ -242,6 +243,7 @@ key 放在 `.env`，不要写进 YAML 提交：
 SHELL_API_BASE=https://api.deepseek.com/v1
 SHELL_MODEL=deepseek-v4-flash
 SHELL_API_KEY=<157_DEDICATED_KEY>
+LLM_DISABLE_THINKING=1
 ```
 
 > 157 已移除个人 key；必须用 157 专用 key。没有 key 时不要假装 ingest/ask 可用。

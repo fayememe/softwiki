@@ -65,4 +65,25 @@ def get_llm_client_and_params(profile_name: str):
         return None, model_name, temperature, max_tokens
 
     client = OpenAI(api_key=api_key, base_url=base_url)
+    _disable_thinking(client)
     return client, model_name, temperature, max_tokens
+
+
+def _disable_thinking(client) -> None:
+    """Some OpenAI-compatible gateways spend max_tokens on hidden reasoning.
+
+    When LLM_DISABLE_THINKING=1, add thinking={"type":"disabled"} via
+    extra_body. Servers that do not support it generally ignore unknown fields.
+    """
+    if os.getenv("LLM_DISABLE_THINKING", "").lower() not in ("1", "true", "yes"):
+        return
+
+    original = client.chat.completions.create
+
+    def create(*args, **kwargs):
+        extra = dict(kwargs.get("extra_body") or {})
+        extra.setdefault("thinking", {"type": "disabled"})
+        kwargs["extra_body"] = extra
+        return original(*args, **kwargs)
+
+    client.chat.completions.create = create

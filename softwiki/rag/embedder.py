@@ -33,6 +33,13 @@ class _TokenRateLimiter:
 
 _RATE_LIMITER = _TokenRateLimiter()
 
+
+def _approx_tokens(text: str) -> int:
+    """Cheap token estimate: ASCII ~4 chars/token; CJK ~1 char/token."""
+    ascii_chars = sum(1 for ch in text if ord(ch) < 128)
+    return max(1, ascii_chars // 4 + (len(text) - ascii_chars))
+
+
 def get_openai_client():
     global _openai_client
     if _openai_client is None:
@@ -86,16 +93,23 @@ class WikiEmbedder:
 
     def _embed_openai(self, texts: List[str]) -> List[List[float]]:
         client = get_openai_client()
-        batch_size = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "100")))
+        model_lower = self.model_name.lower()
+        default_batch = 10 if ("text-embedding-v4" in model_lower or "embedding-v4" in model_lower) else 100
+        batch_size = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", str(default_batch))))
         concurrency = max(1, int(os.getenv("EMBEDDING_CONCURRENCY", "4")))
         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
 
         max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "1")))
+        dimensions = os.getenv("EMBEDDING_DIMENSIONS")
+        extra = {"dimensions": int(dimensions)} if dimensions else {}
+
         def embed_batch(batch):
-            _RATE_LIMITER.acquire(sum(len(text) for text in batch))
+            _RATE_LIMITER.acquire(sum(_approx_tokens(text) for text in batch))
             for attempt in range(max_retries + 1):
                 try:
-                    response = client.embeddings.create(input=batch, model=self.model_name)
+                    response = client.embeddings.create(
+                        input=batch, model=self.model_name, **extra
+                    )
                     return [data.embedding for data in response.data]
                 except Exception:
                     if attempt >= max_retries:

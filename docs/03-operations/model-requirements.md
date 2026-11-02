@@ -128,7 +128,19 @@ Content-Type: application/json
 | 低温度 | 支持 0–0.3 | 抽取/NLI |
 | 流式 | 推荐 | SSE/Agent UX |
 
-### 3.3 两类模型
+### 3.3 推理模型 / thinking
+
+部分网关的推理模型会先 thinking，再输出；若 `max_tokens` 较小，可能 content 为空。
+
+SoftWiki 支持：
+
+```dotenv
+LLM_DISABLE_THINKING=1
+```
+
+开启后通过 `extra_body.thinking={"type":"disabled"}` 关闭隐藏 reasoning；不支持该字段的服务端会忽略，不影响其他 provider。
+
+### 3.4 两类模型
 
 建议运营方提供两个 model name：
 
@@ -146,7 +158,7 @@ QUALITY_MODEL = deepseek-v4-pro
 
 可以使用等价模型，但必须通过验收测试。
 
-### 3.4 超时与重试
+### 3.5 超时与重试
 
 ```text
 单次 chat 请求超时：120s
@@ -156,7 +168,7 @@ Agent 工具调用超时：600s
 
 `softwiki_ask` 在 BM25-only 模式下可能 1–3 分钟，超时不能低于 300s。
 
-### 3.5 限流
+### 3.6 限流
 
 试用期最低建议：
 
@@ -194,9 +206,19 @@ Content-Type: application/json
 {"data":[{"embedding":[0.1,0.2,...]},{"embedding":[...]}]}
 ```
 
-### 4.2 维度
+### 4.2 可选参数 `dimensions`
 
-当前 vector index 使用 **1536 维**。
+部分网关（如 oneroute / DashScope）默认维度不是 1536。SoftWiki 支持：
+
+```dotenv
+EMBEDDING_DIMENSIONS=1536
+```
+
+不设时使用服务端默认；设置后会随每次 embeddings 请求传 `dimensions`。
+
+### 4.3 维度
+
+当前 vector index 使用 **1536 维**；如服务端支持 `dimensions`，显式设为 1536。
 
 要求：
 
@@ -210,7 +232,7 @@ Content-Type: application/json
 - 不能混用旧 index
 - 需要先备份
 
-### 4.3 输入与批量
+### 4.4 输入与批量
 
 ```text
 单条最大输入：≥8192 tokens
@@ -218,7 +240,7 @@ Content-Type: application/json
 单请求超时：20s
 ```
 
-### 4.4 限流
+### 4.5 限流
 
 ```text
 TPM ≥ 1,000,000
@@ -233,7 +255,7 @@ EMBEDDING_CONCURRENCY
 EMBEDDING_TPM
 ```
 
-### 4.5 没有 Embedding 时
+### 4.6 没有 Embedding 时
 
 SoftWiki 会：
 

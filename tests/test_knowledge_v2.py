@@ -274,3 +274,46 @@ def test_deleting_document_cleans_canonical_and_evidence(db):
     assert db.query(Document).filter(Document.id == d.id).first() is None
     assert db.query(CanonicalClaim).filter(CanonicalClaim.id == cc.id).first() is None
     assert db.query(ClaimEvidence).filter(ClaimEvidence.document_id == d.id).count() == 0
+
+
+def test_disable_thinking_injects_extra_body(monkeypatch):
+    from softwiki.intelligence.llm_client import _disable_thinking
+    class Chat:
+        def __init__(self): self.calls = []
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            return "ok"
+    class Completions:
+        def __init__(self): self.create = Chat().create
+    class Client:
+        def __init__(self):
+            self.chat = type("X", (), {"completions": type("Y", (), {"create": self._create})()})()
+            self.seen = []
+        def _create(self, **kwargs):
+            self.seen.append(kwargs)
+            return "ok"
+    c = Client()
+    monkeypatch.setenv("LLM_DISABLE_THINKING", "1")
+    _disable_thinking(c)
+    c.chat.completions.create(model="x", messages=[], max_tokens=8)
+    assert c.seen[0]["extra_body"]["thinking"] == {"type": "disabled"}
+
+
+def test_embedding_dimensions_passed(monkeypatch):
+    import types
+    from softwiki.rag import embedder
+    seen = {}
+    class Emb:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            return types.SimpleNamespace(data=[types.SimpleNamespace(embedding=[0.1] * 3)])
+    class Client:
+        embeddings = Emb()
+    monkeypatch.setenv("EMBEDDING_DIMENSIONS", "1536")
+    monkeypatch.setattr(embedder, "get_openai_client", lambda: Client())
+    monkeypatch.setattr(embedder._RATE_LIMITER, "acquire", lambda n: None)
+    w = embedder.WikiEmbedder()
+    w.model_name = "text-embedding-v4"
+    out = w._embed_openai(["hello"])
+    assert seen["dimensions"] == 1536
+    assert len(out[0]) == 3
