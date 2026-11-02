@@ -208,7 +208,7 @@
 
 ## 下一步（NEXT）
 
-0. **157 两个 KB 开始灌数据**：coffee + ai-history；Hermes 已配置两个 MCP，按来源清单启动抓取。
+0. **157 pilot 已启动**：Hermes 任务 `coffee + ai-history` 各 20 篇 seed；后台运行，watcher 在任务结束后自动 index 两个 KB。当前 coffee 4 docs / 76 claims，AI 4 docs / 32 claims（进行中）。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
