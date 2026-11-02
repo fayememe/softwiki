@@ -208,7 +208,8 @@
 
 ## 下一步（NEXT）
 
-0. **157 pilot 已启动**：Hermes 任务 `coffee + ai-history` 各 20 篇 seed；后台运行，watcher 在任务结束后自动 index 两个 KB。当前 coffee 4 docs / 76 claims，AI 4 docs / 32 claims（进行中）。
+0. **157 pilot 已结束（未达 20/20）**：coffee 4 docs / 34 chunks / 76 claims；AI 8 / 67 / 146；index 已自动完成。失败主因是 157 DNS 污染/路由不可达（Wikipedia→Facebook IP、Guardian→Dropbox IP、NewYorker 等），需换可达来源后扩到 150/库。
+0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。

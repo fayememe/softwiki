@@ -160,7 +160,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
         id: genId(),
         role: 'assistant',
         content: engine === 'agent'
-          ? `SWAgent request failed: ${errText}\n\nTry again, or open **SWSWAgent ↗** for the full agent UI.`
+          ? `SWAgent request failed: ${errText}\n\nTry again, or open **SWAgent ↗** for the full agent UI.`
           : `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
         error: true,
         timestamp: new Date(),

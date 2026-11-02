@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { Session, ThemeMode } from '@/app/page';
 import RoleSelector from './RoleSelector';
+import KnowledgeBaseSelector from './KnowledgeBaseSelector';
 import styles from './Sidebar.module.css';
 
 export type ActivePanel = 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts' | 'graph' | 'timeline' | 'wiki';
@@ -118,16 +119,7 @@ export default function Sidebar({
       {/* ── Workspace Selector ── */}
       {!effectiveCollapsed && (
         <div className={styles.wsSection}>
-          <select
-            className={styles.wsSelect}
-            value={activeWorkspace}
-            onChange={e => onWorkspaceChange(e.target.value)}
-            title="Switch workspace"
-          >
-            {workspaces.map(ws => (
-              <option key={ws} value={ws}>{ws}</option>
-            ))}
-          </select>
+          <KnowledgeBaseSelector />
           <RoleSelector />
         </div>
       )}
