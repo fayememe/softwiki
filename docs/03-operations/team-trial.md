@@ -6,10 +6,10 @@
 ## 1. 入口
 
 ```text
-Web:   http://10.3.9.29:6108
-API:   http://10.3.9.29:6200   (Web 内部使用/管理员)
-MCP:   http://10.3.9.29:6100/mcp
-Agent: http://10.3.9.29:6111
+Web:   http://build.example.internal:6108
+API:   http://build.example.internal:6200   (Web 内部使用/管理员)
+MCP:   http://build.example.internal:6100/mcp
+Agent: http://build.example.internal:6111
 ```
 
 单 MCP 端口；不拆 read/write 端口。
@@ -37,10 +37,10 @@ softwiki_role=wiki-admin
 
 ## 4. Hermes / MCP
 
-157 上已部署 Hermes Agent + WebUI：
+trial-host 上已部署 Hermes Agent + WebUI：
 
 ```text
-Dashboard: http://117.133.38.157:9119
+Dashboard: http://trial.example.internal:9119
 Gateway:   127.0.0.1:8642 only
 MCP Coffee: softwiki_coffee -> http://host.docker.internal:6100/mcp
 MCP AI:     softwiki_ai     -> http://host.docker.internal:6102/mcp
@@ -57,7 +57,7 @@ Hermes 配置：
 {
   "mcpServers": {
     "softwiki": {
-      "url": "http://10.3.9.29:6100/mcp",
+      "url": "http://build.example.internal:6100/mcp",
       "headers": {
         "X-SoftWiki-Role": "wiki-work"
       }
@@ -79,7 +79,7 @@ Hermes 配置：
 ## 6. Mapping 文件
 
 ```text
-/opt/aitools/apps/softwiki/workspace/armkb/config/permissions.yaml
+/opt/aitools/apps/softwiki/workspace/kb-alpha/config/permissions.yaml
 ```
 
 修改后重启 API/MCP：

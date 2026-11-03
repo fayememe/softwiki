@@ -3,7 +3,7 @@ set -euo pipefail
 
 CI_DIR="${SOFTWIKI_CI_DIR:-$HOME/softwiki-ci}"
 BRANCH="${SOFTWIKI_CI_BRANCH:-master}"
-REMOTE="${SOFTWIKI_GIT_REMOTE:-ssh://git@10.3.9.19:2222/faye/softwiki.git}"
+REMOTE="${SOFTWIKI_GIT_REMOTE:-ssh://git@git.example.internal:2222/operator/softwiki.git}"
 ENV_FILE="${SOFTWIKI_ENV_FILE:-/opt/aitools/apps/softwiki/.env}"
 WORKSPACE="${SOFTWIKI_WORKSPACE:-/opt/aitools/apps/softwiki/workspace}"
 ACTIVE_WORKSPACE="${SOFTWIKI_ACTIVE_WORKSPACE:-lsl-kb}"

@@ -89,7 +89,7 @@ SOFTWIKI_MODE=wiki-work
 单端口：
 
 ```text
-http://10.3.9.29:6100/mcp
+http://build.example.internal:6100/mcp
 ```
 
 客户端传 header：

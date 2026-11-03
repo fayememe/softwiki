@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE="${WORKSPACE_DIR:-/opt/aitools/apps/softwiki/workspace/armkb}"
+WORKSPACE="${WORKSPACE_DIR:-/opt/aitools/apps/softwiki/workspace/kb-alpha}"
 DEST="${1:-/opt/aitools/apps/softwiki/backups}"
 mkdir -p "$DEST"
 STAMP="$(date +%Y%m%d-%H%M%S)"

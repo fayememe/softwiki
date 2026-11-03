@@ -20,7 +20,7 @@
 
 | 项 | 结果 |
 |---|---|
-| venv editable 指向 | `/home/faye/mydrv/git/softwki`（错误路径）→ 已用 `pip install -e . --no-deps` 修正 |
+| venv editable 指向 | `/home/operator/mydrv/git/softwki`（错误路径）→ 已用 `pip install -e . --no-deps` 修正 |
 | `import softwiki.mcp.server` | 现在解析到本仓库 |
 | `tests/test_mcp.py` 收集 | 失败：缺 `softwiki_search` 别名 → 已补 `softwiki_search` / `softwiki_ask` |
 | 全量 `pytest tests` | **挂起**（>120s 未结束），疑似 embedding/LLM 网络调用；不能作为基线 |

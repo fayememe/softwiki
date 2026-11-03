@@ -51,7 +51,7 @@
 |---|---|
 | `id` | SoftWiki session id |
 | `owner_id` | 现在 `local`，未来 user id |
-| `workspace` | `armkb` 等 |
+| `workspace` | `kb-alpha` 等 |
 | `opencode_session_id` | opencode 的 session id |
 | `title` | 用户可改 |
 | `created_at` / `updated_at` | 列表排序 |

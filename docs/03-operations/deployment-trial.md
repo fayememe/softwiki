@@ -1,7 +1,7 @@
-# Deployment — 117.133.38.157（team trial）
+# Deployment — trial.example.internal（team trial）
 
 > 2026-11-01
-> 目标：只部署 SoftWiki；**不部署 `armkb`**。新知识库后续单独建。
+> 目标：只部署 SoftWiki；**不部署 `kb-alpha`**。新知识库后续单独建。
 
 ## 两个知识库
 
@@ -10,19 +10,19 @@
 | `coffee-kb` | 6108 | 6100 | 127.0.0.1:6200 | `softwiki_coffee` |
 | `ai-history-kb` | 6109 | 6102 | 127.0.0.1:6202 | `softwiki_ai_history` |
 
-`team` 已删除；`armkb` 未部署。
+`team` 已删除；`kb-alpha` 未部署。
 
 语料目标：每个 KB **100–200 篇**，按 **150 篇/库**推进；先各 20 篇 pilot。
 
 ## 入口
 
 ```text
-Coffee Web:      http://117.133.38.157:6108
-AI History Web:  http://117.133.38.157:6109
-Coffee MCP:      http://117.133.38.157:6100/mcp
-AI History MCP:  http://117.133.38.157:6102/mcp
-Coffee SWA:      http://117.133.38.157:6111
-AI History SWA:  http://117.133.38.157:6112
+Coffee Web:      http://trial.example.internal:6108
+AI History Web:  http://trial.example.internal:6109
+Coffee MCP:      http://trial.example.internal:6100/mcp
+AI History MCP:  http://trial.example.internal:6102/mcp
+Coffee SWA:      http://trial.example.internal:6111
+AI History SWA:  http://trial.example.internal:6112
 Coffee API:      http://127.0.0.1:6200
 AI History API:  http://127.0.0.1:6202
 ```
@@ -32,7 +32,7 @@ API 已绑定 `127.0.0.1:6200`，不公网暴露。
 ## 机器 / 路径
 
 ```text
-用户：faye
+用户：operator
 代码：/opt/aitools/apps/softwiki
 workspace：/opt/aitools/apps/softwiki/workspace/{coffee,ai-history}
 数据库：softwiki_coffee / softwiki_ai_history
@@ -48,7 +48,7 @@ ai-history-kb:  documents 160 / chunks 5,497 / claims 9,526 / relationships 12,0
 ```
 
 - `team` 已删除
-- `armkb` 未部署
+- `kb-alpha` 未部署
 - 每个 KB 独立 topics / permissions / model_profiles / scope
 
 ## SWAgent
@@ -72,18 +72,18 @@ WebUI 的 KB selector 现在直接跳转 `6108` / `6109`，不再用旧 workspac
 ```text
 容器：hermes
 镜像：nousresearch/hermes-agent:latest
-Dashboard：http://117.133.38.157:9119
+Dashboard：http://trial.example.internal:9119
 Gateway：http://127.0.0.1:8642（仅本机）
 数据：/opt/aitools/apps/hermes（挂载 /opt/data）
 版本：0.22.5
-模型：deepseek-v4.1-flash（157 oneroute key 已配置；不使用个人 DeepSeek key）
+模型：deepseek-v4.1-flash（trial-host oneroute key 已配置；不使用个人 DeepSeek key）
 ```
 
 Dashboard 使用 basic auth（用户名 `admin`；密码见目标机
 `/opt/aitools/apps/hermes/.env`，不要提交到 git）。
 
-> 2026-11-01 更新：已从 157 移除个人 DeepSeek/OpenAI/embedding key；SoftWiki
-> `model_profiles.yaml` 的 `api_key` 已置空。需要 157 专用 key 后再启用 LLM。
+> 2026-11-01 更新：已从 trial-host 移除个人 DeepSeek/OpenAI/embedding key；SoftWiki
+> `model_profiles.yaml` 的 `api_key` 已置空。需要 trial-host 专用 key 后再启用 LLM。
 > SWAgent 已恢复，但拆成 coffee：6111 / ai-history：6112 两个实例。
 
 MCP：
@@ -157,14 +157,14 @@ sudo journalctl -u swagent-ai -f
 ## 注意
 
 - 目标机没有 CI timer；更新代码需要手动同步 + rebuild。
-- `armkb` 仍在 javis；本机不再有 `armkb`。
+- `kb-alpha` 仍在 build-host；本机不再有 `kb-alpha`。
 - `team` 已删除；不要再把 `swagent` 指回 `team`。
-- 2026-11-02 pilot 因 157 出口封锁只入库 12 篇（4 + 8），已由「本地抓取 + 远侧入库」弥补，见下节。
+- 2026-11-02 pilot 因 trial-host 出口封锁只入库 12 篇（4 + 8），已由「本地抓取 + 远侧入库」弥补，见下节。
 - 目标机不要直接抓外网 URL 入库（见「出口封锁实测」）。
 
 ## 语料构建管线（2026-11-03）
 
-157 的出口限制无法绕过 DNS 修好，改为**在开发机抓正文、以 markdown 推送入库**。
+trial-host 的出口限制无法绕过 DNS 修好，改为**在开发机抓正文、以 markdown 推送入库**。
 
 ```bash
 # 1. 本地抓取（front matter 带 title/author/date/url）
@@ -174,7 +174,7 @@ python scripts/trial_fetch.py --kb ai-history --out /tmp/trial/ai-history \
     --sources wiki,urls,rss --target 185
 
 # 2. 打包推到目标机
-tar -czf - -C /tmp/trial coffee | ssh faye@117.133.38.157 'tar -xzf - -C /tmp/trial-ingest'
+tar -czf - -C /tmp/trial coffee | ssh operator@trial.example.internal 'tar -xzf - -C /tmp/trial-ingest'
 
 # 3. 节流入库（按 pending/extracting 文档数限流，卡死 8 分钟自动置 failed）
 bash /tmp/trial_ingest.sh /tmp/trial-ingest/coffee http://127.0.0.1:6200 \
@@ -202,7 +202,7 @@ DNS 与 TCP 是两层独立封锁，**改 DNS 解决不了后者**：
 | www.newyorker.com | `2001::9f8a:1414`（伪造） | `000` / 0.22s |
 | www.theatlantic.com | `face:b00c` | `000` / 0.17s |
 
-- 157 无全局 IPv6，无 `*_PROXY`；AliDNS DoH 返回的也是污染结果，Cloudflare DoH 不可达。
+- trial-host 无全局 IPv6，无 `*_PROXY`；AliDNS DoH 返回的也是污染结果，Cloudflare DoH 不可达。
 - 可达且已在使用：`en.wikipedia.org`（仅开发机）、ar5iv、SEP、Europe PMC、dailycoffeenews、baristamagazine、coffeegeek、IEEE Spectrum、MIT Tech Review、computerhistory.org。
 - 排除：Guardian / NewYorker / Atlantic / BBC / ai.stanford.edu（TCP 封锁）、perfectdailygrind（feed 403）、science.org / smithsonianmag（403，UA 可解但未采用）。
 

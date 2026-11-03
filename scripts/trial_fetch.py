@@ -1,6 +1,6 @@
 """Fetch trial-corpus documents locally and stage them as markdown.
 
-The trial hosts (157) cannot reach most upstream sources, so documents are
+The trial hosts (trial-host) cannot reach most upstream sources, so documents are
 fetched here, cleaned to plain text, and later pushed as ``.md`` files whose
 YAML front matter carries title/author/date/url for provenance.
 
@@ -32,7 +32,7 @@ import trial_sources as catalog
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
-UA = "SoftWikiKB/1.0 (internal research trial; +https://github.com/faye/softwiki; faye@localhost)"
+UA = "SoftWikiKB/1.0 (internal research trial; +https://github.com/operator/softwiki; operator@localhost)"
 HEADERS = {"User-Agent": UA, "Accept-Language": "en"}
 MAX_CHARS = 40000
 WIKI_API = "https://en.wikipedia.org/w/api.php"

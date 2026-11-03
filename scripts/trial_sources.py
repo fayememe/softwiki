@@ -1,4 +1,4 @@
-"""Source catalog for the 157 team-trial knowledge bases.
+"""Source catalog for the trial-host team-trial knowledge bases.
 
 Two knowledge bases are targeted: ``coffee`` and ``ai-history``.
 Each entry is either a Wikipedia title (resolved through the plaintext

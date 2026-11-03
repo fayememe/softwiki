@@ -2,7 +2,7 @@
 
 > 范围：试用就绪（Trial Readiness）第一轮落地。
 > 目标：单校、单实例、自部署、试用评估。
-> 结论：**核心链路已通，测试全绿；armkb 已完成全量索引、PostgreSQL 迁移和窗口化重抽（10,573 claims）；workflow/API/UI demo 链路已打通；acceptance 11/11。**
+> 结论：**核心链路已通，测试全绿；kb-alpha 已完成全量索引、PostgreSQL 迁移和窗口化重抽（10,573 claims）；workflow/API/UI demo 链路已打通；acceptance 11/11。**
 
 ---
 
@@ -18,8 +18,8 @@
 ### 1.2 部署与 CI
 
 - Docker Compose 栈：`api` / `mcp` / `web`，多阶段 Dockerfile。
-- javis 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web），旧 systemd 已 stop + disable。
-- CI：javis 上 3 分钟轮询 `origin/master`，flock + SHA 比对 + 构建 + 健康检查 + 回滚。
+- build-host 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web），旧 systemd 已 stop + disable。
+- CI：build-host 上 3 分钟轮询 `origin/master`，flock + SHA 比对 + 构建 + 健康检查 + 回滚。
 - `deploy/softwiki-deploy.timer` 已安装并验证；**入库/索引期间临时停止**。
 - 修复 `mcp>=2` 破坏 `FastMCP` 的问题，pin `mcp<2`。
 - 修复 Docker 内 Next.js 反代：`API_INTERNAL_URL=http://api:6200`。
@@ -55,12 +55,12 @@
   - `EMBEDDING_TPM` 限速器，避免撞 1M TPM。
 - 抽取：`cheap_extraction` / `wiki_compilation` 从 Google（402）切到 DeepSeek。
 - 抽取窗口：每篇按 `EXTRACTION_MAX_WINDOWS` 采样窗口（默认 6）；claim id 改 hash，关系/事件去重；`softwiki reextract` 回填。
-- PostgreSQL：`DATABASE_URL_TEMPLATE` + compose `postgres:16` + SQLite→PG 迁移；armkb 已迁移（73 docs / 39,870 chunks）。
+- PostgreSQL：`DATABASE_URL_TEMPLATE` + compose `postgres:16` + SQLite→PG 迁移；kb-alpha 已迁移（73 docs / 39,870 chunks）。
 - Workflow：模板 + workspace override；`academic-analysis`；API/MCP/CLI/report 可按请求选择，注入 answer prompt。
 
-### 1.5 ARM 知识库 armkb
+### 1.5 ARM 知识库 kb-alpha
 
-- 语料：`~/drvroot/drv_f29/icwork/arm/docs` → javis `inbox/arm`。
+- 语料：`~/drvroot/drv_f29/icwork/arm/docs` → build-host `inbox/arm`。
 - 81 个 PDF：70 success / 11 duplicate / 0 failed。
 - 73 篇文档。
 - 抽取：**2122 claims / 835 entities / 1328 relationships / 375 events**。
@@ -109,11 +109,11 @@
 
 | 项 | 值 |
 |---|---|
-| 主机 | javis `10.3.9.29`（x86_64 / Debian 13 / 62GB RAM / RTX 3090 / 422GB 可用） |
-| Web | `http://10.3.9.29:6108` |
-| API | `http://10.3.9.29:6200` |
-| MCP | `10.3.9.29:6100`（SSE + Streamable HTTP） |
-| 活动库 | `armkb` |
+| 主机 | build-host `build.example.internal`（x86_64 / Debian 13 / 62GB RAM / RTX 3090 / 422GB 可用） |
+| Web | `http://build.example.internal:6108` |
+| API | `http://build.example.internal:6200` |
+| MCP | `build.example.internal:6100`（SSE + Streamable HTTP） |
+| 活动库 | `kb-alpha` |
 | 容器 | `softwiki-api-1` / `softwiki-mcp-1` / `softwiki-web-1`，全部 healthy |
 | CI timer | **active** |
 | 最新 commit | 见 `git log -1` |
@@ -126,7 +126,7 @@ EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_BATCH_SIZE=100
 EMBEDDING_CONCURRENCY=2
 EMBEDDING_TPM=900000
-SOFTWIKI_ACTIVE_WORKSPACE=armkb
+SOFTWIKI_ACTIVE_WORKSPACE=kb-alpha
 ```
 
 ---
@@ -140,11 +140,11 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
 
 ## 5. 未完成 / 风险
 
-- [x] **armkb 全量索引已完成**：39,870 chunks；2026-10-23 12:50–13:38（约 48 分钟，1M TPM）。
+- [x] **kb-alpha 全量索引已完成**：39,870 chunks；2026-10-23 12:50–13:38（约 48 分钟，1M TPM）。
 - [x] **已验证**：`search` 返回 page_start/page_end；`ask` 引用显示 `p.N` / `pp.N-M`；`/api/report` 生成并下载 report.md + manifest.json。
 - [x] **抽取窗口**：已改为窗口采样（本次 4 窗口/篇）+ hash claim id + 去重；73/73 重抽完成。
 - [ ] **认证 UI**：后端已就绪，WebUI 没有登录页；线上 auth 默认关闭。
-- [ ] **TLS/反代**：javis 没有 Caddy/Nginx；试用先用 HTTP 端口。
+- [ ] **TLS/反代**：build-host 没有 Caddy/Nginx；试用先用 HTTP 端口。
 - [x] **数据库**：已切 PostgreSQL；SQLite 数据已迁移。
 - [!] **密钥**：OpenAI key 曾出现在聊天；建议轮换。`model_profiles.yaml` 仍有明文 DeepSeek key，建议移到 `.env` / secret store。
 - [ ] **lsl-kb**：历史 820 篇 claims/events 仍为 0（未重抽）。
@@ -161,7 +161,7 @@ SOFTWIKI_ACTIVE_WORKSPACE=armkb
      -H 'Content-Type: application/json' \
      -d '{"question":"What registers does the PL031 RTC provide?","template":"research-report"}'
    ```
-3. CI timer 已重新启用；acceptance：`python scripts/run_acceptance.py --api http://10.3.9.29:6200` → 11/11。
+3. CI timer 已重新启用；acceptance：`python scripts/run_acceptance.py --api http://build.example.internal:6200` → 11/11。
 4. 后续优先级：
    - Workflow 高级（verifier/自动路由）；
    - 增量索引；
@@ -228,7 +228,7 @@ c8bcb4e fix(answer): enforce scope before retrieval
 2. **SI-1 Wiki 提示词系统**：`page_generator.py` 仍硬编码 system prompt + 固定章节；未支持 workspace/topic 覆盖。
 3. **增量索引**：`/api/index` 仍全量重切/重嵌；1M TPM 下每次约 50 分钟，应做缺失 chunk 的增量索引。
 4. **抽取覆盖/质量**：窗口是采样（默认 6 → 本次 4），不是全文档；需要评估哪些文档/章节值得全量抽取。
-5. **lsl-kb 回填**：历史 820 篇 claims/events 仍为 0；决定重抽或迁移到 armkb 流程。
+5. **lsl-kb 回填**：历史 820 篇 claims/events 仍为 0；决定重抽或迁移到 kb-alpha 流程。
 6. **审计日志**：auth/ACL 有角色，但没有操作审计。
 
 **P2（路线图后续）**

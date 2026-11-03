@@ -3,7 +3,7 @@
 > 本文件是本仓库的 **项目宪法（constitution）**。任何 agent / 协作者在动手前必须先读它，再读 `progress.md` 与 `docs/README.md`。
 > 若本文件与 `docs/` 下文档冲突，以已标记为 **✅ frozen** 的设计文档为准，并回填本文件。
 >
-> 远程仓库：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（homelab Forgejo，**private**）。
+> 远程仓库：`ssh://git@git.example.internal:2222/operator/softwiki.git`（homelab Forgejo，**private**）。
 
 ---
 
@@ -138,7 +138,7 @@ softwiki/
 - 提交前必须看 `git status` / `git diff`，只 stage 本次意图内的文件；**禁止 `git add -A` 盲提**。
 - 提交时机：完成一个逻辑单元后由 agent 自动提交（不下推到 session 结束）。
 - 推送时机：每个里程碑或 session 结束前 push 到 `origin`；中途可按需 push。
-- **授权（2026-10-23）**：faye 已确认策略 A —— agent 自动提交（逻辑单元）+ 里程碑 / session 结束自动 push；提交前仍须看 `git status` / `git diff`。
+- **授权（2026-10-23）**：operator 已确认策略 A —— agent 自动提交（逻辑单元）+ 里程碑 / session 结束自动 push；提交前仍须看 `git status` / `git diff`。
 - 推送前确认没有密钥 / 个人数据 / 运行产物；推送失败要记录到 `progress.md` 的 blocker。
 - 破坏性操作仍需明确要求（见 §5.1）。
 
@@ -158,4 +158,4 @@ softwiki/
 - 长期路线：`docs/05-roadmap/status.md`
 - 试用清单：`docs/05-roadmap/trial-readiness.md`
 - 历史决策：`docs/06-archive/work-log.md`
-- 远程仓库：`ssh://git@10.3.9.19:2222/faye/softwiki.git`
+- 远程仓库：`ssh://git@git.example.internal:2222/operator/softwiki.git`

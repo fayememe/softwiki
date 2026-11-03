@@ -1,12 +1,12 @@
 # SoftWiki / SWAgent 交付与运维手册
 
 > 版本：2026-11-01  
-> 适用：远端机器（当前 `117.133.38.157`）的 opencode / Hermes 操作者  
+> 适用：远端机器（当前 `trial.example.internal`）的 opencode / Hermes 操作者  
 > 原则：**按手册执行；不确定先查状态；不要猜命令；不要提交密钥。**
 >
-> **2026-11-02 更新**：157 已拆成两个独立 KB：`coffee-kb`（6108/6100/6200）和
+> **2026-11-02 更新**：trial-host 已拆成两个独立 KB：`coffee-kb`（6108/6100/6200）和
 > `ai-history-kb`（6109/6102/6202）。`team` 已删除。Hermes 已配置
-> `softwiki_coffee` / `softwiki_ai` 两个 MCP。详见 `deployment-157.md`。
+> `softwiki_coffee` / `softwiki_ai` 两个 MCP。详见 `deployment-trial.md`。
 
 ---
 
@@ -30,15 +30,15 @@ Hermes   = 外部 Agent + WebUI，用 MCP 调 SoftWiki
 | **Hermes** | 独立 Agent，带 WebUI；通过 MCP 使用 SoftWiki |
 | **personal opencode** | 用户自己平时用的 opencode，和 SWAgent 隔离 |
 
-### 0.3 当前 157 状态
+### 0.3 当前 trial-host 状态
 
 ```text
-Coffee:      http://117.133.38.157:6108   MCP 6100   API 127.0.0.1:6200
-AI History:  http://117.133.38.157:6109   MCP 6102   API 127.0.0.1:6202
+Coffee:      http://trial.example.internal:6108   MCP 6100   API 127.0.0.1:6200
+AI History:  http://trial.example.internal:6109   MCP 6102   API 127.0.0.1:6202
 SWAgent:     :6111                         （停用）
-Hermes:      http://117.133.38.157:9119    （basic auth）
+Hermes:      http://trial.example.internal:9119    （basic auth）
 Gateway:     http://127.0.0.1:8642         （仅本机）
-armkb:       未部署
+kb-alpha:       未部署
 team:        已删除
 ```
 
@@ -61,7 +61,7 @@ team:        已删除
 
 ## 1. 机器与目录
 
-### 1.1 157 目录
+### 1.1 trial-host 目录
 
 ```text
 /opt/aitools/apps/softwiki          SoftWiki 代码 + compose
@@ -73,7 +73,7 @@ team:        已删除
 ### 1.2 依赖
 
 - Docker 28+
-- Docker Compose（157 使用 `/usr/local/bin/docker-compose` v5.6.1）
+- Docker Compose（trial-host 使用 `/usr/local/bin/docker-compose` v5.6.1）
 - Python 3.14（SWAgent 容器内已有）
 - opencode 1.19.5（pinned）
 - Hermes 官方镜像 `nousresearch/hermes-agent:latest`
@@ -93,7 +93,7 @@ team:        已删除
 
 ## 2. 从零安装 SoftWiki
 
-> 当前 157 已部署；以下是重建/新机流程。
+> 当前 trial-host 已部署；以下是重建/新机流程。
 
 ### 2.1 取代码
 
@@ -101,7 +101,7 @@ team:        已删除
 sudo mkdir -p /opt/aitools/apps/softwiki
 sudo chown -R "$USER:$USER" /opt/aitools/apps/softwiki
 
-git clone ssh://git@10.3.9.19:2222/faye/softwiki.git \
+git clone ssh://git@git.example.internal:2222/operator/softwiki.git \
   /opt/aitools/apps/softwiki
 ```
 
@@ -171,7 +171,7 @@ workspace/team/
 └── scope.md
 ```
 
-不要在这里放 `armkb`；157 是空 `team`。
+不要在这里放 `kb-alpha`；trial-host 是空 `team`。
 
 ### 2.4 启动容器
 
@@ -244,11 +244,11 @@ key 放在 `.env`，不要写进 YAML 提交：
 ```dotenv
 SHELL_API_BASE=https://api.deepseek.com/v1
 SHELL_MODEL=deepseek-v4-flash
-SHELL_API_KEY=<157_DEDICATED_KEY>
+SHELL_API_KEY=<TRIAL_DEDICATED_KEY>
 LLM_DISABLE_THINKING=1
 ```
 
-> 157 已移除个人 key；必须用 157 专用 key。没有 key 时不要假装 ingest/ask 可用。
+> trial-host 已移除个人 key；必须用 trial-host 专用 key。没有 key 时不要假装 ingest/ask 可用。
 
 ### 3.2 SWAgent 模型
 
@@ -281,7 +281,7 @@ model:
 `/opt/aitools/apps/hermes/.env`：
 
 ```dotenv
-DEEPSEEK_API_KEY=<157_DEDICATED_KEY>
+DEEPSEEK_API_KEY=<TRIAL_DEDICATED_KEY>
 HERMES_DASHBOARD=1
 HERMES_DASHBOARD_HOST=0.0.0.0
 HERMES_DASHBOARD_PORT=9119
@@ -299,12 +299,12 @@ sudo docker restart hermes
 Dashboard：
 
 ```text
-http://117.133.38.157:9119
+http://trial.example.internal:9119
 ```
 
 ### 3.4 网络受限
 
-157 不能访问：
+trial-host 不能访问：
 
 ```text
 api.openai.com
@@ -447,7 +447,7 @@ Food & Culture
 ### 5.4 覆盖率
 
 ```bash
-curl -s http://117.133.38.157:6200/api/wiki/coverage | python3 -m json.tool
+curl -s http://trial.example.internal:6200/api/wiki/coverage | python3 -m json.tool
 ```
 
 看：
@@ -555,7 +555,7 @@ curl -X POST http://127.0.0.1:6200/api/index \
 {"status":"success","indexed_chunks":N,"vector_index":false,"bm25_index":true}
 ```
 
-157 上 `vector_index=false` 是预期；BM25 可用。
+trial-host 上 `vector_index=false` 是预期；BM25 可用。
 
 ### 6.5 批量
 
@@ -670,8 +670,8 @@ Apply（写 canonical）
 
 ### 9.1 当前
 
-- 157：`swagent.service`（容器），当前停用等 key
-- javis：`softwiki-agent-web.service`，6111
+- trial-host：`swagent.service`（容器），当前停用等 key
+- build-host：`softwiki-agent-web.service`，6111
 - engine：opencode 1.19.5
 - 入口：`http://<host>:6111` / Web `/swagent`
 
@@ -709,7 +709,7 @@ sudo docker logs --tail=100 hermes
 ### 10.2 Dashboard
 
 ```text
-http://117.133.38.157:9119
+http://trial.example.internal:9119
 ```
 
 用户名 `admin`；密码：
@@ -815,7 +815,7 @@ sudo systemctl restart swagent
 [ ] Hermes 9119 login 200
 [ ] MCP softwiki 16 tools
 [ ] workspace = team
-[ ] armkb 不在 157
+[ ] kb-alpha 不在 trial-host
 ```
 
 ### 12.2 数据
@@ -872,7 +872,7 @@ sudo /usr/local/bin/docker-compose --project-name softwiki ps
 
 ### OpenAI/Gemini timeout
 
-- 157 网络不通
+- trial-host 网络不通
 - 用 DeepSeek
 - embedding 不可达时 BM25 fallback
 - 不要反复重试
@@ -950,9 +950,9 @@ sudo docker exec -i hermes hermes mcp test softwiki
 
 ## 16. 当前已知边界
 
-- 157 没有 `armkb`
-- 157 没有个人 LLM key（等专用 key）
-- 157 无法访问 OpenAI/Gemini
+- trial-host 没有 `kb-alpha`
+- trial-host 没有个人 LLM key（等专用 key）
+- trial-host 无法访问 OpenAI/Gemini
 - embedding 不可达，BM25 fallback
 - SWAgent 当前停用
 - Web session 仍是 localStorage，服务端 session 未做

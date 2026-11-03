@@ -9,29 +9,29 @@
 - **当前阶段**：**试用就绪（Trial Readiness）**，目标 = 单校、单实例、自部署、试用评估。
 - **SWAgent（2026-10-24）**：L1/L2 已上线。WebUI **Quick / SWAgent** 双模式；opencode engine pin **1.19.5**（内置路径 `/opt/aitools/apps/softwiki/engine/opencode/1.19.5/opencode`）宿主 `:6111`；API `:6200/api/agent/*`；systemd `softwiki-agent-web`；模型 `gpt-4.1-mini`；acceptance **11/11**；浏览器 Agent 模式已验证。
 - **知识系统思想（2026-10-25）**：已落 `docs/02-design/knowledge-system-philosophy.md`（Claim 为事实源；Graph/Timeline/Wiki 为投影；重复/冲突/版本/人工裁定；LLM-Wiki 方法论与规模策略）。实现计划/难度：`docs/05-roadmap/knowledge-system-plan.md`。
-- **Knowledge v2 v0（2026-10-30）**：schema v2 + canonical claim 9,766 / evidence 10,573；Conflicts API/UI；Adjudication API/UI；AnswerEngine 只读 active/disputed；12 个 Wiki 页面已用 canonical claims 重建，stale 0；Graph 6,994/7,211、Timeline 599/639 已挂 canonical claim；Wiki rebuild worker + artifact history；structured claim fields + NLI judge（1 个真实冲突，2 claims disputed）；近重复候选 6 对；备份 `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
+- **Knowledge v2 v0（2026-10-30）**：schema v2 + canonical claim 9,766 / evidence 10,573；Conflicts API/UI；Adjudication API/UI；AnswerEngine 只读 active/disputed；12 个 Wiki 页面已用 canonical claims 重建，stale 0；Graph 6,994/7,211、Timeline 599/639 已挂 canonical claim；Wiki rebuild worker + artifact history；structured claim fields + NLI judge（1 个真实冲突，2 claims disputed）；近重复候选 6 对；备份 `/tmp/kb_alpha_before_knowledge_v2.sql`（116MB）。
 - **Wiki Prompt Studio + 三级分类（2026-10-25）**：提示词作为可选 intervention 层；Preview/Apply/保存；左侧改为 **IP 产品 / 协议 / 技术** 三级（IP 子类 CPU/NPU/AMBA/DMA/Other；协议 AMBA/PQ/指令集；技术 System/Low Power/SoC）；合并页 alias-aware；`GET /api/wiki/coverage`。当前 claim 覆盖率 **15.94%**（1,685/10,573；ignored 1,107；effective 17.80%）。**12 个策展页面已生成**；旧 4 页已归档。
 - **范围**：见 `docs/05-roadmap/trial-readiness.md`；2 个深模板（研究报告 / 课程问答），wiki 试用阶段只读。
 - **Demo/销售（2026-10-31）**：`docs/04-guides/demo-plan.md`（15/30 分钟脚本、失败预案）；`docs/04-guides/sales-training.md`（话术、异议、边界）。
 - **角色/权限（2026-10-31）**：`docs/02-design/roles-permissions.md`；4 角色 capability mapping；Web role cookie、MCP `X-SoftWiki-Role`、`configs/permissions.yaml` 可改；team trial `wiki-work` 已开放 ingest/index（Hermes）；document delete canonical cleanup；**MCP role header 实测**（study 拒绝 ingest，work 放行）；无效 base64 已拒绝。
-- **远程**：`ssh://git@10.3.9.19:2222/faye/softwiki.git`（branch `master`）。
-- **157 team trial（2026-11-02）**：`117.133.38.157`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，armkb 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-157.md`。
-- **157 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 157 出口封锁（见 `deployment-157.md`「出口封锁实测」）。
+- **远程**：`ssh://git@git.example.internal:2222/operator/softwiki.git`（branch `master`）。
+- **trial-host team trial（2026-11-02）**：`trial.example.internal`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，kb-alpha 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-trial.md`。
+- **trial-host 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 trial-host 出口封锁（见 `deployment-trial.md`「出口封锁实测」）。
 - **本 session 已完成**：
-  - 修正 venv editable 指向（原指向 `/home/faye/mydrv/git/softwki` 空壳）；
+  - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
   - 落地 `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）；
   - 落地工作方式：`AGENTS.md`、`progress.md`、`opencode.json`、`docs/README.md` 交接段；
   - **commit/push 策略 A 已确认**：逻辑单元自动 commit + 里程碑 / session 结束自动 push；
-  - 修复 `softwiki/config.py` 缺少 `typing.Optional` 导入（javis 的 Python 3.13 会直接 NameError）；
-  - 核查 javis 部署现状（systemd 三服务 + `make deploy`）；
+  - 修复 `softwiki/config.py` 缺少 `typing.Optional` 导入（build-host 的 Python 3.13 会直接 NameError）；
+  - 核查 build-host 部署现状（systemd 三服务 + `make deploy`）；
   - 落地 Docker Compose 栈（API / MCP / Web）+ CI 轮询脚本 + systemd timer；
   - 本地端到端验证通过：API 健康、Web 200、Web `/api` 反代、MCP 端口；
   - 修复 embedding：OpenAI `text-embedding-3-small`（1536 维）+ 分批；重建索引 4196 chunks；
   - 切流完成：Docker 接管 6200/6100/6108，旧 systemd 已 stop + disable；CI timer 已安装并验证；
-  - 新建 `armkb`：3 篇 ARM 试点 → 454 chunks / 101 claims / 39 entities / 17 events；`search` + `ask` 验证通过；
-  - 全量 81 篇 ARM PDF 后台入库中（日志 `/tmp/armkb-ingest.log`），完成后需 `/api/index`。
-- **157 部署注意**：两个独立 KB（coffee / ai-history）；目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；当前 embedding 走 oneroute，仍有 BM25 fallback；交付/运维手册见 `docs/03-operations/operator-manual.md`；模型要求见 `docs/03-operations/model-requirements.md`；已支持 `EMBEDDING_DIMENSIONS` 与 `LLM_DISABLE_THINKING`。
+  - 新建 `kb-alpha`：3 篇 ARM 试点 → 454 chunks / 101 claims / 39 entities / 17 events；`search` + `ask` 验证通过；
+  - 全量 81 篇 ARM PDF 后台入库中（日志 `/tmp/kb-alpha-ingest.log`），完成后需 `/api/index`。
+- **trial-host 部署注意**：两个独立 KB（coffee / ai-history）；目标机无 CI timer；需手动同步/rebuild；Web/SWA/MCP 公网无 auth，必须安全组限制；当前 embedding 走 oneroute，仍有 BM25 fallback；交付/运维手册见 `docs/03-operations/operator-manual.md`；模型要求见 `docs/03-operations/model-requirements.md`；已支持 `EMBEDDING_DIMENSIONS` 与 `LLM_DISABLE_THINKING`。
 - **本 session 提交 / 推送（策略 A）**：
   - `eb6f98d` docs(agents): 项目宪法与进度台账
   - `ae067eb` docs(roadmap): 试用就绪清单
@@ -49,18 +49,18 @@
   - `62726c3` fix(chunker): 限制 chunk 大小
   - `394e858` chore(deploy): 生产端口
   - `c22c56a` fix(workspace): 工作区根目录
-  - `3e2a73e` chore(deploy): 默认 armkb
+  - `3e2a73e` chore(deploy): 默认 kb-alpha
   - `cde5069` feat(scripts): 批量 PDF 入库
   - 已推送 `origin/master`（`f19c296..cde5069`）。
-- **部署现状（javis = 10.3.9.29）**：
+- **部署现状（build-host = build.example.internal）**：
   - 机器：x86_64 / Debian 13 / Docker 26.1.5 + Compose 2.26.1 / 62GB RAM / RTX 3090 24GB / 422GB 可用。
   - **当前**：Docker Compose 接管 `6200`（API）/ `6100`（MCP）/ `6108`（Web）；旧 systemd 已 stop + disable；CI timer 每 3 分钟轮询；**Agent Web** 由宿主 systemd `softwiki-agent-web` 接管 `6111`（L1，调用系统 opencode）。
-  - **活动库**：`armkb`（API + MCP 启动即 armkb）；`lsl-kb` 仍可通过 API 切换。
+  - **活动库**：`kb-alpha`（API + MCP 启动即 kb-alpha）；`lsl-kb` 仍可通过 API 切换。
 - **Demo 范围（2026-10-23 确认）**：权限/用户系统（登录、RBAC、ACL 强制、审计）**不在当期目标**；当前实例按 `wiki-admin` 使用，4 种身份仅作概念/文档保留。
-  - **数据库**：PostgreSQL `softwiki_armkb`；SQLite 数据已迁移；vector/BM25 文件仍在 workspace。
-  - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → javis `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
+  - **数据库**：PostgreSQL `softwiki_kb_alpha`；SQLite 数据已迁移；vector/BM25 文件仍在 workspace。
+  - **ARM 语料**：`~/drvroot/drv_f29/icwork/arm/docs` → build-host `/opt/aitools/apps/softwiki/inbox/arm`（81 PDF / 208MB / 约 1.6 万页）。
   - 全量：73 篇文档 / 2122 claims / 835 entities / 1328 relationships / 375 events；81 个 PDF 中 70 success、11 duplicate、0 failed。
-  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`armkb` 39,870 chunks，全量索引已完成。
+  - 数据：`workspace/` bind mount；embedding 用 OpenAI 1536 维；`kb-alpha` 39,870 chunks，全量索引已完成。
   - 抽取：`cheap_extraction` / `wiki_compilation` 已切 DeepSeek（Google 402）；抽取窗口仍是每篇前 15k 字符。
   - 旧 clone `~/mydrv/git/softwiki` 的 `84e25ae`（Makefile CI/CD）未推送，但已被 Docker CI 取代。
   - Ollama 仍可用（`nomic-embed-text` 等），但当前不用于 embedding。
@@ -93,7 +93,7 @@
 - [~] T11 报告 + manifest（同步版已通；异步任务未做）
 - [x] T12 Docker Compose + CI/CD（TLS/反代未做）
 - [x] T13 备份 / 恢复脚本（workspace + `pg_dump` 文档）
-- [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移；armkb 已迁移 73 docs / 39,870 chunks）
+- [x] T16 PostgreSQL（`DATABASE_URL_TEMPLATE` + compose postgres + SQLite→PG 迁移；kb-alpha 已迁移 73 docs / 39,870 chunks）
 - [x] T17 基础 workflow 选择（API/MCP/CLI/report，prompt 注入 `academic-analysis`）
 - [x] T21 `/api/ask` 接 `mode`/`history`；sources 与答案引用编号对齐
 - [x] T22 WebUI：workflow 选择、页码展示、Report 下载
@@ -106,7 +106,7 @@
 - [x] Agent 允许 `softwiki_search` / `softwiki_retrieve`，并要求页码引用/弃权
 - [x] 设置 `SHELL_MODEL=gpt-4.1-mini` / `SHELL_API_BASE` / `SHELL_API_KEY`
 - [x] L2：`/api/agent/*` 代理 + Quick/Agent 切换 + research steps（非流式）
-- [x] L1/L2 部署与 KB 验证（armkb reindex 完成；acceptance 11/11；浏览器 Agent 模式已验证）
+- [x] L1/L2 部署与 KB 验证（kb-alpha reindex 完成；acceptance 11/11；浏览器 Agent 模式已验证）
 - [x] 修复 `AnswerEngine` 把 "List/Summary" 研究问题误判为 inventory
 - [ ] L2 流式输出（SSE / 逐 token）
 - [ ] 独立 `softwiki-agent` 容器，pin opencode `1.18.35` + 升级冒烟测试
@@ -168,17 +168,17 @@
 - [x] **测试基线**：86 passed（离线；含 knowledge v2 / NLI / citation / permissions / cleanup / embedding / thinking）。
 - [x] **数据库**：PostgreSQL 已切换并迁移（SQLite 作为回退）。
 - [ ] **OCR 范围**：扫描版 PDF 未支持。
-- [x] javis deploy key 已加入 Forgejo。
+- [x] build-host deploy key 已加入 Forgejo。
 - [x] **embedding 已修复**：OpenAI `text-embedding-3-small`（1536 维），分批 + 并发 + TPM 限速。
 - [x] **切流**：Docker 接管 `6200/6100/6108`，旧 systemd 已 disable。
 - [x] **CI timer 已重新启用**。
-- [x] **armkb 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
-- [x] **armkb 数据**：73 篇 / 39,870 chunks / 10,573 claims / 4,165 entities / 7,211 relationships / 639 events。
-- [x] **armkb 窗口化重抽完成**：73/73；最终 10,573 claims / 4,165 entities / 7,211 relationships / 639 events；acceptance **11/11**。
+- [x] **kb-alpha 全量索引完成**：`{"status":"success","indexed_chunks":39870}`；`search`（页码）、`ask`（页码引用）、`/api/report` 均已验证。
+- [x] **kb-alpha 数据**：73 篇 / 39,870 chunks / 10,573 claims / 4,165 entities / 7,211 relationships / 639 events。
+- [x] **kb-alpha 窗口化重抽完成**：73/73；最终 10,573 claims / 4,165 entities / 7,211 relationships / 639 events；acceptance **11/11**。
 - [!] **Workflow 目前只是 prompt 注入**：没有自动路由/verifier 执行；`workflows.yaml` 的 `modes` 字段仍未使用。
 - [!] **TUI 不是沙盒**：调用系统 opencode，配置/会话隔离，但文件系统/网络是用户权限；打包/升级见 `docs/05-roadmap/agent-web-plan.md`。
 - [!] **TUI 默认不读 KB**：`agent_soul.md` 禁止 `softwiki_search/ask/retrieve`；Agent Web 已新增 `wiki-research` 并开放只读 KB 工具。
-- [x] **armkb reindex 完成**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后重跑全量索引；39,870 chunks，`softwiki_search` / `softwiki_ask` / acceptance 11/11 已验证。已用 opencode permission 禁止写工具。
+- [x] **kb-alpha reindex 完成**：2026-10-24 agent 误调 `softwiki_rebuild_index` 后重跑全量索引；39,870 chunks，`softwiki_search` / `softwiki_ask` / acceptance 11/11 已验证。已用 opencode permission 禁止写工具。
 - [ ] **Agent source 标题**：部分 PDF 抽取标题为 `Untitled Document`；页码有效，标题清洗待做。
 - [ ] **Agent SSE**：L2 目前是轮询非流式；逐 token/工具事件输出待做。
 - [x] **Agent 长请求**：Next rewrite 默认 30s 超时导致 33s 的 agent 回答被前端误报 `Invalid response`；已设 `experimental.proxyTimeout=300_000`，并修正错误文案。
@@ -204,12 +204,12 @@
 - [~] **remote MCP 写工具**：现在按 role header 拦截；无 key 时可伪造，内部信任；产品化需 API key/token。
 - [ ] **Postgres 备份**：文档已写 `pg_dump`，尚未纳入 `scripts/backup.sh`。
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
-- [ ] **TLS/反代**：javis 无 Caddy/Nginx；试用先用 HTTP。
+- [ ] **TLS/反代**：build-host 无 Caddy/Nginx；试用先用 HTTP。
 - [x] **认证/权限**：demo 阶段明确不做（代码保留，默认关闭）。
 
 ## 下一步（NEXT）
 
-0. **157 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
+0. **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
@@ -221,22 +221,22 @@
 ## 本 session 状态记录（handoff）
 
 - **2026-11-03 语料补齐**：
-  - 结论：157 的网络是**两层封锁**——DNS 污染（Guardian/Atlantic → `face:b00c` Facebook 段、Wikipedia → `2001::1`）+ TCP 层 RST（用真实 IP + 正确 SNI 仍 `000`）。**改 DNS 救不回**，157 也无 IPv6 / 无代理。
-  - 做法：开发机抓正文 → 清洗成 markdown（front matter: title/author/date/url）→ tar 推到 157 → `trial_ingest.sh` 节流入库 → `/api/index`。
+  - 结论：trial-host 的网络是**两层封锁**——DNS 污染（Guardian/Atlantic → `face:b00c` Facebook 段、Wikipedia → `2001::1`）+ TCP 层 RST（用真实 IP + 正确 SNI 仍 `000`）。**改 DNS 救不回**，trial-host 也无 IPv6 / 无代理。
+  - 做法：开发机抓正文 → 清洗成 markdown（front matter: title/author/date/url）→ tar 推到 trial-host → `trial_ingest.sh` 节流入库 → `/api/index`。
   - 结果：coffee 185 docs / 6,691 claims；ai-history 160 docs / 9,526 claims；两者均 0 stale wiki，ask 带来源名与引用。
   - 途中修了 4 个会静默毁掉整篇抽取的 bug：`published_at` 为 None 时 strftime 崩溃；事件无日期写 NULL 违反 NOT NULL；失败后不 rollback 导致 status 卡在 `extracting`；varchar(100) 字段未截断导致 `StringDataRightTruncation`。
   - 新增脚本：`scripts/trial_sources.py`、`scripts/trial_fetch.py`、`scripts/trial_ingest.sh`。
   - 仍未做：markdown 无页码（`page_start` 为 None）；`scope_guard` 会判掉约 20 篇企业/预测类稿件；Wiki 覆盖率未重算。
 
-- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 javis 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证；完成 javis 切流；修复 OpenAI embedding 与 chunk 上限，重建索引并验证 `search`/`ask`；新建 `armkb` 并启动 81 篇 ARM 技术文档入库。
+- **做了什么**：确认工作方式（AGENTS.md / progress.md / docs-first / 小步提交）；确认试用边界（单校自部署、答案+报告、手动/自动/关闭三态裁决）；定位并修复 venv 与 MCP 别名问题；落地试用清单；核查 build-host 现有 systemd 部署；落地 Docker Compose + CI 轮询并本地端到端验证；完成 build-host 切流；修复 OpenAI embedding 与 chunk 上限，重建索引并验证 `search`/`ask`；新建 `kb-alpha` 并启动 81 篇 ARM 技术文档入库。
 - **关键产物**：
   - `AGENTS.md`（项目宪法）
   - `progress.md`（本文件）
   - `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）
-  - `Dockerfile` / `docker-compose.yml` / `scripts/ci-deploy.sh` / `docs/03-operations/deployment-javis.md`
+  - `Dockerfile` / `docker-compose.yml` / `scripts/ci-deploy.sh` / `docs/03-operations/deployment-build.md`
   - `docs/06-archive/session-report-2026-10-23.md`（本轮完整报告）
 - **易踩坑**：
-  - `venv` 的 editable 安装原本指向 `/home/faye/mydrv/git/softwki`（空壳），导致测试导入错仓库；
+  - `venv` 的 editable 安装原本指向 `/home/operator/mydrv/git/softwki`（空壳），导致测试导入错仓库；
   - `tests/__pycache__` 里的旧 `.pyc` 仍带旧路径；
   - 全量 pytest 会挂起，必须先离线 mock；
   - `mcp>=2` 会把 `FastMCP` 改名并破坏 `softwiki.mcp.sse`，必须 `<2.0.0`；
@@ -245,7 +245,7 @@
   - `/api/index` 重建 chunk 会换 ID；向量索引必须先 `reset()`，否则索引指向已删除的 chunk，搜索返回空；
   - `/api/ingest/file` 只建 Document + 后台抽取，不切块/不向量化；必须再调 `/api/index`；
   - `run_extraction_pipeline` 只取前 15k 字符，大手册结构化层不完整；
-  - `switch_workspace` 是进程级；容器重启后以 `SOFTWIKI_ACTIVE_WORKSPACE` 为准（已设 armkb）；
+  - `switch_workspace` 是进程级；容器重启后以 `SOFTWIKI_ACTIVE_WORKSPACE` 为准（已设 kb-alpha）；
   - Next.js 在 Docker 内反代要 `API_INTERNAL_URL=http://api:6200`，不能用 `127.0.0.1`；
   - `docker compose config` 会把 `.env` 里的真实密钥渲染出来，不要贴日志；
   - `/api/ask` 会重复检索一次，且 `AskRequest` 丢弃 `mode`/`history`；
@@ -263,7 +263,7 @@
 - **2026-10-25 Wiki Prompt Studio 追加**：
   - 新代码：`softwiki/wiki/interventions.py`、`softwiki/wiki/coverage.py`；`page_generator.py` 支持 intervention/输出目录/hash；API `/api/wiki/preview|apply|interventions|coverage`；UI `WikiPanel` Prompt Studio。
   - 验证：preview 61.8s（canonical hash 不变）；saved topic intervention 生效；apply 35.2s；删除 intervention 后 full rebuild 恢复；UI modal 可见，preview 请求完成（preview 文件生成）。
-  - 初始策展地图：`armkb/config/topics.yaml` 29 个主题（IP/协议/技术 group）；当前 4 个 canonical 页面。
+  - 初始策展地图：`kb-alpha/config/topics.yaml` 29 个主题（IP/协议/技术 group）；当前 4 个 canonical 页面。
   - Claim 覆盖率：**3.4%**（360/10,573 mapped；10,213 unmapped；0 ignored）；top unmapped 为 `inclusive-language`/`export-compliance`/`warranty-disclaimer` 等法务/模板 topic。
   - 已完成：三级分类 + alias-aware 合并页；12 页生成（amba/pq-channel/instruction-set/system/low-power/soc + cortex-m55/cortex-m85/ethos-u55/nic-400/pl031/pck-600）；旧 4 页归档；PL301 no_docs；DMA 空类目。
   - Claim 覆盖率：**15.94%**（1,685/10,573 mapped；1,107 ignored；7,781 unmapped；effective **17.80%**）。top mapped：AMBA 496、SoC 268、System 218、Low Power 200、P/Q 185、Instruction Set 131、PL031 110、U55 29、CM85 19、NIC-400 14。
@@ -278,7 +278,7 @@
   - 数据：10,573 raw claims → 9,766 canonical；10,573 evidence；807 merged；当前 0 open conflicts（保守 v0）。
   - UI：Sidebar **Conflicts**；`ConflictsPanel` 支持 accept A/B、keep both、mark error、needs evidence、reopen；Wiki stale banner。
   - AnswerEngine：canonical active/disputed + conflict context + 不静默选边；Graph/Timeline 过滤 active。
-  - 备份：javis `/tmp/armkb_before_knowledge_v2.sql`（116MB）。
+  - 备份：build-host `/tmp/kb_alpha_before_knowledge_v2.sql`（116MB）。
   - 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；近重复 6 对报告。
   - 追加：`wiki_rebuild_tasks` durable queue + API worker（auto enqueue）；`wiki_artifact_versions` + History API/UI；adjudication/scan 后 reproject Graph/Timeline status。
   - 未完成：Graph/Timeline 版本链与 evidence 多对多、NLI/结构 claim、近重复自动合并、Tier 2。

@@ -32,11 +32,11 @@ services:
     environment:
       POSTGRES_USER: softwiki
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-softwiki}
-      POSTGRES_DB: ${POSTGRES_DB:-softwiki_armkb}
+      POSTGRES_DB: ${POSTGRES_DB:-softwiki_kb_alpha}
     volumes:
       - softwiki_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U softwiki -d ${POSTGRES_DB:-softwiki_armkb}"]
+      test: ["CMD-SHELL", "pg_isready -U softwiki -d ${POSTGRES_DB:-softwiki_kb_alpha}"]
       interval: 5s
       timeout: 5s
       retries: 20

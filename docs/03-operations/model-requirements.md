@@ -28,7 +28,7 @@ Embedding：
   - OpenAI-compatible
   - 固定维度（当前 1536）
   - 可批量
-  - 157 必须能出站访问
+  - trial-host 必须能出站访问
 ```
 
 如果只给 Chat、不给 Embedding：
@@ -54,12 +54,12 @@ SoftWiki 可以跑，但只能 BM25 检索；
 允许：
 
 ```text
-api.deepseek.com            当前 157 可达
+api.deepseek.com            当前 trial-host 可达
 <company-llm-gateway>       推荐
 <embedding-gateway>         必须
 ```
 
-157 当前不可达：
+trial-host 当前不可达：
 
 ```text
 api.openai.com
@@ -336,7 +336,7 @@ JSON arguments
 ### Key 规则
 
 ```text
-必须提供 157 专用 key
+必须提供 trial-host 专用 key
 禁止使用个人 DeepSeek/OpenAI key
 禁止多个环境共用同一个 key
 ```
@@ -437,11 +437,11 @@ curl -s "$EMBED_BASE/embeddings" \
 
 ```text
 [ ] Chat base URL
-[ ] Chat API key（157 专用）
+[ ] Chat API key（trial-host 专用）
 [ ] FAST_MODEL
 [ ] QUALITY_MODEL
 [ ] Embedding base URL
-[ ] Embedding API key（157 专用）
+[ ] Embedding API key（trial-host 专用）
 [ ] Embedding model
 [ ] Embedding 维度
 [ ] RPM / TPM / 并发
@@ -453,7 +453,7 @@ curl -s "$EMBED_BASE/embeddings" \
 
 ---
 
-## 10. 当前 157 状态
+## 10. 当前 trial-host 状态
 
 ```text
 Chat:      DeepSeek 可访问，但 key 已移除
@@ -466,7 +466,7 @@ SWAgent:   停用，等 key
 需要运营方补齐：
 
 ```text
-1. 157 专用 Chat key
+1. trial-host 专用 Chat key
 2. 可达的 Embedding 服务（1536 维）
 3. 或明确接受 BM25-only
 ```

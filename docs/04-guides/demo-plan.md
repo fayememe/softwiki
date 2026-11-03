@@ -1,7 +1,7 @@
 # 准商用 Demo 计划（ARM 技术文档库）
 
 > 状态：🚧 试用/售前 demo（2026-10-31）
-> 环境：`http://10.3.9.29:6108`；API `:6200`；Agent `:6111`
+> 环境：`http://build.example.internal:6108`；API `:6200`；Agent `:6111`
 > 目标：15–30 分钟讲清“可追溯的技术知识系统”，不是通用聊天机器人。
 
 ---
@@ -65,7 +65,7 @@ journalctl -u softwiki-agent-web -n 100 --no-pager
 
 ### 0:00–1:30 开场
 
-打开 Web，左侧工作区 `armkb`。
+打开 Web，左侧工作区 `kb-alpha`。
 
 话术：
 
@@ -232,4 +232,4 @@ curl -s http://127.0.0.1:6200/api/wiki/coverage
 
 - 记录客户问题与失败点到 `progress.md` / CRM
 - 若客户要求多用户/权限/TLS/OCR：明确列入下一阶段，不现场承诺
-- 若客户提供新语料：先建独立 workspace，不污染 `armkb`
+- 若客户提供新语料：先建独立 workspace，不污染 `kb-alpha`

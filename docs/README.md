@@ -23,8 +23,8 @@ graph TD
 > 给「下一个 session」看的快照。保持更新。
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
-- **当前知识库**：javis `armkb`（ARM 技术文档，73 篇 / 39,870 chunks）；157 试用库 `coffee-kb` 185 篇 / 3,489 chunks、`ai-history-kb` 160 篇 / 5,497 chunks。
-- **157 语料管线（2026-11-03）**：开发机抓正文 → markdown(front matter) → 推送入库；见 [`03-operations/deployment-157.md`](./03-operations/deployment-157.md)。157 对 Wikipedia/Guardian/NewYorker/Atlantic 是 TCP 层封锁，改 DNS 无效。
+- **当前知识库**：build-host `kb-alpha`（ARM 技术文档，73 篇 / 39,870 chunks）；trial-host 试用库 `coffee-kb` 185 篇 / 3,489 chunks、`ai-history-kb` 160 篇 / 5,497 chunks。
+- **trial-host 语料管线（2026-11-03）**：开发机抓正文 → markdown(front matter) → 推送入库；见 [`03-operations/deployment-trial.md`](./03-operations/deployment-trial.md)。trial-host 对 Wikipedia/Guardian/NewYorker/Atlantic 是 TCP 层封锁，改 DNS 无效。
 - **SWAgent（2026-10-24）**：WebUI **Quick / SWAgent** 双模式；opencode engine `1.19.5` `:6111`（宿主 systemd `softwiki-agent-web`）+ API `:6200/api/swa/*`；模型 `gpt-4.1-mini`；acceptance **11/11**。
 - **Demo 流程**：[`04-guides/demo.md`](./04-guides/demo.md)（Quick / Agent / Workflow / Report / 验收）。
 - **Demo 计划（销售）**：[`04-guides/demo-plan.md`](./04-guides/demo-plan.md)（15/30 分钟脚本、失败预案）。
@@ -38,6 +38,6 @@ graph TD
 - **Agent Web 计划**：[`05-roadmap/agent-web-plan.md`](./05-roadmap/agent-web-plan.md)
 - **知识系统思想**：[`02-design/knowledge-system-philosophy.md`](./02-design/knowledge-system-philosophy.md)
 - **知识系统实现计划**：[`05-roadmap/knowledge-system-plan.md`](./05-roadmap/knowledge-system-plan.md)
-- **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 Wiki 已用 canonical claims 重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 claim；Wiki rebuild worker + artifact history；structured claim + NLI judge（1 个真实冲突，2 claims disputed）；conflict filters/evidence；MMR；citation check；备份 `/tmp/armkb_before_knowledge_v2.sql`。
+- **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 Wiki 已用 canonical claims 重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 claim；Wiki rebuild worker + artifact history；structured claim + NLI judge（1 个真实冲突，2 claims disputed）；conflict filters/evidence；MMR；citation check；备份 `/tmp/kb_alpha_before_knowledge_v2.sql`。
 - **Session / 沙盒 / 审核计划**：[`05-roadmap/agent-session-sandbox-plan.md`](./05-roadmap/agent-session-sandbox-plan.md)
 - **已知限制**：出站 LLM/embedding 许可未确认；OCR 未做；TLS/反代未做；Agent remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；部分 PDF 标题为 `Untitled Document`。

@@ -2,7 +2,7 @@
 
 # Demo 流程（ARM 技术文档库）
 
-> 当前：`armkb` / PostgreSQL / `http://10.3.9.29:6108`
+> 当前：`kb-alpha` / PostgreSQL / `http://build.example.internal:6108`
 
 ## 1. 基础问答 + 页码引用
 
@@ -22,15 +22,15 @@ What registers does the PL031 RTC provide?
 
 Chat 输入框上方有 **Quick / Agent** 切换：
 
-- **Quick**：`AnswerEngine`，快、基于 armkb、页码引用。
+- **Quick**：`AnswerEngine`，快、基于 kb-alpha、页码引用。
 - **Agent**：opencode agent，只读 KB + websearch，显示 research steps 和工具调用；通常 20–60s，复杂问题可到 2–3 分钟（前端/Next 代理已放宽到 300s）。
 
-也可以直接打开独立的 opencode 页面：`http://10.3.9.29:6111`（WebUI 左侧 **Agent** 或 `Agent ↗` 按钮）。
+也可以直接打开独立的 opencode 页面：`http://build.example.internal:6111`（WebUI 左侧 **Agent** 或 `Agent ↗` 按钮）。
 
 Agent 健康检查：
 
 ```bash
-curl http://10.3.9.29:6200/api/agent/status
+curl http://build.example.internal:6200/api/agent/status
 # available=true, default_agent=wiki-research, model=gemini-compat/gpt-4.1-mini
 ```
 
@@ -69,7 +69,7 @@ Wiki 页面**不是自动生成**的；在 Wiki 面板选择 topic 后：
 当前 claim 覆盖率：
 
 ```bash
-curl http://10.3.9.29:6200/api/wiki/coverage
+curl http://build.example.internal:6200/api/wiki/coverage
 ```
 
 ## 4. 学术分析 workflow
@@ -77,7 +77,7 @@ curl http://10.3.9.29:6200/api/wiki/coverage
 在 Chat 的 workflow 下拉框选 `Academic Analysis`，或直接调 API：
 
 ```bash
-curl -X POST http://10.3.9.29:6200/api/ask \
+curl -X POST http://build.example.internal:6200/api/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"Compare the PL031 register model with the AXI handshake model.","workflow":"academic-analysis"}'
 ```
@@ -89,7 +89,7 @@ curl -X POST http://10.3.9.29:6200/api/ask \
 Chat 里点 `Report`，或：
 
 ```bash
-curl -X POST http://10.3.9.29:6200/api/report \
+curl -X POST http://build.example.internal:6200/api/report \
   -H 'Content-Type: application/json' \
   -d '{"question":"What registers does the PL031 RTC provide?","template":"research-report","workflow":"academic-analysis"}'
 ```
@@ -97,7 +97,7 @@ curl -X POST http://10.3.9.29:6200/api/report \
 返回 `report_id` 后下载：
 
 ```bash
-curl -O http://10.3.9.29:6200/api/report/<report_id>
+curl -O http://build.example.internal:6200/api/report/<report_id>
 ```
 
 `manifest.json` 在 `/api/report/<report_id>/manifest`。
@@ -113,4 +113,4 @@ python scripts/run_acceptance.py --api http://127.0.0.1:6200
 ## 备注
 
 - 权限/登录不在 demo 范围；当前实例按 `wiki-admin` 使用。
-- 全量窗口化重抽可能还在跑：`/tmp/armkb-reextract2.log`。
+- 全量窗口化重抽可能还在跑：`/tmp/kb-alpha-reextract2.log`。

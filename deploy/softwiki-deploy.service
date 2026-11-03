@@ -5,13 +5,13 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=faye
-WorkingDirectory=/home/faye/softwiki-ci
+User=operator
+WorkingDirectory=/home/operator/softwiki-ci
 Environment=SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env
 Environment=SOFTWIKI_WORKSPACE=/opt/aitools/apps/softwiki/workspace
-Environment=SOFTWIKI_ACTIVE_WORKSPACE=armkb
+Environment=SOFTWIKI_ACTIVE_WORKSPACE=kb-alpha
 Environment=API_HOST_PORT=6200
 Environment=MCP_HOST_PORT=6100
 Environment=WEB_HOST_PORT=6108
-ExecStart=/home/faye/softwiki-ci/scripts/ci-deploy.sh
+ExecStart=/home/operator/softwiki-ci/scripts/ci-deploy.sh
 TimeoutStartSec=1800

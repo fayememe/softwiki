@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--username", default="admin")
     parser.add_argument("--role", default="admin")
-    parser.add_argument("--workspace", default="armkb")
+    parser.add_argument("--workspace", default="kb-alpha")
     parser.add_argument("--password")
     args = parser.parse_args()
 

@@ -44,7 +44,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 | `softwiki_retrieve` | 用原生能力 |
 | `graph/timeline/claim_query` | 给外部 agent 用 |
 
-所以 TUI 是**研究/入库管理员**，不是“基于 armkb 的问答”。它可能更聪明，但结论不一定来自知识库。
+所以 TUI 是**研究/入库管理员**，不是“基于 kb-alpha 的问答”。它可能更聪明，但结论不一定来自知识库。
 
 ### 1.3 当前 Web Chat
 
@@ -55,10 +55,10 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 - 输出带页码的引用
 - 无工具循环、无 websearch（除非开服务端搜索）、无多步规划
 
-### 1.4 javis 现有 opencode
+### 1.4 build-host 现有 opencode
 
 - 版本：`1.18.35`
-- 二进制：`/home/faye/.opencode/bin/opencode`
+- 二进制：`/home/operator/.opencode/bin/opencode`
 - 全局 server：`:4096`（Basic auth）
 - 全局 web：`:4097`（Basic auth）
 - 两者都不是 SoftWiki 专用，**不复用**
@@ -75,7 +75,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 
 | 模式 | 引擎 | 优点 | 代价 |
 |---|---|---|---|
-| Quick Answer | `AnswerEngine` | 快、基于 armkb、页码引用 | 单轮，不会多步研究 |
+| Quick Answer | `AnswerEngine` | 快、基于 kb-alpha、页码引用 | 单轮，不会多步研究 |
 | Agent | opencode | 多步、websearch、工具调用、研究能力 | 慢、需要沙盒/版本管理 |
 
 **为什么不是直接换掉 chat**：Quick Answer 的“可溯源”是 demo 的核心；Agent 的“聪明”是研究能力。两者互补。
@@ -91,13 +91,13 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
    - 生成同一套 `opencode.json` / `AGENTS_wiki-*.md`
    - 设置隔离的 `XDG_CONFIG_HOME` / `XDG_DATA_HOME`
    - `exec` `opencode web --port 6111 --hostname 0.0.0.0`
-3. WebUI 增加 **Agent / Deep Research** 入口（新 tab 或 iframe）指向 `http://javis:6111`。
+3. WebUI 增加 **Agent / Deep Research** 入口（新 tab 或 iframe）指向 `http://build-host:6111`。
 4. 保留现有 Chat 的 Quick Answer。
 5. **给 Agent 打开知识库工具**：
    - 允许 `softwiki_search` / `softwiki_retrieve`（可选 `softwiki_ask`）
    - 系统提示要求：每个结论来自 KB 命中或明确标注来自 web；引用带页码
 6. Shell 模型配置：
-   - 当前 javis 的 Google key 已 402
+   - 当前 build-host 的 Google key 已 402
    - 用 `SHELL_MODEL` / `SHELL_API_BASE` / `SHELL_API_KEY` 指到可用的 OpenAI/DeepSeek
 
 ### L2（产品化，后续）
@@ -206,7 +206,7 @@ os.execvp("opencode", ["opencode", "--agent", mode, "--continue", abs_project_ro
 - 浏览器 agent 通过 **现有 MCP 服务** `http://127.0.0.1:6100/mcp`（remote）访问 KB，不在宿主安装 psycopg2
 - `wiki-research` 权限：`bash`/`edit` deny；`softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`/`modules_set`/`workspace_set` deny；`steps=8`
 - WebUI：Sidebar **Agent** 入口 + ChatPanel **Agent ↗** 入口；`web/lib/agent.ts` 按当前 hostname 生成 `:6111` URL
-- javis：`softwiki-agent-web.service`（systemd，host opencode `1.18.35`，端口 `6111`）
+- build-host：`softwiki-agent-web.service`（systemd，host opencode `1.18.35`，端口 `6111`）
 - Shell 模型：`SHELL_MODEL=gpt-4.1-mini`（`gpt-5-mini` 不接受 `max_tokens`）
 
 ### L2 已上线并验证（非流式）

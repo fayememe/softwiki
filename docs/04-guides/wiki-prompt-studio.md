@@ -219,12 +219,12 @@ IP 产品
   SoC        → Debug/Trace + Interrupt
 ```
 
-左侧只显示一级/二级；IP 叶子页在内容区以卡片打开。种子文件：`deploy/armkb-topics.yaml`；线上工作区：`armkb/config/topics.yaml`。
+左侧只显示一级/二级；IP 叶子页在内容区以卡片打开。种子文件：`deploy/kb-alpha-topics.yaml`；线上工作区：`kb-alpha/config/topics.yaml`。
 
 ### 6.2 覆盖率（2026-10-25）
 
 ```bash
-curl http://10.3.9.29:6200/api/wiki/coverage
+curl http://build.example.internal:6200/api/wiki/coverage
 ```
 
 - total claims: **10,573**

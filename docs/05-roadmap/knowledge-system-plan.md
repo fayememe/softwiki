@@ -387,7 +387,7 @@ N Metrics depends on A/C/E/J
 - UI：Sidebar **Conflicts**；accept A/B、keep both、mark error、needs evidence、reopen；Wiki stale banner。
 - AnswerEngine：canonical active/disputed + conflict context + 不静默选边。
 - 12 个策展 Wiki 页面标记 stale；重建后 state 清除 stale。
-- 备份：`/tmp/armkb_before_knowledge_v2.sql`（116MB）。
+- 备份：`/tmp/kb_alpha_before_knowledge_v2.sql`（116MB）。
 - 追加：12 页已用 canonical claims + 类别模板重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 canonical claim；chunk dedup；MinHash 近重复 6 对报告。
 - 追加：durable rebuild queue + API worker；artifact history/API/UI；adjudication 后 reproject Graph/Timeline status。
 - 追加：subject/predicate/object/qualifiers 字段；`knowledge_v2_structure.py`（已结构 71 条）；`knowledge_v2_nli.py` + `ClaimPairJudgement`；NLI 已确认 1 个 DATA1/DATA2 位重叠冲突（2 claims disputed）。
