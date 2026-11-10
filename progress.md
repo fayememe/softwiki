@@ -234,6 +234,13 @@
 
 ## 本 session 状态记录（handoff）
 
+- **2026-11-10 双机部署（Chat UX P0）**：
+  - build-host（javis, 10.3.9.29）：CI 自动部署 `65555d72da29`，api/web 容器已换新镜像；`/api/agent/events` 经 6108 验证有 `server.connected`。
+  - trial-host（bcis1996, 118.193.105.3）：git 被墙，手动 tar 同步 + 重建；coffee（6200/6100/6108）与 ai（6202/6102/6109）全部重建，`swagent-coffee`/`swagent-ai` 重启；两端 SSE 均验证。
+  - 修正 trial `.env.ai` 的 `AGENT_WEB_URL` 6111→6112（原来 AI API 指向 coffee agent）。
+  - 备份：`/opt/aitools/apps/softwiki/backup-src-20261111-0638.tgz`、`backup-images-20261111-0638.txt`；更新步骤写入 `docs/03-operations/deployment-trial.md`。
+  - 未做真实对话 E2E（省 token）；permission/question 卡片、P1 Quick 阶段事件仍未做。
+
 - **2026-11-10 Chat UX P0 落地**：
   - 后端：`GET /api/agent/events`（httpx + 队列 + 15s 心跳；`/global/event` 404 回退 `/event`；按 session 过滤）、`POST /api/agent/prompt`（`prompt_async`）、`GET /api/agent/sessions`、`GET /api/agent/session/{id}/messages`；`httpx` 进 pyproject。
   - 前端：`app/api/agent/events/route.ts` 原始 body 直转；`lib/agent-chat.ts` reducer；`chat/useAgentChat.ts`（rAF 合帧、先开流再发、停止/重试/历史）；`chat/{ToolCard,AgentMessageView}`；ChatPanel SWAgent 分支；ChatMessage 接 remark-gfm。

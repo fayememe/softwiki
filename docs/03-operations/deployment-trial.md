@@ -40,6 +40,38 @@ Docker：28.5.2
 Compose：/usr/local/bin/docker-compose v5.6.1
 ```
 
+## 更新代码（手动，无 CI）
+
+目标机没有 CI timer，且到 Forgejo（`10.3.9.19:2222`）不通，必须从开发机推代码。
+
+```bash
+# 开发机：只打包代码，排除 node_modules/.next/workspace
+tar -czf /tmp/deploy-src.tgz --exclude=__pycache__ --exclude='*.pyc' \
+  --exclude=web/node_modules --exclude=web/.next \
+  softwiki web pyproject.toml Dockerfile
+cat /tmp/deploy-src.tgz | ssh faye@118.193.105.3 \
+  'cd /opt/aitools/apps/softwiki && tar -xzf -'
+
+# trial-host：sudo 不继承 PATH，docker-compose 要写全路径
+cd /opt/aitools/apps/softwiki
+sudo /usr/local/bin/docker-compose -f docker-compose.yml build api web
+sudo /usr/local/bin/docker-compose -f docker-compose.yml -p softwiki up -d --no-build --remove-orphans
+sudo /usr/local/bin/docker-compose --env-file .env.ai -f docker-compose.yml -p softwiki-ai up -d --no-build --remove-orphans
+sudo systemctl restart swagent-coffee swagent-ai   # swagent 用 softwiki-api:latest，必须重启换镜像
+```
+
+验证：
+
+```bash
+curl -s http://127.0.0.1:6200/api/agent/status; curl -s http://127.0.0.1:6202/api/agent/status
+timeout 12 curl -s -N 'http://127.0.0.1:6108/api/agent/events?session_id=probe' | grep -m1 '^data:'
+timeout 12 curl -s -N 'http://127.0.0.1:6109/api/agent/events?session_id=probe' | grep -m1 '^data:'
+```
+
+- 回滚：`backup-images-<ts>.txt` 里有旧 image id，`docker tag <id> softwiki-api:latest` 后重新 `up -d`；源码在 `backup-src-<ts>.tgz`。
+- `curl -i ... | head -8` 只会看到响应头（第 9 行才是 `data:`），别误判成没有事件。
+- 2026-11-10：`.env.ai` 的 `AGENT_WEB_URL` 原为 6111（coffee），已改为 6112。
+
 ## 当前状态
 
 ```text
