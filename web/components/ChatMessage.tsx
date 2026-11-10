@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { AgentTool, Source } from '@/lib/api';
 import styles from './ChatMessage.module.css';
 
@@ -158,7 +159,7 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                 {message.error ? (
                   <div className={`${styles.bubble} ${styles.botBubble} ${styles.errorBubble}`}>
                     <div className="prose">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                     </div>
                   </div>
                 ) : (
@@ -183,7 +184,7 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                               </button>
                             </div>
                           ),
-                        }}>{message.content}</ReactMarkdown>
+                        }} remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                       </div>
                       <div className={styles.bubbleActions}>
                         <CopyButton text={message.content} />

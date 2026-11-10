@@ -235,6 +235,137 @@ export async function apiAgentAbort(sessionId: string): Promise<void> {
   });
 }
 
+export interface AgentPartState {
+  status?: string;
+  input?: unknown;
+  output?: string;
+  title?: string;
+  error?: string;
+}
+
+export interface AgentPart {
+  id: string;
+  type: string;
+  text?: string;
+  tool?: string;
+  state?: AgentPartState;
+  time?: { start?: number; end?: number };
+  sessionID?: string;
+  messageID?: string;
+  [key: string]: unknown;
+}
+
+export interface AgentMessageInfo {
+  id: string;
+  sessionID?: string;
+  role?: string;
+  modelID?: string;
+  providerID?: string;
+  agent?: string;
+  mode?: string;
+  cost?: number;
+  tokens?: { input?: number; output?: number; total?: number };
+  time?: { created?: number; completed?: number };
+  error?: unknown;
+  finish?: string;
+}
+
+export interface AgentMessage {
+  info: AgentMessageInfo;
+  parts: AgentPart[];
+}
+
+export interface AgentSessionSummary {
+  id: string;
+  title?: string | null;
+  parent_id?: string | null;
+  created?: number;
+  updated?: number;
+}
+
+export interface AgentSessionsResponse {
+  sessions: AgentSessionSummary[];
+}
+
+export interface AgentMessagesResponse {
+  session_id: string;
+  messages: AgentMessage[];
+}
+
+export interface AgentPromptResponse {
+  status: string;
+  session_id: string;
+}
+
+export interface AgentEvent {
+  type: string;
+  properties?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export function agentEventsUrl(sessionId: string): string {
+  return `${API_BASE}/api/agent/events?session_id=${encodeURIComponent(sessionId)}`;
+}
+
+export async function apiAgentCreateSession(title?: string): Promise<{ session_id: string }> {
+  const res = await fetch(`${API_BASE}/api/swa/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title || null }),
+  });
+  if (!res.ok) throw new Error(`Agent session failed: ${res.status}`);
+  const data = await res.json();
+  if (!data.session_id) throw new Error('Agent did not return a session id');
+  return data;
+}
+
+export async function apiAgentSessions(): Promise<AgentSessionsResponse> {
+  const res = await fetch(`${API_BASE}/api/swa/sessions`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Agent sessions failed: ${res.status}`);
+  return res.json();
+}
+
+export async function apiAgentMessages(sessionId: string): Promise<AgentMessagesResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/swa/session/${encodeURIComponent(sessionId)}/messages`,
+    { cache: 'no-store' },
+  );
+  if (!res.ok) throw new Error(`Agent history failed: ${res.status}`);
+  return res.json();
+}
+
+export async function apiAgentPrompt(
+  question: string,
+  sessionId: string,
+  agent?: string,
+): Promise<AgentPromptResponse> {
+  const res = await fetch(`${API_BASE}/api/swa/prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, session_id: sessionId, agent: agent || null }),
+  });
+  const text = await res.text();
+  let data: AgentPromptResponse | null = null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === 'object' && parsed !== null) {
+      data = parsed as AgentPromptResponse;
+    }
+  } catch {
+    // Next/nginx may return an HTML error page.
+  }
+  if (!res.ok) {
+    const detail =
+      (data as unknown as { detail?: string } | null)?.detail ||
+      text.replace(/<[^>]+>/g, ' ').trim().slice(0, 300) ||
+      `HTTP ${res.status}`;
+    throw new Error(`Agent prompt failed (${res.status}): ${detail}`);
+  }
+  if (!data) throw new Error('Agent returned an empty prompt response');
+  return data;
+}
+
 // ─── API Functions ───────────────────────────────────────────────────────────
 
 export async function apiListWorkspaces(): Promise<WorkspaceListResponse> {

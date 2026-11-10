@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { apiAgentAsk, apiAgentStatus, apiAsk, apiReport, apiReportDownloadUrl, apiWorkflows } from '@/lib/api';
-import type { Source, Workflow } from '@/lib/api';
+import { apiAgentSessions, apiAgentStatus, apiAsk, apiReport, apiReportDownloadUrl, apiWorkflows } from '@/lib/api';
+import type { AgentSessionSummary, Source, Workflow } from '@/lib/api';
 import ChatMessage, { type Message } from './ChatMessage';
+import AgentMessageView from './chat/AgentMessageView';
+import { useAgentChat } from './chat/useAgentChat';
 import SourceDrawer from './SourceDrawer';
 import styles from './ChatPanel.module.css';
 
@@ -42,6 +44,24 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   const [engine, setEngine] = useState<'quick' | 'agent'>('quick');
   const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
   const [agentAvailable, setAgentAvailable] = useState<boolean | null>(null);
+  const [agentSessions, setAgentSessions] = useState<AgentSessionSummary[]>([]);
+
+  const handleAgentSessionCreated = useCallback((id: string) => {
+    setAgentSessionId(id);
+    try {
+      localStorage.setItem(`softwiki_agent_session_${sessionId}`, id);
+    } catch {}
+  }, [sessionId]);
+
+  const agentChat = useAgentChat({
+    agentSessionId,
+    onSessionCreated: handleAgentSessionCreated,
+  });
+
+  const agentTail = agentChat.messages[agentChat.messages.length - 1];
+  const agentTailLength = agentTail?.parts.reduce(
+    (total, part) => total + (part.text?.length || 0), 0,
+  ) ?? 0;
 
   const scrollToBottom = useCallback((instant = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'instant' : 'smooth' });
@@ -56,7 +76,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
     } else {
       scrollToBottom();
     }
-  }, [messages, streamingContent, scrollToBottom]);
+  }, [messages, streamingContent, agentTailLength, scrollToBottom]);
 
   // Focus input on session change
   useEffect(() => {
@@ -83,12 +103,27 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
     }
   }, [sessionId]);
 
+  useEffect(() => {
+    if (engine !== 'agent') return;
+    apiAgentSessions()
+      .then(data => setAgentSessions((data.sessions || []).filter(session => !session.parent_id)))
+      .catch(() => setAgentSessions([]));
+  }, [engine, agentChat.busy]);
+
   const genId = () =>
     crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   const handleSend = useCallback(async (text?: string) => {
     const question = (text ?? input).trim();
-    if (!question || isLoading) return;
+    if (!question) return;
+    if (engine === 'agent') {
+      if (agentChat.busy) return;
+      setInput('');
+      await agentChat.send(question);
+      inputRef.current?.focus();
+      return;
+    }
+    if (isLoading) return;
 
     const userMsg: Message = {
       id: genId(),
@@ -102,8 +137,6 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       role: 'assistant',
       content: '',
       isLoading: true,
-      agent: engine === 'agent',
-      loadingLabel: engine === 'agent' ? 'Researching with SWAgent…' : undefined,
       timestamp: new Date(),
     };
 
@@ -113,42 +146,18 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
     setIsLoading(true);
 
     try {
-      let assistantMsg: Message;
-      if (engine === 'agent') {
-        const response = await apiAgentAsk(question, agentSessionId || undefined);
-        if (response.session_id) {
-          setAgentSessionId(response.session_id);
-          try {
-            localStorage.setItem(`softwiki_agent_session_${sessionId}`, response.session_id);
-          } catch {}
-        }
-        const agentError = response.error;
-        assistantMsg = {
-          id: genId(),
-          role: 'assistant',
-          content: agentError
-            ? `SWAgent error: ${agentError}`
-            : (response.answer || 'SWAgent returned an empty answer.'),
-          sources: response.sources || [],
-          tools: response.tools || [],
-          agent: true,
-          error: Boolean(agentError),
-          timestamp: new Date(),
-        };
-      } else {
-        const history = messages
-          .filter(m => !m.isLoading)
-          .slice(-20) // last 20 messages
-          .map(m => ({ role: m.role, content: m.content }));
-        const response = await apiAsk(question, history, mode, workflow || undefined);
-        assistantMsg = {
-          id: genId(),
-          role: 'assistant',
-          content: response.answer,
-          sources: response.sources,
-          timestamp: new Date(),
-        };
-      }
+      const history = messages
+        .filter(m => !m.isLoading)
+        .slice(-20) // last 20 messages
+        .map(m => ({ role: m.role, content: m.content }));
+      const response = await apiAsk(question, history, mode, workflow || undefined);
+      const assistantMsg: Message = {
+        id: genId(),
+        role: 'assistant',
+        content: response.answer,
+        sources: response.sources,
+        timestamp: new Date(),
+      };
       // Replace loading message with actual response
       const finalMessages = updatedMessages
         .filter(m => m.id !== loadingMsg.id)
@@ -159,9 +168,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       const errorMsg: Message = {
         id: genId(),
         role: 'assistant',
-        content: engine === 'agent'
-          ? `SWAgent request failed: ${errText}\n\nTry again, or open **SWAgent ↗** for the full agent UI.`
-          : `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
+        content: `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
         error: true,
         timestamp: new Date(),
       };
@@ -173,7 +180,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow, engine, agentSessionId]);
+  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow, engine, agentSessionId, agentChat.busy, agentChat.send]);
 
   const handleReport = async () => {
     const question = (
@@ -208,15 +215,22 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   };
 
   const clearChat = () => {
-    if (messages.length === 0 || !confirm('Clear all messages in this session?')) return;
+    const count = engine === 'agent' ? agentChat.messages.length : messages.length;
+    if (count === 0 || !confirm('Clear all messages in this session?')) return;
+    if (engine === 'agent') {
+      if (agentChat.busy) void agentChat.stop();
+      setAgentSessionId(null);
+      try {
+        localStorage.removeItem(`softwiki_agent_session_${sessionId}`);
+      } catch {}
+      return;
+    }
     onMessagesChange(sessionId, []);
-    setAgentSessionId(null);
-    try {
-      localStorage.removeItem(`softwiki_agent_session_${sessionId}`);
-    } catch {}
   };
 
-  const hasMessages = messages.length > 0;
+  const hasMessages = engine === 'agent'
+    ? agentChat.messages.length > 0
+    : messages.length > 0;
 
   return (
     <div className={styles.chatPanel}>
@@ -246,7 +260,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                     key={i}
                     className={styles.suggestion}
                     onClick={() => handleSend(s)}
-                    disabled={isLoading}
+                    disabled={engine === 'agent' ? agentChat.busy : isLoading}
                   >
                     <span className={styles.suggestionIcon}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -257,6 +271,21 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                   </button>
                 ))}
               </div>
+            </div>
+          ) : engine === 'agent' ? (
+            <div className={styles.messageList}>
+              {agentChat.messages.map((msg, index) => (
+                <AgentMessageView
+                  key={msg.info.id}
+                  message={msg}
+                  streaming={
+                    agentChat.busy
+                    && index === agentChat.messages.length - 1
+                    && msg.info.role !== 'user'
+                  }
+                />
+              ))}
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <div className={styles.messageList}>
@@ -272,6 +301,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
           )}
         </div>
       </div>
+      {engine === 'agent' && agentChat.error && (
+        <div className={styles.agentError} role="alert">{agentChat.error}</div>
+      )}
 
       {/* Mode / workflow / report bar */}
       <div className={styles.modeBar}>
@@ -302,9 +334,55 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               {m.label}
             </button>
           )) : (
-            <span className={styles.agentHint}>
-              {agentAvailable === false ? 'SWAgent offline' : 'Read-only KB · SWAgent'}
-            </span>
+            <>
+              <select
+                className={styles.workflowSelect}
+                value={agentSessionId || ''}
+                onChange={e => {
+                  const next = e.target.value || null;
+                  setAgentSessionId(next);
+                  try {
+                    if (next) {
+                      localStorage.setItem(`softwiki_agent_session_${sessionId}`, next);
+                    } else {
+                      localStorage.removeItem(`softwiki_agent_session_${sessionId}`);
+                    }
+                  } catch {}
+                }}
+                aria-label="Agent session"
+              >
+                <option value="">New session</option>
+                {agentSessions.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {(item.title || item.id).slice(0, 48)}
+                  </option>
+                ))}
+              </select>
+              <span className={styles.agentHint}>
+                {agentChat.connected
+                  ? 'Live'
+                  : agentAvailable === false
+                    ? 'SWAgent offline'
+                    : 'Connecting…'}
+              </span>
+              {agentChat.busy ? (
+                <button
+                  className={styles.reportBtn}
+                  onClick={() => { void agentChat.stop(); }}
+                  title="Stop the running agent"
+                >
+                  Stop
+                </button>
+              ) : hasMessages ? (
+                <button
+                  className={styles.reportBtn}
+                  onClick={() => { void agentChat.regenerate(); }}
+                  title="Send the last question again"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </>
           )}
           <div className={styles.modeRight}>
             {engine === 'quick' && (
@@ -356,7 +434,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               onKeyDown={handleKeyDown}
               placeholder={engine === 'agent' ? 'Ask SWAgent…' : 'Ask a research question…'}
               rows={1}
-              disabled={isLoading}
+              disabled={engine === 'agent' ? agentChat.busy : isLoading}
               aria-label="Research question"
             />
             <div className={styles.inputActions}>
@@ -376,11 +454,11 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               <button
                 className={styles.sendBtn}
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || (engine === 'agent' ? agentChat.busy : isLoading)}
                 aria-label="Send message"
                 title="Send (Enter)"
               >
-                {isLoading ? (
+                {(engine === 'agent' ? agentChat.busy : isLoading) ? (
                   <span className={styles.spinner} />
                 ) : (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
