@@ -211,6 +211,7 @@
 
 0. **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
+0.2 **Chat UX 设计待评审**：`docs/02-design/chat-ux.md`（参考 opencoco 的会话式 chat：SSE parts / 工具卡片 / 停止重生成 / 会话列表；Quick 阶段事件；wiki 专属 pin/存 wiki）。只借鉴 chat，业务流不动。评审通过后再落 P0。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
@@ -219,6 +220,13 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-10 Chat UX 判断 + 设计**：
+  - 判断：我们 chat 薄在**数据流一次性**——`/api/agent/ask` 是服务端阻塞轮询（`softwiki/api/server.py:643`），前端只拿到终态；opencoco 则是 `EventSource(/global/event)` 增量渲染 parts。
+  - 结论：可做，但只参考 opencoco 的 chat 模型（SSE parts / tool 卡片 / 停止重生成 / 会话列表 / 内联 permission·question），不引入舰队/代理/inbox/skillcell/terminal，不移植代码。
+  - 产物：`docs/02-design/chat-ux.md`（🚧 讨论中，含差距表、事件契约、P0/P1/P2 与验收、风险、D1–D6）；已挂 `docs/README.md` 索引与交接。
+  - P0 前置：定「会话 → KB」绑定；opencode 事件 schema pin 1.19.5 + 契约测试；SSE 代理放 FastAPI（非浏览器直连）。
+  - 附：本 session 的 permission 弹窗实验结论——当前会话跑在 `opencode web --port 4097`（server cwd `/`），项目 `opencode.json` 的 `permission.bash=ask` **未生效**；`build` agent 顶部有 `permission:"*"→allow` 通配规则，故 bash/write 一律不弹窗；`read *.env` 是唯一会 `ask` 的规则。
 
 - **2026-11-03 语料补齐**：
   - 结论：trial-host 的网络是**两层封锁**——DNS 污染（Guardian/Atlantic → `face:b00c` Facebook 段、Wikipedia → `2001::1`）+ TCP 层 RST（用真实 IP + 正确 SNI 仍 `000`）。**改 DNS 救不回**，trial-host 也无 IPv6 / 无代理。
