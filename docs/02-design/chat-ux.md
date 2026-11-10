@@ -1,6 +1,6 @@
 # Chat UX（参考 opencoco 的会话式聊天）
 
-> status: 🚧 讨论中（2026-11-10）
+> status: 🚧 讨论中（2026-11-10；P0 已落地，见 §9）
 > 范围：**只参考 opencoco 的 chat 交互与数据流**；workflow / report / wiki / claim / conflict / KB 作用域等业务流全部沿用我们自己的实现。
 > 参考代码：`agenthub`（opencoco）`app/static/chat.js`（约 2.4k 行，`EventSource` 消费 opencode 事件流）。
 
@@ -137,11 +137,11 @@ Browser (Next)  --GET /api/agent/events?session_id=...-->  FastAPI SSE proxy
 
 ### P0 — 会话内核（1–2 周）
 
-- [ ] FastAPI `GET /api/agent/events` SSE 代理（session 过滤 + 心跳 + Last-Event-ID）
-- [ ] 前端 parts store + 流式渲染 + 工具卡片
-- [ ] 停止 / 重生成 / 错误重试
-- [ ] 会话列表（opencode 为真相，按 KB 打标）
-- [ ] 降级路径（无 SSE → 轮询）
+- [x] FastAPI `GET /api/agent/events` SSE 代理（session 过滤 + 心跳；Last-Event-ID 未做）
+- [x] 前端 parts store + 流式渲染 + 工具卡片
+- [x] 停止 / 重试 / 错误重试
+- [x] 会话列表与历史恢复（opencode 为真相；按 KB 打标未做）
+- [~] 降级路径：`prompt_async` 失败时回退阻塞 `/api/agent/ask`；事件流不可用时不自动回退
 
 **验收**：问一个跨文档问题（如 CM55 + NIC-400），文本逐段出现；`softwiki_search` / `softwiki_ask` 工具卡片实时变绿并可展开；点停止 2s 内结束；刷新页面能恢复同一会话；断网重连后继续。
 
@@ -193,3 +193,35 @@ Browser (Next)  --GET /api/agent/events?session_id=...-->  FastAPI SSE proxy
 | D4 | 默认保持只读，不因本次改动开放写工具 | 安全边界独立评估 |
 | D5 | Quick 与 Agent 共用渲染层、分源数据 | 避免两套消息组件 |
 | D6 | 业务流（workflow/report/wiki/claim/conflict/KB）不动 | 用户明确要求沿用现有业务 |
+
+## 9. 实现记录（P0，2026-11-10）
+
+**后端（FastAPI）**
+
+- `GET /api/agent/events?session_id=`：`httpx.AsyncClient` 读上游 `/global/event`（404 时回退 `/event`），事件解包 `payload`，按 `sessionID`/`part.sessionID`/`info.sessionID` 过滤；队列 + 15s 心跳；`Cache-Control: no-cache, no-transform`、`X-Accel-Buffering: no`。
+- `POST /api/agent/prompt`：转发 `POST /session/{id}/prompt_async`（非阻塞）。
+- `GET /api/agent/sessions`、`GET /api/agent/session/{id}/messages`：会话列表与历史。
+- 依赖：`httpx` 写入 `pyproject.toml`。
+
+**前端（Next）**
+
+- `app/api/agent/events/route.ts`：原始 body 直转 SSE（实测 0.6s/条不被缓冲）。
+- `lib/agent-chat.ts`：事件归一化 + reducer（message.updated / part.updated / part.delta / part.removed / session.status / idle / error）。
+- `components/chat/useAgentChat.ts`：EventSource 连接、rAF 合帧、发送（先开流再 `prompt_async`）、停止、重试、历史恢复。
+- `components/chat/{ToolCard,AgentMessageView}.tsx`：工具卡片（状态/输入/输出/耗时）、text/reasoning/error 渲染。
+- `ChatPanel.tsx`：SWAgent 分支（流式、Stop/Retry、会话选择、错误条）；Quick 分支保持原样。
+- `ChatMessage.tsx`：接 `remark-gfm`（表格）。
+
+**验证**
+
+- `pytest tests -q`：95 passed（新增 `tests/test_agent_stream.py` 9 项）。
+- `npm run build`：通过；`/api/agent/events` 为动态路由。
+- Next SSE 直转：假上游 + `next start` 实测 0.6s/事件、无缓冲。
+- **未做真机端到端**：本机没有运行中的 API（6200）/opencode agent（6111）；需在 build-host 或 trial-host 上验证真实事件 schema 与过滤。
+
+**未做 / 下一步**
+
+- permission / question 内联卡片（默认只读，事件预计不出现）。
+- Quick 阶段事件（P1）。
+- 会话按 KB 打标、删除/重命名、Last-Event-ID 断点续传。
+- 工具输出按 `softwiki_search/ask` 结构化解析成 sources（当前仍靠答案引用与 agent 侧解析）。

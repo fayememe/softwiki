@@ -161,6 +161,19 @@
 - [x] 自动文档家族/revision（v0：URL/source+title + published_at）
 - [x] 冲突严重度/成本/队列优化（v0：high/medium；人工队列）
 
+### M7 — Chat UX（只参考 opencoco 的 chat）
+> 设计：`docs/02-design/chat-ux.md`（业务流沿用现有实现）
+- [x] P0 后端：`/api/agent/events` SSE（session 过滤 + 心跳 + `/global/event`→`/event` 回退）
+- [x] P0 后端：`/api/agent/prompt`（`prompt_async`）、`/api/agent/sessions`、`/api/agent/session/{id}/messages`
+- [x] P0 前端：Next SSE 直转、parts reducer、工具卡片、停止/重试、历史恢复、会话选择
+- [x] Quick 分支保持原样；ChatMessage 接入 GFM 表格
+- [x] 验证：pytest 95 passed；`npm run build` 通过；假上游实测 SSE 0.6s/条不缓冲
+- [ ] 真机端到端（build-host / trial-host：真实 opencode 事件 schema、6111）
+- [ ] permission / question 内联卡片（默认只读，暂不出现）
+- [ ] P1 Quick 阶段事件（检索→融合→生成→引用）
+- [ ] 会话按 KB 打标、删除/重命名、Last-Event-ID 续传
+- [ ] P2 wiki 专属：pin 文档/claim、答案存 wiki/claim、右侧 claims/conflicts 上下文
+
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
@@ -211,7 +224,7 @@
 
 0. **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
-0.2 **Chat UX 设计待评审**：`docs/02-design/chat-ux.md`（参考 opencoco 的会话式 chat：SSE parts / 工具卡片 / 停止重生成 / 会话列表；Quick 阶段事件；wiki 专属 pin/存 wiki）。只借鉴 chat，业务流不动。评审通过后再落 P0。
+0.2 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
@@ -220,6 +233,13 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-10 Chat UX P0 落地**：
+  - 后端：`GET /api/agent/events`（httpx + 队列 + 15s 心跳；`/global/event` 404 回退 `/event`；按 session 过滤）、`POST /api/agent/prompt`（`prompt_async`）、`GET /api/agent/sessions`、`GET /api/agent/session/{id}/messages`；`httpx` 进 pyproject。
+  - 前端：`app/api/agent/events/route.ts` 原始 body 直转；`lib/agent-chat.ts` reducer；`chat/useAgentChat.ts`（rAF 合帧、先开流再发、停止/重试/历史）；`chat/{ToolCard,AgentMessageView}`；ChatPanel SWAgent 分支；ChatMessage 接 remark-gfm。
+  - 验证：pytest **95 passed**（新增 `tests/test_agent_stream.py` 9 项）；`npm run build` 通过；假上游 + `next start` 实测 SSE 0.6s/条不缓冲。
+  - **未做**：本机无 6200/6111，未做真实 opencode 端到端；permission/question 卡片；P1 Quick 阶段事件；Last-Event-ID。
+  - 风险：依赖 opencode 1.19.5 事件字段（`properties.part/info.sessionID`）；若上游版本不同需按 §9 契约调整。
 
 - **2026-11-10 Chat UX 判断 + 设计**：
   - 判断：我们 chat 薄在**数据流一次性**——`/api/agent/ask` 是服务端阻塞轮询（`softwiki/api/server.py:643`），前端只拿到终态；opencoco 则是 `EventSource(/global/event)` 增量渲染 parts。
