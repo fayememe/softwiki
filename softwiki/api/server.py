@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import os
 import re
@@ -11,9 +13,10 @@ import time
 from datetime import datetime
 from typing import List, Optional, Dict
 from urllib.parse import urlparse
+import httpx
 import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.engine import make_url
@@ -60,6 +63,9 @@ app = FastAPI(title="Softwiki REST API", version="0.1.0")
 AGENT_WEB_URL = (os.getenv("SWAGENT_URL") or os.getenv("AGENT_WEB_URL") or "http://127.0.0.1:6111").rstrip("/")
 AGENT_DEFAULT = os.getenv("SWAGENT_DEFAULT") or os.getenv("AGENT_DEFAULT") or "wiki-research"
 AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "300"))
+# opencode serves the global event stream at /global/event (v1) or /event.
+AGENT_EVENT_PATH = os.getenv("SWAGENT_EVENT_PATH") or os.getenv("AGENT_EVENT_PATH") or "/global/event"
+AGENT_EVENT_HEARTBEAT = float(os.getenv("SWAGENT_EVENT_HEARTBEAT", "15"))
 
 def _safe_db_url():
     try:
@@ -726,6 +732,169 @@ def agent_abort(session_id: str):
 def agent_delete(session_id: str):
     _agent_request("DELETE", f"/session/{session_id}", timeout=15)
     return {"status": "deleted", "session_id": session_id}
+
+
+class AgentPromptRequest(BaseModel):
+    question: str
+    session_id: str
+    agent: Optional[str] = None
+
+
+def _agent_event_session_id(event: dict) -> Optional[str]:
+    props = event.get("properties")
+    if not isinstance(props, dict):
+        props = {}
+    part = props.get("part")
+    info = props.get("info")
+    candidates = [
+        props.get("sessionID"),
+        part.get("sessionID") if isinstance(part, dict) else None,
+        info.get("sessionID") if isinstance(info, dict) else None,
+        event.get("sessionID"),
+    ]
+    for candidate in candidates:
+        if candidate:
+            return str(candidate)
+    return None
+
+
+def _agent_event_allowed(event: dict, session_id: Optional[str]) -> bool:
+    if not session_id:
+        return True
+    sid = _agent_event_session_id(event)
+    return not sid or sid == session_id
+
+
+def _agent_event_urls() -> List[str]:
+    urls = [f"{AGENT_WEB_URL}{AGENT_EVENT_PATH}"]
+    if AGENT_EVENT_PATH != "/event":
+        urls.append(f"{AGENT_WEB_URL}/event")
+    return urls
+
+
+async def _agent_pump_events(session_id: Optional[str], queue: "asyncio.Queue[Optional[str]]",
+                             stop: asyncio.Event) -> None:
+    for url in _agent_event_urls():
+        client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=10.0)
+        )
+        try:
+            request = client.build_request("GET", url, headers={"Accept": "text/event-stream"})
+            response = await client.send(request, stream=True)
+        except httpx.HTTPError:
+            await client.aclose()
+            continue
+        if response.status_code >= 400:
+            await response.aclose()
+            await client.aclose()
+            continue
+        try:
+            async for line in response.aiter_lines():
+                if stop.is_set():
+                    break
+                if not line or not line.startswith("data:"):
+                    continue
+                raw = line[5:].strip()
+                if not raw:
+                    continue
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                event = payload.get("payload") if isinstance(payload, dict) else None
+                if not isinstance(event, dict):
+                    event = payload
+                if not isinstance(event, dict):
+                    continue
+                if not _agent_event_allowed(event, session_id):
+                    continue
+                await queue.put(json.dumps(event, ensure_ascii=False))
+        except httpx.HTTPError:
+            pass
+        finally:
+            await response.aclose()
+            await client.aclose()
+        await queue.put(None)
+        return
+    await queue.put(None)
+
+
+async def _agent_event_stream(session_id: Optional[str]):
+    queue: "asyncio.Queue[Optional[str]]" = asyncio.Queue()
+    stop = asyncio.Event()
+    pump = asyncio.create_task(_agent_pump_events(session_id, queue, stop))
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=AGENT_EVENT_HEARTBEAT)
+            except asyncio.TimeoutError:
+                yield ": ping\n\n"
+                continue
+            if item is None:
+                break
+            yield f"data: {item}\n\n"
+    finally:
+        stop.set()
+        pump.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await pump
+
+
+@app.get("/api/swa/events")
+@app.get("/api/agent/events")
+def agent_events(session_id: Optional[str] = None):
+    return StreamingResponse(
+        _agent_event_stream(session_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/api/swa/sessions")
+@app.get("/api/agent/sessions")
+def agent_sessions():
+    sessions = _agent_request("GET", "/session", timeout=30) or []
+    items = []
+    for session in sessions:
+        time_info = session.get("time") or {}
+        items.append({
+            "id": session.get("id"),
+            "title": session.get("title"),
+            "parent_id": session.get("parentID"),
+            "created": time_info.get("created"),
+            "updated": time_info.get("updated"),
+        })
+    items.sort(key=lambda item: item.get("updated") or item.get("created") or 0, reverse=True)
+    return {"sessions": items}
+
+
+@app.get("/api/swa/session/{session_id}/messages")
+@app.get("/api/agent/session/{session_id}/messages")
+def agent_messages(session_id: str):
+    messages = _agent_request("GET", f"/session/{session_id}/message", timeout=60) or []
+    return {"session_id": session_id, "messages": messages}
+
+
+@app.post("/api/swa/prompt")
+@app.post("/api/agent/prompt")
+def agent_prompt(req: AgentPromptRequest):
+    path = f"/session/{req.session_id}/prompt_async"
+    body = {
+        "agent": req.agent or AGENT_DEFAULT,
+        "parts": [{"type": "text", "text": req.question}],
+    }
+    try:
+        _agent_request("POST", path, body, timeout=30)
+    except HTTPException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Agent does not accept prompt_async: {exc.detail}",
+        ) from exc
+    return {"status": "accepted", "session_id": req.session_id}
 
 
 @app.get("/api/knowledge/metrics")
