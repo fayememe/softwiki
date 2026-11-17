@@ -242,3 +242,57 @@ DNS 与 TCP 是两层独立封锁，**改 DNS 解决不了后者**：
 
 - markdown 文档没有页码，`/api/ask` 的 `page_start` 为 `None`；页码引用只在 PDF 上有意义。
 - ai-history 的 RSS 稿件里约 20 篇被 `scope_guard` 判为越界（企业治理、预测类新闻），因此 184 篇只入库 160。
+
+---
+
+## 前端汉化（i18n）实测（2026-11-17）
+
+> 中国侧（trial-host）直接在目标机源码上加了前端 i18n。**未入库**：目标机目录不是 git 仓库，唯一备份是 `backup-20261116/web-src-bak-20261116-1030.tgz`（约 246MB，只含 `web/`）。
+
+### 实现方式
+
+- 新增 `web/lib/i18n/index.tsx`：
+  - `zh` / `en` / `ja` 三份字典；`en` 定义 key 模板（`Dict = typeof en`，类型层面强制另外两份结构一致）；
+  - 默认 `zh`；`localStorage['softwiki_locale']` 持久化；`t('a.b.c', { n })` 点路径 + `{placeholder}` 插值；缺 key 回退英文再回退 key；挂载后同步 `<html lang>`。
+- 新增 `web/components/LanguageSwitcher.tsx` + `.module.css`：侧边栏头部地球按钮，按 `zh → en → ja` 轮换。
+- `app/page.tsx` 外层包 `I18nProvider`；`New Chat` 改为哨兵常量 `NEW_CHAT_NAME`，渲染时按语言翻译（旧会话数据仍兼容）。
+- 19 个既有组件 / 聊天 hook 全部改为 `useT()`（Sidebar、ChatPanel、ChatMessage、Claims、Conflicts、Dashboard、Documents、Graph、Ingest、Timeline、Wiki、SourceDrawer、GlobalSearch、RoleSelector、KnowledgeBaseSelector、AgentMessageView、ToolCard、useAgentChat），合计约 730 行改动。
+- 字典共 **311 个 key**；实测 zh / ja 与 en **key 完全对齐、`{n}` 占位符完全对齐**；组件里 254 个静态 `t()` key 全部存在；只有 `SWAgent` 保留英文。
+- 译文是手写、术语统一（claim=论断、conflict=冲突、timeline=时间线、wiki 面板=知识库），不是机翻。
+- 部署：web 镜像 `softwiki-web:latest`（image id `41150a94b441`，2026-11-16 11:08）已重建，coffee / ai-history 两个 Web 容器都在跑；`curl :6108` 的 SSR 直接输出中文导航，说明构建已包含该改动。
+
+### 覆盖范围与缺口
+
+已覆盖：静态 UI 文案、按钮 / 占位符 / aria / title（除 1 处遗漏）、验证与错误占位文案、引用来源标签、会话日期（昨天 / N 天前）、SWAgent 工具卡片状态。
+
+未覆盖 / 待修：
+
+- `web/app/layout.tsx` 的 `<html lang="en">` 和 `metadata`（title / description / keywords / OG）仍是英文；只在客户端挂载后改 `lang`，首屏 / SEO / 分享卡片仍是英文。
+- `web/lib/api.ts` 与后端返回的错误串仍是英文，会原样显示在 UI 错误条。
+- 数据本身的英文值不做映射：claim status（`disputed`）、subject / predicate、workflow 名、`Unknown` 哨兵等。
+- KB 内容 / 答案 / Wiki 正文语言取决于语料与模型；UI 汉化 ≠ 内容汉化。Wiki 页面要中文需在 Prompt Studio 里明确要求中文输出。
+- 新增的 `wikiweb` 静态门户（1,087 个 HTML / 20MB）**全英文**，与 i18n 无关。
+- 侧边栏收起时语言切换按钮不可见（收起态仍保留 `title="Expand sidebar"`，且字典里已有 `sidebar.expand` 未使用）。
+- 日期用 `toLocaleDateString([])` 跟随浏览器 locale，不跟随所选 UI 语言。
+- SSR 默认中文；英文用户首次会先看到中文，localStorage 生效后切回。
+
+### 与 i18n 无关的同批改动
+
+- `docker-compose.yml`：Postgres 默认库名 `softwiki_kb_alpha` → `softwiki_armkb`（疑似旧部署残留）。
+- `docker-compose.yml`：web 服务挂载 `./wikiweb:/app/public/wikiweb:ro`。
+- 新增 `web/app/wikiweb/route.ts`：`/wikiweb` 307 → `/wikiweb/index.html`。
+- 新增 `wikiweb/`：两个 KB 的静态百科门户（1,087 页，英文）。
+
+### 拉取 / 收编
+
+```bash
+# 开发机：只拉 web 源码（不含 node_modules / .next）
+ssh faye@118.193.105.3 'cd /opt/aitools/apps/softwiki && \
+  tar -czf - --exclude=node_modules --exclude=.next \
+  web/app web/components web/lib web/package.json web/package-lock.json web/next.config.ts' \
+  | tar -xzf - -C /tmp/trial-web
+```
+
+建议正式收编时拆两个 commit（「i18n 框架 + 字典」/「组件接线」），先补 `layout` metadata 与 `lang`、`lib/api.ts` 错误串、`Expand sidebar`，再决定是否默认 `zh`。
+
+

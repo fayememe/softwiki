@@ -219,6 +219,7 @@
 - [!] **密钥明文**：`model_profiles.yaml` 仍有明文 DeepSeek key；OpenAI key 曾在聊天暴露，建议轮换。
 - [ ] **TLS/反代**：build-host 无 Caddy/Nginx；试用先用 HTTP。
 - [x] **认证/权限**：demo 阶段明确不做（代码保留，默认关闭）。
+- [ ] **trial-host 汉化未入库**：前端 i18n（zh/en/ja，311 keys）只在 trial-host 源码里，已构建运行；无 git，备份 `backup-20261116/web-src-bak-20261116-1030.tgz`。待定是否收编，缺口见 `docs/03-operations/deployment-trial.md`。
 
 ## 下一步（NEXT）
 
@@ -233,6 +234,14 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-17 trial-host 汉化核查**：
+  - 中国侧在 trial-host 源码上加了前端 i18n：`web/lib/i18n`（zh/en/ja，默认 zh，311 keys，`localStorage` 持久化，缺 key 回退英文），新增 `LanguageSwitcher`，19 个组件/hook 接入 `useT()`，约 730 行；zh/ja key 与占位符均对齐。
+  - 已构建进 `softwiki-web:latest`（`41150a94b441`，11-16 11:08），coffee/ai 两个 Web 容器已运行，SSR 输出中文。
+  - **未入库**：目标机不是 git 仓库，唯一备份 `backup-20261116/web-src-bak-20261116-1030.tgz`（246MB，只含 `web/`）。
+  - 缺口：`layout.tsx` 的 `lang`/metadata、`lib/api.ts` 与后端错误串、claim status 等数据值、Wiki 正文与 `wikiweb` 静态门户（1,087 页全英文）未汉化；`Expand sidebar` 漏翻；语言按钮在侧边栏收起时不可见。
+  - 同批非 i18n 改动：`wikiweb` 静态门户 + `/wikiweb` 路由 + compose 挂载；compose 默认库名改成 `softwiki_armkb`。
+  - 详情与拉取命令：`docs/03-operations/deployment-trial.md`「前端汉化（i18n）实测」；**待定是否收编进本仓库**。
 
 - **2026-11-10 双机部署（Chat UX P0）**：
   - build-host（javis, 10.3.9.29）：CI 自动部署 `65555d72da29`，api/web 容器已换新镜像；`/api/agent/events` 经 6108 验证有 `server.connected`。
