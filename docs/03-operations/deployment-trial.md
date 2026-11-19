@@ -324,4 +324,49 @@ ssh faye@118.193.105.3 'cd /opt/aitools/apps/softwiki && \
 
 **与上游的关系**：trial-host 的 web 与本仓库同源，组件集合一致，差异约 730 行且几乎全部是 i18n 接线；唯一非 i18n 的功能性改动是新增 `app/wikiweb/route.ts`（静态门户路由，与 i18n 无关，应单独评估是否收编）。
 
+### 收编结果（2026-11-19）
+
+i18n 已收入本仓库，并按「跟随浏览器 + 用户可自选」重做了语言协商：
+
+| commit | 内容 |
+|---|---|
+| `e5250ce` | `feat(web)` i18n 框架 + 三份字典 + `LanguageSwitcher` + async layout |
+| `a70eb9c` | `refactor(web)` 15 个组件 + `app/page.tsx` 接线到 `useT()` |
+
+**相对 trial-host 版本的改动**（修掉品质核查中列出的缺口）：
+
+1. **`lib/i18n/locale.ts` 独立出来**（不带 `'use client'`）。原实现把
+   `isLocale` / `negotiateLocale` 放在 `'use client'` 的 `index.tsx` 里，
+   Server Component 调用会被 Next 拒绝：
+   `Attempted to call isLocale() from the server but isLocale is on the client`。
+2. **`app/layout.tsx` 改为 async Server Component**，先读 cookie 再按
+   `Accept-Language` 协商，渲染正确的 `<html lang>` 与 `metadata`。
+   原实现把 Provider 挂在 `page.tsx`，`<html lang>` 与 metadata 恒为英文。
+3. **首屏不再闪烁**：locale 由服务端决定并作为 `initialLocale` 传入。
+   原实现 SSR 恒为 `zh`，挂载后才切。
+4. **`t()` 加 key 类型约束**（`MessageKey = Leaves<Dict>`），写错 key 会编译报错，
+   而不是运行时静默显示 key 名。
+5. **语言选择写入 cookie**（`softwiki_locale`，1 年，`samesite=lax`），
+   服务端下次直接按 cookie 渲染；cookie 优先于 `Accept-Language`。
+6. `page.tsx` 不再重复挂 `I18nProvider`（会遮蔽 layout 的 locale）。
+7. `Expand sidebar` 改走 `sidebar.expand`；收起态也显示语言按钮；
+   会话日期改用所选语言的 locale。
+
+**验证**（`npm run build` + `next start` 实测）：
+
+```
+Accept-Language: zh-CN -> <html lang="zh-CN"> <title>Softwiki — 研究智能中枢
+Accept-Language: en-US -> <html lang="en">    <title>Softwiki — Research Intelligence Hub
+Accept-Language: ja-JP -> <html lang="ja">    <title>Softwiki — リサーチ・インテリジェンス・ハブ
+Accept-Language: fr-FR -> <html lang="zh-CN"> （无匹配，回退默认）
+cookie=zh + Accept-Language: ja -> <html lang="zh-CN">  （cookie 优先）
+```
+
+页面正文同步正确：zh「主页/对话/导入/论断/时间线/知识库」，
+en「Claims/Timeline」，ja「ホーム/チャット/取り込み/論点/競合/タイムライン」。
+
+`tsc --noEmit` 零错误；`npm run build` 通过；`pytest tests -q` 111 passed。
+
+**仍未做**：`lib/api.ts` 与后端返回的错误串未国际化（会原样显示英文）。
+
 
