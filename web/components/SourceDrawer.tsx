@@ -1,6 +1,7 @@
 'use client';
 
 import type { Source } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './SourceDrawer.module.css';
 
 interface SourceDrawerProps {
@@ -9,20 +10,21 @@ interface SourceDrawerProps {
 }
 
 export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
+  const t = useT();
   return (
     <>
       <div className={styles.backdrop} onClick={onClose} aria-hidden="true" />
-      <aside className={`${styles.drawer} animate-slideRight`} aria-label="Source detail">
+      <aside className={`${styles.drawer} animate-slideRight`} aria-label={t('source.aria')}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <span className={styles.headerIcon}>◈</span>
-            <span className={styles.headerTitle}>Source Detail</span>
+            <span className={styles.headerTitle}>{t('source.title')}</span>
           </div>
           <button
             id="source-drawer-close"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Close source drawer"
+            aria-label={t('source.closeAria')}
           >✕</button>
         </div>
 
@@ -33,25 +35,25 @@ export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
           </div>
 
           {/* Title */}
-          <h2 className={styles.sourceTitle}>{source.title || 'Untitled Document'}</h2>
+          <h2 className={styles.sourceTitle}>{source.title || t('source.untitled')}</h2>
 
           {/* Metadata grid */}
           <div className={styles.metaGrid}>
             {source.source_name && (
               <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Source</span>
+                <span className={styles.metaLabel}>{t('source.fieldSource')}</span>
                 <span className={styles.metaValue}>{source.source_name}</span>
               </div>
             )}
             {source.published_at && source.published_at !== 'Unknown' && (
               <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Published</span>
+                <span className={styles.metaLabel}>{t('source.fieldPublished')}</span>
                 <span className={styles.metaValue}>{source.published_at}</span>
               </div>
             )}
             {source.page_start != null && (
               <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Pages</span>
+                <span className={styles.metaLabel}>{t('source.fieldPages')}</span>
                 <span className={styles.metaValue}>
                   {source.page_end != null && source.page_end !== source.page_start
                     ? `${source.page_start}–${source.page_end}`
@@ -61,7 +63,7 @@ export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
             )}
             {source.score != null && (
               <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Relevance</span>
+                <span className={styles.metaLabel}>{t('source.fieldRelevance')}</span>
                 <div className={styles.scoreBar}>
                   <div
                     className={styles.scoreBarFill}
@@ -75,14 +77,14 @@ export default function SourceDrawer({ source, onClose }: SourceDrawerProps) {
 
           {/* Chunk text */}
           <div className={styles.section}>
-            <div className={styles.sectionLabel}>Relevant Excerpt</div>
+            <div className={styles.sectionLabel}>{t('source.excerpt')}</div>
             <blockquote className={styles.excerpt}>{source.text}</blockquote>
           </div>
 
           {/* URL link */}
           {source.url && (
             <div className={styles.section}>
-              <div className={styles.sectionLabel}>Original URL</div>
+              <div className={styles.sectionLabel}>{t('source.originalUrl')}</div>
               <a
                 href={source.url}
                 target="_blank"

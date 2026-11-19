@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n';
 
 const ROLES = [
-  { id: 'wiki-study', label: 'Study · read-only' },
-  { id: 'wiki-work', label: 'Work · read + wiki' },
-  { id: 'wiki-manage', label: 'Manage · ingest' },
-  { id: 'wiki-admin', label: 'Admin · all' },
+  { id: 'wiki-study', label: 'role.study' },
+  { id: 'wiki-work', label: 'role.work' },
+  { id: 'wiki-manage', label: 'role.manage' },
+  { id: 'wiki-admin', label: 'role.admin' },
 ];
 
 export default function RoleSelector() {
+  const t = useT();
   const [role, setRole] = useState('wiki-study');
   const [ready, setReady] = useState(false);
 
@@ -28,8 +30,8 @@ export default function RoleSelector() {
 
   return (
     <select
-      aria-label="Current role"
-      title="Self-declared role (trust-based team trial)"
+      aria-label={t('role.aria')}
+      title={t('role.title')}
       value={role}
       onChange={e => change(e.target.value)}
       disabled={!ready}
@@ -44,7 +46,7 @@ export default function RoleSelector() {
         fontSize: 11,
       }}
     >
-      {ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+      {ROLES.map(r => <option key={r.id} value={r.id}>{t(r.label)}</option>)}
     </select>
   );
 }

@@ -16,6 +16,7 @@ import {
   apiSaveWikiIntervention,
 } from '@/lib/api';
 import type { WikiHistoryVersion, WikiIntervention, WikiPreviewResult } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './WikiPanel.module.css';
 
 interface TocItem { id: string; text: string; level: number; }
@@ -39,6 +40,7 @@ function slugify(text: string): string {
 }
 
 export default function WikiPanel() {
+  const t = useT();
   const [topics, setTopics] = useState<Record<string, any>>({});
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -231,7 +233,7 @@ export default function WikiPanel() {
       await apiBuildWikiPage(selectedTopic);
       await selectTopic(selectedTopic);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Wiki generation failed');
+      alert(err instanceof Error ? err.message : t('wiki.errGenerate'));
     } finally {
       setBuilding(false);
     }
@@ -266,8 +268,8 @@ export default function WikiPanel() {
 
   const handlePreview = async () => {
     const ts = parseStudioTopics();
-    if (ts.length === 0) { setStudioError('Please specify at least one topic.'); return; }
-    if (ts.length > 3) { setStudioError('Preview supports at most 3 topics.'); return; }
+    if (ts.length === 0) { setStudioError(t('wiki.errNoTopic')); return; }
+    if (ts.length > 3) { setStudioError(t('wiki.errMaxTopics')); return; }
     setPreviewing(true);
     setStudioError('');
     setStudioNotice('');
@@ -275,7 +277,7 @@ export default function WikiPanel() {
       const data = await apiPreviewWiki(ts, promptText, includeSaved);
       setPreviewResults(data.results || []);
     } catch (err) {
-      setStudioError(err instanceof Error ? err.message : 'Preview failed');
+      setStudioError(err instanceof Error ? err.message : t('wiki.errPreview'));
       setPreviewResults([]);
     } finally {
       setPreviewing(false);
@@ -283,7 +285,7 @@ export default function WikiPanel() {
   };
 
   const handleSaveIntervention = async (kind: 'global' | 'group' | 'topic') => {
-    if (!promptText.trim()) { setStudioError('Prompt is empty; nothing to save.'); return; }
+    if (!promptText.trim()) { setStudioError(t('wiki.errEmptyPrompt')); return; }
     let scope = 'global';
     if (kind === 'group') scope = `group:${currentGroup}`;
     if (kind === 'topic') scope = `topic:${selectedTopic}`;
@@ -294,9 +296,9 @@ export default function WikiPanel() {
       await apiSaveWikiIntervention({ scope, text: promptText });
       setPromptText('');
       await loadInterventions();
-      setStudioNotice(`Saved to ${scope}; it will be applied to future generations.`);
+      setStudioNotice(t('wiki.savedNotice', { scope }));
     } catch (err) {
-      setStudioError(err instanceof Error ? err.message : 'Save failed');
+      setStudioError(err instanceof Error ? err.message : t('wiki.errSave'));
     } finally {
       setSaving(false);
     }
@@ -307,25 +309,25 @@ export default function WikiPanel() {
       await apiDeleteWikiIntervention(id);
       await loadInterventions();
     } catch (err) {
-      setStudioError(err instanceof Error ? err.message : 'Delete failed');
+      setStudioError(err instanceof Error ? err.message : t('wiki.errDelete'));
     }
   };
 
   const handleApplyPrompts = async () => {
     const ts = parseStudioTopics();
-    if (ts.length === 0) { setStudioError('Please specify at least one topic.'); return; }
-    if (previewResults.length === 0) { setStudioError('Preview first, then Apply.'); return; }
+    if (ts.length === 0) { setStudioError(t('wiki.errNoTopic')); return; }
+    if (previewResults.length === 0) { setStudioError(t('wiki.errPreviewFirst')); return; }
     setApplying(true);
     setStudioError('');
     setStudioNotice('');
     try {
       const data = await apiApplyWiki(ts, promptText, includeSaved);
       const failed = (data.results || []).filter(r => r.error);
-      setStudioNotice(`Applied ${ts.length - failed.length}/${ts.length} topics.`);
+      setStudioNotice(t('wiki.appliedNotice', { ok: ts.length - failed.length, total: ts.length }));
       if (failed.length) setStudioError(failed.map(f => `${f.topic}: ${f.error}`).join('\n'));
       if (ts.includes(selectedTopic)) await selectTopic(selectedTopic);
     } catch (err) {
-      setStudioError(err instanceof Error ? err.message : 'Apply failed');
+      setStudioError(err instanceof Error ? err.message : t('wiki.errApply'));
     } finally {
       setApplying(false);
     }
@@ -371,7 +373,7 @@ export default function WikiPanel() {
     setRawMarkdown(v.content);
     setLinkedMarkdown(buildLinkedMarkdown(v.content, Object.keys(topics), topics, selectedTopic));
     setViewingHistory(v);
-    setBuiltAt(v.created_at ? new Date(v.created_at).toLocaleString() : 'Unknown');
+    setBuiltAt(v.created_at ? new Date(v.created_at).toLocaleString() : t('common.unknown'));
   };
 
   const backToCurrent = async () => {
@@ -388,11 +390,11 @@ export default function WikiPanel() {
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           </svg>
-          Topics
-          <button className={styles.topicRefresh} onClick={fetchTopics} title="Reload topics" aria-label="Reload topics">↻</button>
+          {t('wiki.topics')}
+          <button className={styles.topicRefresh} onClick={fetchTopics} title={t('wiki.reloadTopics')} aria-label={t('wiki.reloadTopics')}>↻</button>
         </div>
         {loadingTopics ? (
-          <div className={styles.topicLoading}>Loading…</div>
+          <div className={styles.topicLoading}>{t('common.loading')}</div>
         ) : (
           <div className={styles.topicListItems}>
             {topCategories.map(topKey => {
@@ -436,17 +438,17 @@ export default function WikiPanel() {
               {topics[selectedCategory]?.name || selectedCategory}
             </h2>
             <p className={styles.categoryDesc}>
-              Select a child page. Leaf pages are not expanded in the left list.
+              {t('wiki.selectChild')}
             </p>
             {categoryChildren.length === 0 ? (
-              <div className={styles.categoryEmpty}>No child pages yet. They will appear after more documents are ingested.</div>
+              <div className={styles.categoryEmpty}>{t('wiki.noChildPages')}</div>
             ) : (
               <div className={styles.categoryGrid}>
                 {categoryChildren.map(({ key, info }: { key: string; info: any }) => (
                   <button key={key} className={styles.categoryCard} onClick={() => selectTopic(key)}>
                     <span className={styles.categoryCardName}>{info.name || key}</span>
                     <span className={styles.categoryCardMeta}>
-                      {info.no_docs ? 'No documents in the current corpus' : 'Open page'}
+                      {info.no_docs ? t('wiki.noDocsCorpus') : t('wiki.openPage')}
                     </span>
                   </button>
                 ))}
@@ -454,21 +456,21 @@ export default function WikiPanel() {
             )}
           </div>
         ) : loading ? (
-          <div className={styles.loadingState}><div className={styles.spinner} /><span>Loading wiki page…</span></div>
+          <div className={styles.loadingState}><div className={styles.spinner} /><span>{t('wiki.loadingPage')}</span></div>
         ) : !rawMarkdown ? (
           <div className={styles.emptyState}>
             <h3 className={styles.emptyTitle}>{topicName(selectedTopic)}</h3>
             <p className={styles.emptyDesc}>
               {topics[selectedTopic]?.no_docs
-                ? 'This IP is in the curated map, but the current corpus has no documents for it. Ingest its TRM first.'
-                : 'This topic has claims in the knowledge base, but its wiki page has not been generated yet. Generation is manual; Preview in Prompt Studio first if you want to tune the prompt.'}
+                ? t('wiki.noDocsDesc')
+                : t('wiki.notGeneratedDesc')}
             </p>
             <div className={styles.emptyActions}>
               <button className={styles.generateBtn} onClick={handleBuild} disabled={building || !selectedTopic || topics[selectedTopic]?.no_docs}>
-                {building ? 'Generating…' : 'Generate wiki page'}
+                {building ? t('wiki.generating') : t('wiki.generate')}
               </button>
               <button className={styles.studioBtn} onClick={openStudio} disabled={!selectedTopic || topics[selectedTopic]?.no_docs}>
-                Prompt Studio
+                {t('wiki.promptStudio')}
               </button>
             </div>
           </div>
@@ -477,20 +479,20 @@ export default function WikiPanel() {
             <div className={styles.articleHeader}>
               {stale && (
                 <div className={styles.staleBanner}>
-                  This wiki page is stale relative to the canonical claims. Regenerate it before using it as an authoritative source.
+                  {t('wiki.staleBanner')}
                 </div>
               )}
               <h1 className={styles.articleTitle}>{topicName(selectedTopic)}</h1>
               <div className={styles.articleMeta}>
-                <span className={styles.builtAt}>Built {builtAt}</span>
+                <span className={styles.builtAt}>{t('wiki.builtAt', { time: builtAt })}</span>
                 <button className={styles.studioBtnSmall} onClick={openStudio}>
-                  Prompt Studio
+                  {t('wiki.promptStudio')}
                 </button>
                 <button className={styles.studioBtnSmall} onClick={loadHistory} disabled={historyLoading}>
-                  {historyLoading ? 'History…' : 'History'}
+                  {historyLoading ? t('wiki.historyLoading') : t('wiki.history')}
                 </button>
                 <button className={styles.regenerateBtn} onClick={handleBuild} disabled={building}>
-                  {building ? 'Regenerating…' : 'Regenerate'}
+                  {building ? t('wiki.regenerating') : t('wiki.regenerate')}
                 </button>
               </div>
             </div>
@@ -499,18 +501,18 @@ export default function WikiPanel() {
               <div className={styles.historyBar}>
                 {viewingHistory ? (
                   <>
-                    <span>Viewing history: {new Date(viewingHistory.created_at || '').toLocaleString()}</span>
-                    <button className={styles.historyBtn} onClick={backToCurrent}>Back to current</button>
+                    <span>{t('wiki.viewingHistory', { time: new Date(viewingHistory.created_at || '').toLocaleString() })}</span>
+                    <button className={styles.historyBtn} onClick={backToCurrent}>{t('wiki.backToCurrent')}</button>
                   </>
                 ) : (
                   <>
-                    <span>History ({history.length})</span>
+                    <span>{t('wiki.historyCount', { n: history.length })}</span>
                     <select
                       className={styles.historySelect}
                       defaultValue=""
                       onChange={e => { if (e.target.value) viewHistory(Number(e.target.value)); }}
                     >
-                      <option value="">Select a version…</option>
+                      <option value="">{t('wiki.selectVersion')}</option>
                       {history.map(v => (
                         <option key={v.id} value={v.id}>
                           {v.created_at ? new Date(v.created_at).toLocaleString() : `#${v.id}`} · {v.content_hash.slice(0, 8)}
@@ -527,7 +529,7 @@ export default function WikiPanel() {
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input className={styles.searchInput} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search in page…" />
+                placeholder={t('wiki.searchPlaceholder')} />
               {searchMatches.current.length > 0 && (
                 <span className={styles.searchCount}>
                   {searchIdx + 1}/{searchMatches.current.length}
@@ -539,7 +541,7 @@ export default function WikiPanel() {
 
             {toc.length > 2 && (
               <div className={styles.tocFloat}>
-                <div className={styles.tocFloatTitle}>Contents</div>
+                <div className={styles.tocFloatTitle}>{t('wiki.contents')}</div>
                 {toc.filter(t => t.level <= 3).map((item, i) => (
                   <button key={i}
                     className={`${styles.tocFloatItem} ${styles['tocFloatLevel' + item.level]} ${activeSection === item.id ? styles.tocFloatActive : ''}`}
@@ -565,7 +567,7 @@ export default function WikiPanel() {
 
             {related.length > 0 && (
               <div className={styles.seeAlso}>
-                <h2>See also</h2>
+                <h2>{t('wiki.seeAlso')}</h2>
                 <ul>
                   {related.map(k => (
                     <li key={k}>
@@ -584,26 +586,26 @@ export default function WikiPanel() {
           <div className={styles.studioPanel} onMouseDown={e => e.stopPropagation()}>
             <div className={styles.studioHeader}>
               <div>
-                <h2 className={styles.studioTitle}>Prompt Studio</h2>
+                <h2 className={styles.studioTitle}>{t('wiki.promptStudio')}</h2>
                 <p className={styles.studioSub}>
-                  Intervention is optional: empty, one line, section rules, or a full template. Preview first; Apply writes canonical wiki.
+                  {t('wiki.studioSub')}
                 </p>
               </div>
-              <button className={styles.studioClose} onClick={() => setStudioOpen(false)} aria-label="Close">✕</button>
+              <button className={styles.studioClose} onClick={() => setStudioOpen(false)} aria-label={t('common.close')}>✕</button>
             </div>
 
             <div className={styles.studioBody}>
-              <label className={styles.studioLabel}>Intervention (optional)</label>
+              <label className={styles.studioLabel}>{t('wiki.interventionLabel')}</label>
               <textarea
                 className={styles.studioTextarea}
                 value={promptText}
                 onChange={e => setPromptText(e.target.value)}
-                placeholder={"Example:\nEvery page starts with a conclusion, then evidence; every fact needs [n].\n\n[SECTION: Registers and Programming Model]\nUse a table: Offset | Name | Access | Width | Reset | Description\n\nOr paste a complete template."}
+                placeholder={t('wiki.promptPlaceholder')}
               />
 
               <div className={styles.studioRow}>
                 <div className={styles.studioField}>
-                  <label className={styles.studioLabel}>Topics (comma or newline separated, max 3)</label>
+                  <label className={styles.studioLabel}>{t('wiki.topicsLabel')}</label>
                   <input
                     className={styles.studioInput}
                     value={studioTopics}
@@ -613,25 +615,25 @@ export default function WikiPanel() {
                 </div>
                 <label className={styles.studioCheck}>
                   <input type="checkbox" checked={includeSaved} onChange={e => setIncludeSaved(e.target.checked)} />
-                  Include saved interventions
+                  {t('wiki.includeSaved')}
                 </label>
               </div>
 
               <div className={styles.studioActions}>
                 <button className={styles.generateBtn} onClick={handlePreview} disabled={previewing || applying}>
-                  {previewing ? 'Previewing…' : 'Preview'}
+                  {previewing ? t('wiki.previewing') : t('wiki.preview')}
                 </button>
                 <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('global')} disabled={saving || !promptText.trim()}>
-                  Save global
+                  {t('wiki.saveGlobal')}
                 </button>
                 <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('group')} disabled={saving || !promptText.trim()}>
-                  Save group ({currentGroup})
+                  {t('wiki.saveGroup', { group: currentGroup })}
                 </button>
                 <button className={styles.studioSecondary} onClick={() => handleSaveIntervention('topic')} disabled={saving || !promptText.trim()}>
-                  Save topic
+                  {t('wiki.saveTopic')}
                 </button>
                 <button className={styles.studioApply} onClick={handleApplyPrompts} disabled={applying || previewing || previewResults.length === 0}>
-                  {applying ? 'Applying…' : 'Apply to topics'}
+                  {applying ? t('wiki.applying') : t('wiki.applyToTopics')}
                 </button>
               </div>
 
@@ -639,15 +641,15 @@ export default function WikiPanel() {
               {studioNotice && <div className={styles.studioNotice}>{studioNotice}</div>}
 
               <div className={styles.studioSaved}>
-                <div className={styles.studioSectionTitle}>Saved interventions ({interventions.length})</div>
+                <div className={styles.studioSectionTitle}>{t('wiki.savedInterventions', { n: interventions.length })}</div>
                 {interventions.length === 0 ? (
-                  <div className={styles.studioMuted}>None yet. Save a prompt after it previews well.</div>
+                  <div className={styles.studioMuted}>{t('wiki.noInterventions')}</div>
                 ) : (
                   interventions.map(inv => (
                     <div key={inv.id} className={styles.studioSavedItem}>
                       <div className={styles.studioSavedMeta}>
                         <span className={styles.studioScope}>{inv.scope}</span>
-                        <button className={styles.studioDelete} onClick={() => handleDeleteIntervention(inv.id)}>Delete</button>
+                        <button className={styles.studioDelete} onClick={() => handleDeleteIntervention(inv.id)}>{t('common.delete')}</button>
                       </div>
                       <div className={styles.studioSavedText}>{inv.text}</div>
                     </div>
@@ -657,7 +659,7 @@ export default function WikiPanel() {
 
               {previewResults.length > 0 && (
                 <div className={styles.studioResults}>
-                  <div className={styles.studioSectionTitle}>Preview results</div>
+                  <div className={styles.studioSectionTitle}>{t('wiki.previewResults')}</div>
                   {previewResults.map((res, idx) => (
                     <div key={idx} className={styles.studioResult}>
                       <div className={styles.studioResultHead}>
@@ -666,8 +668,8 @@ export default function WikiPanel() {
                           <span className={styles.studioErrorInline}>{res.error}</span>
                         ) : (
                           <span className={styles.studioResultMeta}>
-                            {res.model || 'model?'} · {res.elapsed_ms ?? 0}ms · {res.citation_count ?? 0} citations · {res.headings?.length ?? 0} headings
-                            {res.claims_total != null && ` · ${res.claims_used ?? 0}/${res.claims_total} claims`}
+                            {res.model || 'model?'} · {res.elapsed_ms ?? 0}ms · {t('wiki.citations', { n: res.citation_count ?? 0 })} · {t('wiki.headings', { n: res.headings?.length ?? 0 })}
+                            {res.claims_total != null && ` · ${t('wiki.claimsRatio', { used: res.claims_used ?? 0, total: res.claims_total })}`}
                           </span>
                         )}
                       </div>

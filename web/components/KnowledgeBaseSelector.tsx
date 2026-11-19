@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n';
 
 const KBS = [
   { id: 'coffee', label: 'Coffee KB', port: '6108' },
@@ -8,6 +9,7 @@ const KBS = [
 ];
 
 export default function KnowledgeBaseSelector() {
+  const t = useT();
   const [current, setCurrent] = useState('');
 
   useEffect(() => {
@@ -24,8 +26,8 @@ export default function KnowledgeBaseSelector() {
 
   return (
     <select
-      aria-label="Knowledge base"
-      title="Switch knowledge base"
+      aria-label={t('workspace.kbAria')}
+      title={t('workspace.kbTitle')}
       value={current}
       onChange={e => change(e.target.value)}
       style={{
@@ -39,7 +41,7 @@ export default function KnowledgeBaseSelector() {
         fontSize: 11,
       }}
     >
-      {current === 'current' && <option value="current">Current KB</option>}
+      {current === 'current' && <option value="current">{t('workspace.current')}</option>}
       {KBS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
     </select>
   );

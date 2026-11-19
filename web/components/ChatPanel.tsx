@@ -7,13 +7,14 @@ import ChatMessage, { type Message } from './ChatMessage';
 import AgentMessageView from './chat/AgentMessageView';
 import { useAgentChat } from './chat/useAgentChat';
 import SourceDrawer from './SourceDrawer';
+import { useT } from '@/lib/i18n';
 import styles from './ChatPanel.module.css';
 
 const SUGGESTIONS = [
-  "What's in my knowledge base?",
-  "Summarize the key findings from recent sources",
-  "Compare different perspectives on the main topic",
-  "What areas need more research?",
+  'chat.suggestions.kb',
+  'chat.suggestions.summarize',
+  'chat.suggestions.compare',
+  'chat.suggestions.gaps',
 ];
 
 interface ChatPanelProps {
@@ -23,13 +24,14 @@ interface ChatPanelProps {
 }
 
 const MODES = [
-  { id: 'normal', label: 'Normal' },
-  { id: 'deep', label: 'Deep' },
-  { id: 'concise', label: 'Concise' },
-  { id: 'creative', label: 'Creative' },
+  { id: 'normal' },
+  { id: 'deep' },
+  { id: 'concise' },
+  { id: 'creative' },
 ];
 
 export default function ChatPanel({ sessionId, messages, onMessagesChange }: ChatPanelProps) {
+  const t = useT();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [drawerSource, setDrawerSource] = useState<Source | null>(null);
@@ -164,11 +166,11 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
         .concat(assistantMsg);
       onMessagesChange(sessionId, finalMessages);
     } catch (err) {
-      const errText = err instanceof Error ? err.message : 'Request failed';
+      const errText = err instanceof Error ? err.message : t('chat.requestFailed');
       const errorMsg: Message = {
         id: genId(),
         role: 'assistant',
-        content: `Error: ${errText}\n\nMake sure the API server is running: \`sw api\``,
+        content: `${t('common.error')}: ${errText}\n\n${t('chat.apiError')}`,
         error: true,
         timestamp: new Date(),
       };
@@ -180,7 +182,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow, engine, agentSessionId, agentChat.busy, agentChat.send]);
+  }, [input, isLoading, messages, sessionId, onMessagesChange, mode, workflow, engine, agentSessionId, agentChat.busy, agentChat.send, t]);
 
   const handleReport = async () => {
     const question = (
@@ -194,7 +196,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       const report = await apiReport(question, 'research-report', workflow || undefined);
       window.open(apiReportDownloadUrl(report.report_id), '_blank', 'noopener,noreferrer');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Report generation failed');
+      alert(err instanceof Error ? err.message : t('chat.reportFailed'));
     } finally {
       setIsReporting(false);
     }
@@ -216,7 +218,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
 
   const clearChat = () => {
     const count = engine === 'agent' ? agentChat.messages.length : messages.length;
-    if (count === 0 || !confirm('Clear all messages in this session?')) return;
+    if (count === 0 || !confirm(t('chat.clearConfirm'))) return;
     if (engine === 'agent') {
       if (agentChat.busy) void agentChat.stop();
       setAgentSessionId(null);
@@ -235,7 +237,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   return (
     <div className={styles.chatPanel}>
       {/* Messages area */}
-      <div className={styles.messagesArea} role="log" aria-live="polite" aria-label="Chat messages">
+      <div className={styles.messagesArea} role="log" aria-live="polite" aria-label={t('chat.messagesAria')}>
         <div className={styles.messagesInner}>
           {!hasMessages ? (
             <div className={styles.empty}>
@@ -247,19 +249,19 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 </svg>
               </div>
               <h2 className={styles.emptyTitle}>
-                {engine === 'agent' ? 'SWAgent' : 'Research Chat'}
+                {engine === 'agent' ? 'SWAgent' : t('chat.emptyTitle')}
               </h2>
               <p className={styles.emptyDesc}>
                 {engine === 'agent'
-                  ? 'SWAgent uses read-only knowledge-base tools and web research. It shows research steps and cites datasheet pages.'
-                  : 'Ask questions about your ingested documents. The system searches across full-text, vectors, claims, and knowledge graph to give you grounded answers.'}
+                  ? t('chat.emptyDescAgent')
+                  : t('chat.emptyDesc')}
               </p>
               <div className={styles.suggestions}>
                 {SUGGESTIONS.map((s, i) => (
                   <button
                     key={i}
                     className={styles.suggestion}
-                    onClick={() => handleSend(s)}
+                    onClick={() => handleSend(t(s))}
                     disabled={engine === 'agent' ? agentChat.busy : isLoading}
                   >
                     <span className={styles.suggestionIcon}>
@@ -267,7 +269,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </span>
-                    {s}
+                    {t(s)}
                   </button>
                 ))}
               </div>
@@ -308,19 +310,19 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       {/* Mode / workflow / report bar */}
       <div className={styles.modeBar}>
         <div className={styles.modeInner}>
-          <div className={styles.engineSwitch} role="group" aria-label="Answer engine">
+          <div className={styles.engineSwitch} role="group" aria-label={t('chat.answerEngine')}>
             <button
               className={`${styles.engineBtn} ${engine === 'quick' ? styles.engineActive : ''}`}
               onClick={() => setEngine('quick')}
               disabled={isLoading}
             >
-              Quick
+              {t('chat.engineQuick')}
             </button>
             <button
               className={`${styles.engineBtn} ${engine === 'agent' ? styles.engineActive : ''}`}
               onClick={() => setEngine('agent')}
               disabled={isLoading}
-              title="SWAgent; read-only KB + web research"
+              title={t('chat.agentEngineTitle')}
             >
               SWAgent
             </button>
@@ -331,7 +333,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               className={`${styles.modeBtn} ${mode === m.id ? styles.modeActive : ''}`}
               onClick={() => setMode(m.id)}
             >
-              {m.label}
+              {t(`chat.mode_${m.id}`)}
             </button>
           )) : (
             <>
@@ -349,9 +351,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                     }
                   } catch {}
                 }}
-                aria-label="Agent session"
+                aria-label={t('chat.agentSessionAria')}
               >
-                <option value="">New session</option>
+                <option value="">{t('chat.newSession')}</option>
                 {agentSessions.map(item => (
                   <option key={item.id} value={item.id}>
                     {(item.title || item.id).slice(0, 48)}
@@ -360,26 +362,26 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               </select>
               <span className={styles.agentHint}>
                 {agentChat.connected
-                  ? 'Live'
+                  ? t('chat.live')
                   : agentAvailable === false
-                    ? 'SWAgent offline'
-                    : 'Connecting…'}
+                    ? t('chat.agentOffline')
+                    : t('chat.connecting')}
               </span>
               {agentChat.busy ? (
                 <button
                   className={styles.reportBtn}
                   onClick={() => { void agentChat.stop(); }}
-                  title="Stop the running agent"
+                  title={t('chat.stopTitle')}
                 >
-                  Stop
+                  {t('chat.stop')}
                 </button>
               ) : hasMessages ? (
                 <button
                   className={styles.reportBtn}
                   onClick={() => { void agentChat.regenerate(); }}
-                  title="Send the last question again"
+                  title={t('chat.retryTitle')}
                 >
-                  Retry
+                  {t('common.retry')}
                 </button>
               ) : null}
             </>
@@ -390,10 +392,10 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 className={styles.workflowSelect}
                 value={workflow}
                 onChange={e => setWorkflow(e.target.value)}
-                aria-label="Workflow"
+                aria-label={t('chat.workflowAria')}
                 disabled={isLoading}
               >
-                <option value="">No workflow</option>
+                <option value="">{t('chat.noWorkflow')}</option>
                 {Object.entries(workflows).map(([id, wf]) => (
                   <option key={id} value={id}>{wf.name || id}</option>
                 ))}
@@ -404,18 +406,18 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               href="/swagent"
               target="_blank"
               rel="noopener noreferrer"
-              title="Open SWAgent in a new tab"
+              title={t('chat.openAgentTitle')}
             >
-              Agent ↗
+              {t('chat.agentLink')} ↗
             </a>
             {engine === 'quick' && (
               <button
                 className={styles.reportBtn}
                 onClick={handleReport}
                 disabled={isReporting || isLoading}
-                title="Generate a research report with citations"
+                title={t('chat.reportTitle')}
               >
-                {isReporting ? 'Generating…' : 'Report'}
+                {isReporting ? t('chat.generating') : t('chat.report')}
               </button>
             )}
           </div>
@@ -432,18 +434,18 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={engine === 'agent' ? 'Ask SWAgent…' : 'Ask a research question…'}
+              placeholder={engine === 'agent' ? t('chat.askAgentPlaceholder') : t('chat.askPlaceholder')}
               rows={1}
               disabled={engine === 'agent' ? agentChat.busy : isLoading}
-              aria-label="Research question"
+              aria-label={t('chat.inputAria')}
             />
             <div className={styles.inputActions}>
               {hasMessages && (
                 <button
                   className={styles.clearBtn}
                   onClick={clearChat}
-                  title="Clear session"
-                  aria-label="Clear session"
+                  title={t('chat.clearSession')}
+                  aria-label={t('chat.clearSession')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6" />
@@ -455,8 +457,8 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 className={styles.sendBtn}
                 onClick={() => handleSend()}
                 disabled={!input.trim() || (engine === 'agent' ? agentChat.busy : isLoading)}
-                aria-label="Send message"
-                title="Send (Enter)"
+                aria-label={t('chat.sendMessage')}
+                title={t('chat.sendTitle')}
               >
                 {(engine === 'agent' ? agentChat.busy : isLoading) ? (
                   <span className={styles.spinner} />
@@ -471,8 +473,9 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
           </div>
           <p className={styles.hint}>
             {engine === 'agent'
-              ? 'SWAgent uses read-only KB tools and web search; it may take longer than Quick Answer.'
-              : 'Answers are grounded in your indexed documents.'} Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line.
+              ? t('chat.hintAgent')
+              : t('chat.hintQuick')}{' '}
+            {t('chat.press')}<kbd>Enter</kbd>{t('chat.sendAction')}<kbd>Shift+Enter</kbd>{t('chat.newLineAction')}
           </p>
         </div>
       </div>

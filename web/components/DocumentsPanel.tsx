@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiListDocuments, apiDeleteDocument } from '@/lib/api';
 import type { Document } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './DocumentsPanel.module.css';
 
 interface DocumentsPanelProps {
@@ -10,6 +11,7 @@ interface DocumentsPanelProps {
 }
 
 export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) {
+  const t = useT();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
       const data = await apiListDocuments();
       setDocuments(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch documents');
+      setError(err instanceof Error ? err.message : t('documents.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -32,7 +34,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
   }, []);
 
   const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`Are you sure you want to delete the document "${title}"? This will also delete all associated chunks, claims, events, and relationships.`)) {
+    if (!confirm(t('documents.deleteConfirm', { title }))) {
       return;
     }
     try {
@@ -40,44 +42,44 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
       setDocuments(prev => prev.filter(d => d.id !== id));
       if (onRefreshStats) onRefreshStats();
     } catch (err) {
-      alert(`Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(t('documents.deleteFailed', { msg: err instanceof Error ? err.message : t('common.unknown') }));
     }
   };
 
   return (
     <div className={styles.panel}>
       <div className={styles.topBar}>
-        <span className={styles.title}>◉ Ingested Documents</span>
+        <span className={styles.title}>◉ {t('documents.title')}</span>
       </div>
 
       <div className={styles.body}>
         {loading ? (
           <div className={styles.loading}>
             <div className={styles.spinner} />
-            <span>Loading documents…</span>
+            <span>{t('documents.loading')}</span>
           </div>
         ) : error ? (
           <div className={styles.error}>
             <span className={styles.emptyIcon}>⚠️</span>
-            <span>Error: {error}</span>
+            <span>{t('common.error')}: {error}</span>
           </div>
         ) : documents.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>📄</span>
-            <h3>No documents found</h3>
-            <p>Ingest some research sources via the Ingest Sources tab.</p>
+            <h3>{t('documents.emptyTitle')}</h3>
+            <p>{t('documents.emptyDesc')}</p>
           </div>
         ) : (
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.th}>Title</th>
-                  <th className={styles.th}>Source</th>
-                  <th className={styles.th}>Type</th>
-                  <th className={styles.th}>Published</th>
-                  <th className={styles.th}>Trust Level</th>
-                  <th className={styles.th}>Actions</th>
+                  <th className={styles.th}>{t('documents.colTitle')}</th>
+                  <th className={styles.th}>{t('documents.colSource')}</th>
+                  <th className={styles.th}>{t('documents.colType')}</th>
+                  <th className={styles.th}>{t('documents.colPublished')}</th>
+                  <th className={styles.th}>{t('documents.colTrust')}</th>
+                  <th className={styles.th}>{t('documents.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -94,7 +96,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
                           rel="noopener noreferrer"
                           className={styles.docUrl}
                         >
-                          Link ↗
+                          {t('documents.link')} ↗
                         </a>
                       )}
                     </td>
@@ -115,7 +117,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
                         className={styles.btnDelete}
                         onClick={() => handleDelete(doc.id, doc.title)}
                       >
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>

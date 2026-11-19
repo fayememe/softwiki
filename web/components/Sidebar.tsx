@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import type { Session, ThemeMode } from '@/app/page';
+import { NEW_CHAT_NAME } from '@/app/page';
+import { useI18n } from '@/lib/i18n';
+import LanguageSwitcher from './LanguageSwitcher';
 import RoleSelector from './RoleSelector';
 import KnowledgeBaseSelector from './KnowledgeBaseSelector';
 import styles from './Sidebar.module.css';
@@ -39,28 +42,33 @@ function ConflictsIcon() { return <svg width="18" height="18" viewBox="0 0 24 24
 function GraphIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>; }
 function TimelineIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>; }
 function AgentIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>; }
+function PortalIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>; }
 
-const TOOLS: { id: ActivePanel; icon: React.ReactNode; label: string }[] = [
-  { id: 'home',      icon: <HomeIcon />,     label: 'Home' },
-  { id: 'chat',      icon: <ChatIcon />,     label: 'Chat' },
-  { id: 'ingest',    icon: <IngestIcon />,   label: 'Ingest' },
-  { id: 'documents', icon: <DocsIcon />,     label: 'Documents' },
-  { id: 'claims',    icon: <ClaimsIcon />,   label: 'Claims' },
-  { id: 'conflicts', icon: <ConflictsIcon />, label: 'Conflicts' },
-  { id: 'graph',     icon: <GraphIcon />,    label: 'Graph' },
-  { id: 'timeline',  icon: <TimelineIcon />, label: 'Timeline' },
-  { id: 'wiki',      icon: <WikiIcon />,     label: 'Wiki' },
+const TOOLS: { id: ActivePanel; icon: React.ReactNode }[] = [
+  { id: 'home',      icon: <HomeIcon /> },
+  { id: 'chat',      icon: <ChatIcon /> },
+  { id: 'ingest',    icon: <IngestIcon /> },
+  { id: 'documents', icon: <DocsIcon /> },
+  { id: 'claims',    icon: <ClaimsIcon /> },
+  { id: 'conflicts', icon: <ConflictsIcon /> },
+  { id: 'graph',     icon: <GraphIcon /> },
+  { id: 'timeline',  icon: <TimelineIcon /> },
+  { id: 'wiki',      icon: <WikiIcon /> },
 ];
 
-function formatDate(ts: number): string {
+function formatDate(
+  ts: number,
+  t: (k: string, p?: Record<string, string | number>) => string,
+  locale: string,
+): string {
   const d = new Date(ts);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  if (diffDays === 0) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return t('sidebar.yesterday');
+  if (diffDays < 7) return t('sidebar.daysAgo', { n: diffDays });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 export default function Sidebar({
@@ -69,6 +77,8 @@ export default function Sidebar({
   workspaces, activeWorkspace, onWorkspaceChange,
   theme, onCycleTheme,
 }: SidebarProps) {
+  const { t, locale } = useI18n();
+  const htmlLocale = locale === 'zh' ? 'zh-CN' : locale;
   const isWiki = activePanel === 'wiki';
   const [collapsed, setCollapsed] = useState(false);
   const effectiveCollapsed = collapsed || isWiki;
@@ -108,11 +118,14 @@ export default function Sidebar({
           </button>
         </div>
         {!effectiveCollapsed && (
-          <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} title="Collapse sidebar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <LanguageSwitcher />
+            <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} title={t("sidebar.collapse")}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-          </button>
+            </button>
+          </div>
         )}
       </div>
 
@@ -133,10 +146,10 @@ export default function Sidebar({
               key={item.id}
               className={`${styles.navItem} ${activePanel === item.id ? styles.navActive : ''}`}
               onClick={() => onPanelChange(item.id)}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? t(`sidebar.${item.id}`) : undefined}
             >
               <span className={styles.navIcon}>{item.icon}</span>
-              {!effectiveCollapsed && <span className={styles.navLabel}>{item.label}</span>}
+              {!effectiveCollapsed && <span className={styles.navLabel}>{t(`sidebar.${item.id}`)}</span>}
               {!effectiveCollapsed && b !== undefined && b > 0 && (
                 <span className={styles.navBadge}>{b > 99 ? '99+' : b}</span>
               )}
@@ -145,10 +158,21 @@ export default function Sidebar({
         })}
         <a
           className={`${styles.navItem} ${styles.navLink}`}
+          href="/wikiweb"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t("sidebar.wikiPortalTitle")}
+        >
+          <span className={styles.navIcon}><PortalIcon /></span>
+          {!effectiveCollapsed && <span className={styles.navLabel}>{t("sidebar.wikiPortal")}</span>}
+          {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
+        </a>
+        <a
+          className={`${styles.navItem} ${styles.navLink}`}
           href="/swagent"
           target="_blank"
           rel="noopener noreferrer"
-          title="Open SWAgent (new tab)"
+          title={t("sidebar.swagentTitle")}
         >
           <span className={styles.navIcon}><AgentIcon /></span>
           {!effectiveCollapsed && <span className={styles.navLabel}>SWAgent</span>}
@@ -160,9 +184,9 @@ export default function Sidebar({
       {!effectiveCollapsed && activePanel === 'chat' && (
         <div className={styles.sessionSection}>
           <div className={styles.sessionHeader}>
-            <span className={styles.sessionTitle}>Sessions</span>
+            <span className={styles.sessionTitle}>{t("sidebar.sessions")}</span>
             <span className={styles.sessionCount}>{sessions.length}</span>
-            <button className={styles.newSessionBtn} onClick={onNewSession} title="New session">
+            <button className={styles.newSessionBtn} onClick={onNewSession} title={t("sidebar.newSession")}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
@@ -171,7 +195,7 @@ export default function Sidebar({
 
           <div className={styles.sessionList}>
             {sessions.length === 0 ? (
-              <div className={styles.sessionEmpty}>No sessions yet</div>
+              <div className={styles.sessionEmpty}>{t("sidebar.noSessions")}</div>
             ) : (
               sessions.map(session => (
                 <div key={session.id} className={`${styles.sessionItem} ${activeSessionId === session.id ? styles.sessionActive : ''}`}>
@@ -189,17 +213,17 @@ export default function Sidebar({
                         />
                       ) : (
                         <span className={styles.sessionName} onDoubleClick={() => startRename(session.id, session.name)}>
-                          {session.name}
+                          {session.name === NEW_CHAT_NAME ? t('app.newChat') : session.name}
                         </span>
                       )}
                       <span className={styles.sessionDate}>
                         {session.messages.length > 0
-                          ? `${session.messages.length} msgs · ${formatDate(session.updatedAt)}`
-                          : 'Empty'}
+                          ? `${session.messages.length} ${t('sidebar.msgs')} · ${formatDate(session.updatedAt, t, htmlLocale)}`
+                          : t('sidebar.empty')}
                       </span>
                     </div>
                   </button>
-                  <button className={styles.sessionDelete} onClick={() => onDeleteSession(session.id)} title="Delete">
+                  <button className={styles.sessionDelete} onClick={() => onDeleteSession(session.id)} title={t("common.delete")}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
@@ -214,7 +238,8 @@ export default function Sidebar({
       {/* ── Collapsed mode ── */}
       {effectiveCollapsed && (
         <div className={styles.collapsedFooter}>
-          <button className={styles.expandBtn} onClick={() => setCollapsed(false)} title="Expand sidebar">
+          <LanguageSwitcher collapsed />
+          <button className={styles.expandBtn} onClick={() => setCollapsed(false)} title={t("sidebar.expand")}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6" />
             </svg>

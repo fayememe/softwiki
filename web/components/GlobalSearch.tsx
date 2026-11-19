@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiListDocuments, apiListClaims, apiListGraph } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './GlobalSearch.module.css';
 
 interface SearchResult {
@@ -12,6 +13,7 @@ interface SearchResult {
 }
 
 export default function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -34,27 +36,27 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
     try {
       const docs = await apiListDocuments();
       docs.filter(d => d.title.toLowerCase().includes(ql)).forEach(d => {
-        out.push({ type: 'Document', label: d.title, subtitle: d.source_name, icon: '📄' });
+        out.push({ type: 'search.typeDocument', label: d.title, subtitle: d.source_name, icon: '📄' });
       });
     } catch {}
 
     try {
       const claims = await apiListClaims();
       claims.filter(c => c.text.toLowerCase().includes(ql)).slice(0, 10).forEach(c => {
-        out.push({ type: 'Claim', label: c.text.slice(0, 80), subtitle: c.actor || 'unknown', icon: '📋' });
+        out.push({ type: 'search.typeClaim', label: c.text.slice(0, 80), subtitle: c.actor || t('common.unknown'), icon: '📋' });
       });
     } catch {}
 
     try {
       const graph = await apiListGraph();
       graph.entities.filter(e => e.name.toLowerCase().includes(ql)).forEach(e => {
-        out.push({ type: 'Entity', label: e.name, subtitle: e.type || 'entity', icon: '🏷️' });
+        out.push({ type: 'search.typeEntity', label: e.name, subtitle: e.type || 'entity', icon: '🏷️' });
       });
     } catch {}
 
     setResults(out.slice(0, 20));
     setSelectedIdx(0);
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timer = setTimeout(() => doSearch(query), 200);
@@ -81,10 +83,10 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Search documents, claims, entities…"
+          placeholder={t('search.placeholder')}
         />
         <div className={styles.results}>
-          {results.length === 0 && query && <div className={styles.empty}>No results</div>}
+          {results.length === 0 && query && <div className={styles.empty}>{t('search.noResults')}</div>}
           {results.map((r, i) => (
             <div key={`${r.type}-${i}`} className={`${styles.item} ${i === selectedIdx ? styles.itemActive : ''}`}
               onClick={() => onClose()}>
@@ -93,14 +95,14 @@ export default function GlobalSearch({ open, onClose }: { open: boolean; onClose
                 <span className={styles.itemLabel}>{r.label}</span>
                 <span className={styles.itemSub}>{r.subtitle}</span>
               </div>
-              <span className={styles.itemType}>{r.type}</span>
+              <span className={styles.itemType}>{t(r.type)}</span>
             </div>
           ))}
         </div>
         <div className={styles.footer}>
-          <span>↑↓ navigate</span>
-          <span>↵ open</span>
-          <span>esc close</span>
+          <span>{t('search.navigate')}</span>
+          <span>{t('search.open')}</span>
+          <span>{t('search.close')}</span>
         </div>
       </div>
     </div>

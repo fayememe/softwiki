@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiStatus, apiListWorkspaces } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './DashboardPanel.module.css';
 
 interface Counts {
@@ -10,21 +11,22 @@ interface Counts {
 }
 
 const FLOW = [
-  { stage: 'Input', icon: '📥', items: [
-    { label: 'Documents', key: 'documents', color: '#5588ff' },
+  { id: 'input', icon: '📥', items: [
+    { key: 'documents', color: '#5588ff' },
   ]},
-  { stage: 'Process', icon: '⚙️', items: [
-    { label: 'Chunks', key: 'chunks', color: '#22d3ee' },
-    { label: 'Claims', key: 'claims', color: '#a78bfa' },
+  { id: 'process', icon: '⚙️', items: [
+    { key: 'chunks', color: '#22d3ee' },
+    { key: 'claims', color: '#a78bfa' },
   ]},
-  { stage: 'Knowledge', icon: '🧠', items: [
-    { label: 'Entities', key: 'entities', color: '#22c55e' },
-    { label: 'Relationships', key: 'relationships', color: '#f59e0b' },
-    { label: 'Events', key: 'events', color: '#ef4444' },
+  { id: 'knowledge', icon: '🧠', items: [
+    { key: 'entities', color: '#22c55e' },
+    { key: 'relationships', color: '#f59e0b' },
+    { key: 'events', color: '#ef4444' },
   ]},
 ];
 
 export default function DashboardPanel() {
+  const t = useT();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [ws, setWs] = useState('');
 
@@ -45,28 +47,28 @@ export default function DashboardPanel() {
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Dashboard</h1>
-          <p className={styles.subtitle}>Workspace: <strong>{ws}</strong></p>
+          <h1 className={styles.title}>{t('dashboard.title')}</h1>
+          <p className={styles.subtitle}>{t('dashboard.workspace')} <strong>{ws}</strong></p>
         </div>
         <div className={styles.total}>
           <span className={styles.totalNum}>{v('documents')}</span>
-          <span className={styles.totalLabel}>documents</span>
+          <span className={styles.totalLabel}>{t('dashboard.documents')}</span>
         </div>
       </div>
 
       {/* Data flow diagram */}
       <div className={styles.flow}>
         {FLOW.map((stage, si) => (
-          <div key={stage.stage} className={styles.stage}>
+          <div key={stage.id} className={styles.stage}>
             <div className={styles.stageHeader}>
               <span className={styles.stageIcon}>{stage.icon}</span>
-              <span className={styles.stageName}>{stage.stage}</span>
+              <span className={styles.stageName}>{t(`dashboard.stage_${stage.id}`)}</span>
             </div>
             <div className={styles.stageCards}>
               {stage.items.map(item => (
                 <div key={item.key} className={styles.flowCard}>
                   <span className={styles.flowValue}>{v(item.key)}</span>
-                  <span className={styles.flowLabel}>{item.label}</span>
+                  <span className={styles.flowLabel}>{t(`dashboard.item_${item.key}`)}</span>
                 </div>
               ))}
             </div>

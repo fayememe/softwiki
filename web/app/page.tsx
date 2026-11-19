@@ -14,6 +14,7 @@ import TimelinePanel from '@/components/TimelinePanel';
 import GlobalSearch from '@/components/GlobalSearch';
 import { apiStatus, apiListWorkspaces, apiSwitchWorkspace } from '@/lib/api';
 import type { Message } from '@/components/ChatMessage';
+import { useT } from '@/lib/i18n';
 
 export interface Session {
   id: string;
@@ -24,6 +25,12 @@ export interface Session {
 }
 
 export type ThemeMode = 'dark' | 'light' | 'auto';
+
+/**
+ * Sentinel default session name stored in localStorage.
+ * Rendered through the i18n dictionary so it follows the current locale.
+ */
+export const NEW_CHAT_NAME = 'New Chat';
 
 const SESSION_KEY = 'softwiki_sessions';
 const THEME_KEY = 'softwiki_theme';
@@ -57,7 +64,7 @@ function genId(): string {
 function createNewSession(): Session {
   return {
     id: genId(),
-    name: 'New Chat',
+    name: NEW_CHAT_NAME,
     messages: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -66,7 +73,7 @@ function createNewSession(): Session {
 
 function generateSessionName(messages: Message[]): string {
   const firstMsg = messages.find(m => m.role === 'user');
-  if (!firstMsg) return 'New Chat';
+  if (!firstMsg) return NEW_CHAT_NAME;
   const text = firstMsg.content.trim();
   return text.length > 48 ? text.slice(0, 48) + '…' : text;
 }
@@ -133,6 +140,13 @@ const THEME_NEXT: Record<ThemeMode, ThemeMode> = {
 };
 
 export default function Home() {
+  // I18nProvider lives in app/layout.tsx so the server can render the right
+  // locale on first paint; mounting another one here would shadow it.
+  return <HomeInner />;
+}
+
+function HomeInner() {
+  const t = useT();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>('chat');
@@ -260,7 +274,7 @@ export default function Home() {
     updateSession(id, s => ({
       ...s,
       messages,
-      name: s.name === 'New Chat' && messages.length > 0 ? generateSessionName(messages) : s.name,
+      name: s.name === NEW_CHAT_NAME && messages.length > 0 ? generateSessionName(messages) : s.name,
       updatedAt: Date.now(),
     }));
   }, [updateSession]);
@@ -296,8 +310,8 @@ export default function Home() {
         <button
           onClick={cycleTheme}
           className="theme-float-btn"
-          title={`Theme: ${theme} (click to cycle)`}
-          aria-label="Toggle theme"
+          title={t('app.themeTitle', { theme: t(`app.theme_${theme}`) })}
+          aria-label={t('app.toggleTheme')}
         >
           {theme === 'light' ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>

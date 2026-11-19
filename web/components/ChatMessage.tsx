@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AgentTool, Source } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './ChatMessage.module.css';
 
 export interface Message {
@@ -25,22 +26,24 @@ interface ChatMessageProps {
 }
 
 function ThinkingDots({ label }: { label?: string }) {
+  const t = useT();
   return (
     <div className={styles.thinking}>
       <div className={styles.thinkingDots}>
         <span /><span /><span />
       </div>
-      <span className={styles.thinkingLabel}>{label || 'Analyzing knowledge base…'}</span>
+      <span className={styles.thinkingLabel}>{label || t('chat.thinking')}</span>
     </div>
   );
 }
 
 function ResearchSteps({ tools }: { tools: AgentTool[] }) {
+  const t = useT();
   return (
     <details className={styles.researchSteps}>
       <summary className={styles.researchSummary}>
         <span className={styles.researchIcon}>◈</span>
-        Research steps
+        {t('chat.researchSteps')}
         <span className={styles.researchCount}>{tools.length}</span>
       </summary>
       <div className={styles.researchList}>
@@ -70,6 +73,7 @@ function ResearchSteps({ tools }: { tools: AgentTool[] }) {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(text).then(() => {
@@ -78,7 +82,7 @@ function CopyButton({ text }: { text: string }) {
     }).catch(() => {});
   }, [text]);
   return (
-    <button className={styles.copyBtn} onClick={handleCopy} title="Copy message" aria-label="Copy message">
+    <button className={styles.copyBtn} onClick={handleCopy} title={t('chat.copyMessage')} aria-label={t('chat.copyMessage')}>
       {copied ? (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
@@ -115,6 +119,7 @@ function BotAvatar() {
 }
 
 export default function ChatMessage({ message, onSourceClick }: ChatMessageProps) {
+  const t = useT();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -175,7 +180,7 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                                   const code = (e.currentTarget.parentElement as HTMLElement)?.querySelector('code');
                                   if (code) navigator.clipboard.writeText(code.textContent || '').catch(() => {});
                                 }}
-                                title="Copy code"
+                                title={t('chat.copyCode')}
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -206,7 +211,11 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                           >
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
-                          <span>{message.sources.length} source{message.sources.length !== 1 ? 's' : ''}</span>
+                          <span>
+                            {message.sources.length === 1
+                              ? t('chat.sourcesOne', { n: message.sources.length })
+                              : t('chat.sourcesMany', { n: message.sources.length })}
+                          </span>
                         </button>
 
                         {sourcesExpanded && (
@@ -216,15 +225,15 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                                 key={i}
                                 className={styles.sourceCard}
                                 onClick={() => onSourceClick?.(src)}
-                                title="Click to view source details"
+                                title={t('chat.viewSource')}
                               >
                                 <span className={styles.sourceNum}>
                                   {src.citation_num ?? i + 1}
                                 </span>
                                 <div className={styles.sourceMeta}>
-                                  <div className={styles.sourceTitle}>{src.title || 'Untitled'}</div>
+                                  <div className={styles.sourceTitle}>{src.title || t('chat.untitled')}</div>
                                   <div className={styles.sourceInfo}>
-                                    <span>{src.source_name || 'Unknown'}</span>
+                                    <span>{src.source_name || t('common.unknown')}</span>
                                     {src.published_at && src.published_at !== 'Unknown' && (
                                       <span>· {src.published_at}</span>
                                     )}
@@ -250,7 +259,7 @@ export default function ChatMessage({ message, onSourceClick }: ChatMessageProps
                                     rel="noopener noreferrer"
                                     onClick={e => e.stopPropagation()}
                                     className={styles.sourceLink}
-                                    aria-label="Open source URL"
+                                    aria-label={t('chat.openSourceUrl')}
                                   >
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

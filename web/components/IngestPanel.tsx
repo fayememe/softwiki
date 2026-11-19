@@ -2,12 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { apiIngestUrl, apiIngestFile, apiRebuildIndex } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './IngestPanel.module.css';
 
 type IngestMode = 'url' | 'file';
 type Status = { type: 'success' | 'error' | 'warning'; message: string } | null;
 
 export default function IngestPanel() {
+  const t = useT();
   const [mode, setMode] = useState<IngestMode>('url');
   const [url, setUrl] = useState('');
   const [sourceId, setSourceId] = useState('');
@@ -25,45 +27,52 @@ export default function IngestPanel() {
     if (mode === 'url') {
       const trimmed = url.trim();
       if (!trimmed) {
-        setStatus({ type: 'error', message: 'Please enter a URL.' });
+        setStatus({ type: 'error', message: t('ingest.errNoUrl') });
         return;
       }
       try { new URL(trimmed); } catch {
-        setStatus({ type: 'error', message: 'Invalid URL format. Please enter a valid URL (e.g. https://example.com).' });
+        setStatus({ type: 'error', message: t('ingest.errBadUrl') });
         return;
       }
     }
     if (mode === 'file' && !file) {
-      setStatus({ type: 'error', message: 'Please select a PDF file.' });
+      setStatus({ type: 'error', message: t('ingest.errNoFile') });
       return;
     }
     setLoading(true);
     setStatus(null);
-    appendLog(`Starting ingest (mode: ${mode})…`);
+    appendLog(t('ingest.logStart', { mode }));
     try {
       let result;
       if (mode === 'url') {
-        appendLog(`Fetching URL: ${url}`);
+        appendLog(t('ingest.logFetch', { url }));
         result = await apiIngestUrl(url.trim(), sourceId || undefined);
       } else {
-        appendLog(`Uploading file: ${file!.name}`);
+        appendLog(t('ingest.logUpload', { name: file!.name }));
         result = await apiIngestFile(file!, sourceId || undefined);
       }
 
       if (result.status === 'skipped') {
-        setStatus({ type: 'warning', message: `Skipped: ${result.reason}` });
-        appendLog(`Skipped — ${result.reason}`);
+        setStatus({ type: 'warning', message: t('ingest.skipped', { reason: result.reason ?? '' }) });
+        appendLog(t('ingest.logSkipped', { reason: result.reason ?? '' }));
       } else {
-        setStatus({ type: 'success', message: `Ingested: "${result.title}" — ${result.claims_extracted} claims extracted` });
-        appendLog(`✓ Document ID ${result.document_id}: "${result.title}" (${result.claims_extracted} claims)`);
+        setStatus({
+          type: 'success',
+          message: t('ingest.success', { title: result.title ?? '', n: result.claims_extracted ?? 0 }),
+        });
+        appendLog(t('ingest.logIngested', {
+          id: result.document_id ?? '',
+          title: result.title ?? '',
+          n: result.claims_extracted ?? 0,
+        }));
         setUrl('');
         setFile(null);
         if (fileRef.current) fileRef.current.value = '';
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Ingestion failed';
+      const msg = err instanceof Error ? err.message : t('ingest.errIngest');
       setStatus({ type: 'error', message: msg });
-      appendLog(`✗ Error: ${msg}`);
+      appendLog(t('ingest.logError', { msg }));
     } finally {
       setLoading(false);
     }
@@ -72,15 +81,15 @@ export default function IngestPanel() {
   const handleRebuildIndex = async () => {
     if (indexing) return;
     setIndexing(true);
-    appendLog('Rebuilding vector + BM25 index…');
+    appendLog(t('ingest.logRebuildStart'));
     try {
       const result = await apiRebuildIndex();
-      setStatus({ type: 'success', message: `Index rebuilt — ${result.indexed_chunks} chunks indexed.` });
-      appendLog(`✓ Index rebuilt: ${result.indexed_chunks} chunks.`);
+      setStatus({ type: 'success', message: t('ingest.indexRebuilt', { n: result.indexed_chunks }) });
+      appendLog(t('ingest.logRebuildDone', { n: result.indexed_chunks }));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Index rebuild failed';
+      const msg = err instanceof Error ? err.message : t('ingest.errRebuild');
       setStatus({ type: 'error', message: msg });
-      appendLog(`✗ Error: ${msg}`);
+      appendLog(t('ingest.logError', { msg }));
     } finally {
       setIndexing(false);
     }
@@ -93,14 +102,14 @@ export default function IngestPanel() {
       setFile(dropped);
       setStatus(null);
     } else {
-      setStatus({ type: 'error', message: 'Only PDF files are supported.' });
+      setStatus({ type: 'error', message: t('ingest.errPdfOnly') });
     }
   };
 
   return (
     <div className={styles.panel}>
       <div className={styles.topBar}>
-        <span className={styles.title}>Ingest Sources</span>
+        <span className={styles.title}>{t('ingest.title')}</span>
       </div>
 
       <div className={styles.body}>
@@ -110,18 +119,18 @@ export default function IngestPanel() {
             id="ingest-mode-url"
             className={`${styles.modeBtn} ${mode === 'url' ? styles.active : ''}`}
             onClick={() => { setMode('url'); setStatus(null); }}
-          >⊕ Web URL</button>
+          >⊕ {t('ingest.modeUrl')}</button>
           <button
             id="ingest-mode-file"
             className={`${styles.modeBtn} ${mode === 'file' ? styles.active : ''}`}
             onClick={() => { setMode('file'); setStatus(null); }}
-          >⊕ PDF File</button>
+          >⊕ {t('ingest.modeFile')}</button>
         </div>
 
         {/* URL form */}
         {mode === 'url' && (
           <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="ingest-url-input">Web URL</label>
+            <label className={styles.label} htmlFor="ingest-url-input">{t('ingest.urlLabel')}</label>
             <input
               id="ingest-url-input"
               type="url"
@@ -145,7 +154,7 @@ export default function IngestPanel() {
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }}
             role="button"
             tabIndex={0}
-            aria-label="PDF drop zone"
+            aria-label={t('ingest.dropAria')}
             id="ingest-dropzone"
           >
             <input
@@ -165,7 +174,7 @@ export default function IngestPanel() {
             ) : (
               <div className={styles.dropPlaceholder}>
                 <span className={styles.dropIcon}>↓</span>
-                <span>Drop PDF here or click to browse</span>
+                <span>{t('ingest.dropHint')}</span>
               </div>
             )}
           </div>
@@ -173,17 +182,17 @@ export default function IngestPanel() {
 
         {/* Source ID */}
         <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="ingest-source-id">Source ID <span className={styles.optional}>(optional)</span></label>
+          <label className={styles.label} htmlFor="ingest-source-id">{t('ingest.sourceIdLabel')} <span className={styles.optional}>({t('common.optional')})</span></label>
           <input
             id="ingest-source-id"
             type="text"
             className={styles.input}
-            placeholder="e.g. wikipedia, reuters, bloomberg"
+            placeholder={t('ingest.sourceIdPlaceholder')}
             value={sourceId}
             onChange={e => setSourceId(e.target.value)}
             disabled={loading}
           />
-          <p className={styles.hint}>Must match an ID in <code>configs/sources.yaml</code></p>
+          <p className={styles.hint}>{t('ingest.sourceIdHint')} <code>configs/sources.yaml</code></p>
         </div>
 
         {/* Status message */}
@@ -205,7 +214,7 @@ export default function IngestPanel() {
             disabled={loading}
             aria-busy={loading}
           >
-            {loading ? <><span className={styles.spinner} /> Ingesting…</> : '⊕ Ingest Document'}
+            {loading ? <><span className={styles.spinner} /> {t('ingest.ingesting')}</> : `⊕ ${t('ingest.ingestBtn')}`}
           </button>
           <button
             id="ingest-index-btn"
@@ -214,14 +223,14 @@ export default function IngestPanel() {
             disabled={indexing}
             aria-busy={indexing}
           >
-            {indexing ? <><span className={styles.spinner} /> Indexing…</> : '⟳ Rebuild Index'}
+            {indexing ? <><span className={styles.spinner} /> {t('ingest.indexing')}</> : `⟳ ${t('ingest.rebuildBtn')}`}
           </button>
         </div>
 
         {/* Activity log */}
         {log.length > 0 && (
           <div className={styles.logBox}>
-            <div className={styles.logHeader}>Activity Log</div>
+            <div className={styles.logHeader}>{t('ingest.activityLog')}</div>
             <div className={styles.logEntries}>
               {log.map((entry, i) => (
                 <div key={i} className={styles.logEntry}>{entry}</div>

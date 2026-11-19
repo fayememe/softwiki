@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiListGraph } from '@/lib/api';
 import type { GraphEntity, GraphRelationship } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './GraphPanel.module.css';
 
 interface Node {
@@ -75,6 +76,7 @@ function forceLayout(nodes: Node[], edges: Edge[], width: number, height: number
 }
 
 export default function GraphPanel() {
+  const t = useT();
   const [entities, setEntities] = useState<GraphEntity[]>([]);
   const [relationships, setRelationships] = useState<GraphRelationship[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -130,7 +132,7 @@ export default function GraphPanel() {
     <div className={styles.panel}>
       <div className={styles.sidebar}>
         <input className={styles.search} value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search entities…" />
+          placeholder={t('graph.searchPlaceholder')} />
         <div className={styles.entityList}>
           {filteredEntities.map(e => (
             <button key={e.id}

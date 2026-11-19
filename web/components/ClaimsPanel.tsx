@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { apiListClaims } from '@/lib/api';
 import type { Claim } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import styles from './ClaimsPanel.module.css';
 
+const STANCES = ['supportive', 'cautious', 'opposed', 'unclear'];
+
 export default function ClaimsPanel() {
+  const t = useT();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +25,7 @@ export default function ClaimsPanel() {
       const data = await apiListClaims();
       setClaims(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch claims');
+      setError(err instanceof Error ? err.message : t('claims.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -44,21 +48,21 @@ export default function ClaimsPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.topBar}>
-        <span className={styles.title}>◈ Extracted Claims & Assertions</span>
+        <span className={styles.title}>◈ {t('claims.title')}</span>
       </div>
 
       {/* Filter controls */}
       {!loading && !error && claims.length > 0 && (
         <div className={styles.filters}>
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel} htmlFor="actor-filter">Actor:</label>
+            <label className={styles.filterLabel} htmlFor="actor-filter">{t('claims.actorLabel')}</label>
             <select
               id="actor-filter"
               className={styles.select}
               value={selectedActor}
               onChange={e => setSelectedActor(e.target.value)}
             >
-              <option value="all">All Actors</option>
+              <option value="all">{t('claims.allActors')}</option>
               {actors.map(actor => (
                 <option key={actor} value={actor}>{actor}</option>
               ))}
@@ -66,18 +70,17 @@ export default function ClaimsPanel() {
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel} htmlFor="stance-filter">Stance:</label>
+            <label className={styles.filterLabel} htmlFor="stance-filter">{t('claims.stanceLabel')}</label>
             <select
               id="stance-filter"
               className={styles.select}
               value={selectedStance}
               onChange={e => setSelectedStance(e.target.value)}
             >
-              <option value="all">All Stances</option>
-              <option value="supportive">Supportive</option>
-              <option value="cautious">Cautious</option>
-              <option value="opposed">Opposed</option>
-              <option value="unclear">Unclear</option>
+              <option value="all">{t('claims.allStances')}</option>
+              {STANCES.map(stance => (
+                <option key={stance} value={stance}>{t(`claims.stance_${stance}`)}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -87,42 +90,42 @@ export default function ClaimsPanel() {
         {loading ? (
           <div className={styles.loading}>
             <div className={styles.spinner} />
-            <span>Loading claims database…</span>
+            <span>{t('claims.loading')}</span>
           </div>
         ) : error ? (
           <div className={styles.error}>
             <span className={styles.emptyIcon}>⚠️</span>
-            <span>Error: {error}</span>
+            <span>{t('common.error')}: {error}</span>
           </div>
         ) : claims.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>◈</span>
-            <h3>No claims found</h3>
-            <p>Ingest documents containing source text, and claims will be automatically extracted.</p>
+            <h3>{t('claims.emptyTitle')}</h3>
+            <p>{t('claims.emptyDesc')}</p>
           </div>
         ) : filteredClaims.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>🔍</span>
-            <h3>No matching claims</h3>
-            <p>Try resetting your filter options above.</p>
+            <h3>{t('claims.noMatchTitle')}</h3>
+            <p>{t('claims.noMatchDesc')}</p>
           </div>
         ) : (
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.th}>Actor</th>
-                  <th className={styles.th}>Topic</th>
-                  <th className={styles.th}>Stance</th>
-                  <th className={styles.th}>Confidence</th>
-                  <th className={styles.th}>Claim Description</th>
-                  <th className={styles.th}>Date</th>
+                  <th className={styles.th}>{t('claims.colActor')}</th>
+                  <th className={styles.th}>{t('claims.colTopic')}</th>
+                  <th className={styles.th}>{t('claims.colStance')}</th>
+                  <th className={styles.th}>{t('claims.colConfidence')}</th>
+                  <th className={styles.th}>{t('claims.colText')}</th>
+                  <th className={styles.th}>{t('claims.colDate')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredClaims.map(c => (
                   <tr key={c.id} className={styles.tr}>
-                    <td className={`${styles.td} ${styles.actor}`}>{c.actor || 'Unknown'}</td>
+                    <td className={`${styles.td} ${styles.actor}`}>{c.actor || t('common.unknown')}</td>
                     <td className={styles.td}>
                       <span style={{ fontWeight: 500 }}>{c.topic || 'general'}</span>
                     </td>
