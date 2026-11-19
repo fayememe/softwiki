@@ -240,10 +240,9 @@
 ## 下一步（NEXT）
 
 0. **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
-
-0. **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
-0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
-0.2 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
+0.1 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
+0.2 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
+0.3 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
