@@ -1,0 +1,24 @@
+.langBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.langBtn:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.15));
+  color: var(--text-primary, #eee);
+}
+
+.langLabel {
+  font-weight: 500;
+}
