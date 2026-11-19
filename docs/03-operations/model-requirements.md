@@ -267,6 +267,40 @@ search/ask -> BM25 only
 
 这可以作为降级，但不是完整试用体验。
 
+### 4.7 实测参考：oneroute `text-embedding-v4`
+
+> 2026-11-19 在 trial-host 与本机实测（SoftWiki `WikiEmbedder` 端到端）。
+
+服务端有两项硬限制，与 OpenAI 直连差别很大：
+
+```text
+批量上限 = 10     （batch>10 返回 400：
+                   "batch size is invalid, should not be larger than 10"）
+单请求耗时 ≈ 9 秒 （与批量大小几乎无关，属固定开销）
+```
+
+因此**吞吐完全靠并发**，且裸并发不能太高（curl 直测并发 64 时 53% 超时）。
+
+推荐参数：
+
+```dotenv
+EMBEDDING_BATCH_SIZE=10      # 硬上限，不可调大
+EMBEDDING_CONCURRENCY=24     # 实测稳定区间；16 偏保守，32+ 开始出现失败
+EMBEDDING_MAX_RETRIES=2      # 保留重试兜底
+```
+
+实测吞吐（1,009 chunks，eva-kb）：
+
+```text
+并发 16 -> 66.7 s  (908 条/分钟)
+并发 24 -> 37.4~40.8 s (1,485~1,617 条/分钟，三次复测零失败)
+```
+
+按并发 24 折算：3,500 chunks ≈ 2.3 分钟；5,500 chunks ≈ 3.7 分钟；
+40,000 chunks ≈ 27 分钟。对试用规模不构成瓶颈。
+
+维度必须显式设 `EMBEDDING_DIMENSIONS=1536`（该模型默认维度不同）。
+
 ---
 
 ## 5. 模型行为要求
