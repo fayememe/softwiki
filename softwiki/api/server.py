@@ -1289,9 +1289,19 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
         db.close()
 
 @app.post("/api/index")
-def rebuild_index():
-    """Chunk all documents and rebuild dense embeddings and BM25 index files."""
+def rebuild_index(kb: Optional[str] = None):
+    """Chunk all documents and rebuild dense embeddings and BM25 index files.
+
+    Pass `kb` to index a specific knowledge base; omit it to index the active one.
+    """
     require_capability("index.write")
+    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+
+    try:
+        previous_kb = enter_kb(kb)
+    except KbResolutionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
     db = SessionLocal()
     try:
         documents = DocumentRepository.get_all_documents(db)
@@ -1334,6 +1344,7 @@ def rebuild_index():
 
         return {
             "status": "success",
+            "kb": kb or os.path.basename(get_workspace_dir()),
             "indexed_chunks": len(all_chunks),
             "vector_index": vector_ok,
             "bm25_index": True,
@@ -1342,6 +1353,7 @@ def rebuild_index():
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+        restore_kb(previous_kb)
 
 @app.get("/api/wiki/rebuild-tasks")
 def list_wiki_rebuild_tasks(status: Optional[str] = None, limit: int = 50):
