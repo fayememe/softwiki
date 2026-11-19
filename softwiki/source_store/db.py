@@ -5,28 +5,59 @@ from softwiki.config import get_db_url
 
 Base = declarative_base()
 
-# Lazy database engines to adapt to changing workspaces at runtime
-_engine = None
-_SessionLocal = None
+# Engines are keyed by database URL so that a multi-kb instance does not tear
+# a pool down every time it serves a different kb. The cache is bounded: with
+# one database per kb the number can otherwise grow with the number of kbs.
+_ENGINE_CACHE_MAX = int(os.getenv("SOFTWIKI_ENGINE_CACHE_MAX", "32"))
+_engines = {}
+_engine_order = []  # least-recently-used first
+_sessionmakers = {}
+
+
+def _dispose_evicted_engine(engine) -> None:
+    try:
+        engine.dispose()
+    except Exception as exc:  # noqa: BLE001 - disposal failure must not break requests
+        print(f"[db] failed to dispose engine: {exc}", flush=True)
+
 
 def get_engine():
-    global _engine
     db_url = get_db_url()
-    # If engine is not initialized, or the active database URL has changed
-    if _engine is None or str(_engine.url) != db_url:
-        connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
-        _engine = create_engine(db_url, connect_args=connect_args)
-    return _engine
+    engine = _engines.get(db_url)
+    if engine is not None:
+        try:
+            _engine_order.remove(db_url)
+        except ValueError:
+            pass
+        _engine_order.append(db_url)
+        return engine
+
+    # SQLite in-process access needs the flag; PostgreSQL rejects it.
+    connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
+    engine = create_engine(db_url, connect_args=connect_args)
+    _engines[db_url] = engine
+    _engine_order.append(db_url)
+
+    # Evict least recently used engines beyond the cap (never the one just added).
+    while len(_engine_order) > max(1, _ENGINE_CACHE_MAX):
+        stale_url = _engine_order.pop(0)
+        stale = _engines.pop(stale_url, None)
+        _sessionmakers.pop(stale_url, None)
+        if stale is not None:
+            _dispose_evicted_engine(stale)
+
+    return engine
 
 def get_sessionmaker():
-    global _SessionLocal
     engine = get_engine()
-    # Re-bind sessionmaker if engine changes
-    if _SessionLocal is None or _SessionLocal.kw.get("bind") != engine:
+    key = str(engine.url)
+    sessionmaker_for_url = _sessionmakers.get(key)
+    if sessionmaker_for_url is None or sessionmaker_for_url.kw.get("bind") is not engine:
         # Auto-create tables for the active engine
         init_tables()
-        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    return _SessionLocal
+        sessionmaker_for_url = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        _sessionmakers[key] = sessionmaker_for_url
+    return sessionmaker_for_url
 
 def get_db():
     Session = get_sessionmaker()

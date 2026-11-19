@@ -249,13 +249,20 @@ def index() -> str:
         db.close()
 
 @mcp.tool()
-def search(query: str, top_k: int = 5) -> str:
-    """Perform CJK-aware hybrid search on the active workspace.
-    
+def search(query: str, top_k: int = 5, kb: str = None) -> str:
+    """Perform CJK-aware hybrid search on a knowledge base.
+
     Args:
         query: The search keywords or natural language query.
         top_k: Number of search results to return (default: 5).
+        kb: Knowledge base name (see kb_list). Omit to use the active kb.
     """
+    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+
+    try:
+        previous_kb = enter_kb(kb)
+    except KbResolutionError as exc:
+        return f"Search failed: {exc}"
     db = SessionLocal()
     try:
         searcher = HybridSearcher()
@@ -280,6 +287,7 @@ def search(query: str, top_k: int = 5) -> str:
         return f"Search failed: {e}"
     finally:
         db.close()
+        restore_kb(previous_kb)
 
 @mcp.tool()
 def wiki_build(topic: str) -> str:
@@ -301,8 +309,8 @@ def wiki_build(topic: str) -> str:
         db.close()
 
 @mcp.tool()
-def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
-    """Ask a research question against the active workspace knowledge base.
+def ask(query: str, mode: str = "normal", workflow: str = None, kb: str = None) -> str:
+    """Ask a research question against a knowledge base.
 
     Uses hybrid RAG retrieval, graph context, claims, timeline, and LLM synthesis
     to produce an answer with citations.
@@ -310,7 +318,15 @@ def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
     Args:
         query: Your research question in natural language.
         mode: Answer style — "normal" (balanced), "deep" (thorough), "concise" (short), "creative" (exploratory).
+        workflow: Optional workflow name.
+        kb: Knowledge base name (see kb_list). Omit to use the active kb.
     """
+    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+
+    try:
+        previous_kb = enter_kb(kb)
+    except KbResolutionError as exc:
+        return f"Ask failed: {exc}"
     db = SessionLocal()
     try:
         from softwiki.intelligence.answer_engine import AnswerEngine
@@ -320,6 +336,7 @@ def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
         return f"Ask failed: {e}"
     finally:
         db.close()
+        restore_kb(previous_kb)
 
 
 def _web_search_tavily(query: str, top_k: int, api_key: str) -> list:
@@ -817,6 +834,48 @@ softwiki_ingest = ingest
 softwiki_index = index
 softwiki_search = search
 softwiki_ask = ask
+# ── Knowledge base discovery ──
+
+@mcp.tool()
+def kb_list() -> str:
+    """List every knowledge base and the topics it covers.
+
+    Call this FIRST when you do not know which knowledge base to query, then pass
+    the chosen name as the `kb` argument of ask() or search().
+
+    Reads configuration files only — no database is opened.
+    """
+    from softwiki.config import get_workspace_dir, get_workspaces_root
+    from softwiki.kb.context import current_kb_name
+    from softwiki.kb.registry import list_kb_infos, render_kb_list as _render
+
+    active = current_kb_name() or os.path.basename(get_workspace_dir())
+    infos = list_kb_infos(get_workspaces_root())
+    return _render(infos, active=active)
+
+
+@mcp.tool()
+def kb_describe(kb: str) -> str:
+    """Show full detail for one knowledge base: topics, descriptions, synonyms.
+
+    Args:
+        kb: Knowledge base name as returned by kb_list().
+    """
+    from softwiki.config import get_workspaces_root
+    from softwiki.kb.context import resolve_kb_dir
+    from softwiki.kb.registry import get_kb_topics, load_kb, render_kb_describe as _describe
+
+    kb_path = resolve_kb_dir(kb, get_workspaces_root())
+    if kb_path is None:
+        return f"Knowledge base '{kb}' not found. Call kb_list() to see available kb names."
+    info = load_kb(kb_path)
+    return _describe(info, get_kb_topics(kb_path))
+
+
+# Backward compatibility aliases for python imports
+softwiki_kb_list = kb_list
+softwiki_kb_describe = kb_describe
+
 # ── Workspace management tools ──
 
 @mcp.tool()
@@ -834,18 +893,24 @@ def workspace_list() -> str:
 @mcp.tool()
 def workspace_set(name: str) -> str:
     """Switch to a different workspace.
+
+    Prefer passing `kb` directly to ask() / search(): that scopes the choice to a
+    single call instead of changing state for every caller sharing this server.
+
     Args:
         name: Workspace directory name (e.g. 'eva-kb', 'default').
     """
     if not can("system.admin"):
         return f"Error: role '{current_role()}' cannot switch workspaces."
-    from softwiki.config import set_workspace_dir, get_workspaces_root
-    ws_path = os.path.join(get_workspaces_root(), name)
-    ws_path = os.path.abspath(ws_path)
-    if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
+    from softwiki.kb.context import resolve_kb_dir
+    from softwiki.config import get_workspaces_root
+    ws_path = resolve_kb_dir(name, get_workspaces_root())
+    if ws_path is None:
         return f"Workspace '{name}' not found or not initialized."
-    set_workspace_dir(ws_path)
-    return f"Switched to '{name}'. Active: {os.path.basename(get_workspace_dir())}"
+    return (
+        f"Workspace switching is per-call. Pass kb='{os.path.basename(ws_path)}' to "
+        f"ask() or search(); call kb_list() to see all knowledge bases."
+    )
 
 # ── Module management tools ──
 

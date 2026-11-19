@@ -25,13 +25,19 @@ def create_mcp_server():
 
     # ── Ask tool ──
     @mcp.tool()
-    def ask(query: str, mode: str = "normal", workflow: str = None) -> str:
-        """Ask a research question against the active workspace.
+    def ask(query: str, mode: str = "normal", workflow: str = None, kb: str = None) -> str:
+        """Ask a research question against a knowledge base.
         Args:
             query: Your research question in natural language.
             mode: Answer style — "normal", "deep", "concise", "creative".
+            kb: Knowledge base name (see kb_list). Omit to use the active kb.
         """
+        from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
         from softwiki.intelligence.answer_engine import AnswerEngine
+        try:
+            previous_kb = enter_kb(kb)
+        except KbResolutionError as exc:
+            return f"Ask failed: {exc}"
         db = SessionLocal()
         try:
             engine = AnswerEngine()
@@ -40,6 +46,7 @@ def create_mcp_server():
             return f"Ask failed: {e}"
         finally:
             db.close()
+            restore_kb(previous_kb)
 
     # ── Ingest URL ──
     @mcp.tool()
@@ -239,28 +246,36 @@ def create_mcp_server():
     @mcp.tool()
     def workspace_set(name: str) -> str:
         """Switch to a different workspace.
+        Prefer passing `kb` to ask() / search(): that scopes the choice to one call
+        instead of changing state for every caller sharing this server.
         Args:
             name: Workspace name (e.g. 'lsl-kb', 'eva-kb').
         """
         if not can("system.admin"):
             return f"Error: role '{current_role()}' cannot switch workspaces."
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        ws_path = os.path.join(project_root, "..", "workspace", name)
-        ws_path = os.path.abspath(ws_path)
-        softwiki_dir = os.path.join(ws_path, ".softwiki")
-        if not os.path.isdir(softwiki_dir):
+        from softwiki.config import get_workspaces_root
+        from softwiki.kb.context import resolve_kb_dir
+        if resolve_kb_dir(name, get_workspaces_root()) is None:
             return f"Workspace '{name}' not found or not initialized."
-        os.environ["WORKSPACE_DIR"] = ws_path
-        return f"Switched to '{name}'."
+        return (
+            f"Workspace switching is per-call. Pass kb='{name}' to ask() or search(); "
+            f"call kb_list() to see all knowledge bases."
+        )
 
     # ── Search / query tools ──
     @mcp.tool()
-    def search(query: str, top_k: int = 5) -> str:
-        """Search documents in the knowledge base.
+    def search(query: str, top_k: int = 5, kb: str = None) -> str:
+        """Search documents in a knowledge base.
         Args:
             query: Search query.
             top_k: Number of results (default 5).
+            kb: Knowledge base name (see kb_list). Omit to use the active kb.
         """
+        from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+        try:
+            previous_kb = enter_kb(kb)
+        except KbResolutionError as exc:
+            return f"Search failed: {exc}"
         db = SessionLocal()
         try:
             from softwiki.rag.hybrid_search import HybridSearcher
@@ -275,8 +290,11 @@ def create_mcp_server():
                 score = f"{r['score']:.3f}"
                 lines.append(f"[{score}] {doc.title}: {chunk.text[:200]}")
             return "\n\n".join(lines)
+        except Exception as e:
+            return f"Search failed: {e}"
         finally:
             db.close()
+            restore_kb(previous_kb)
 
     @mcp.tool()
     def list_documents() -> str:
@@ -331,6 +349,32 @@ def create_mcp_server():
             return "\n".join(f"- [{ev.event_date}] {ev.title}" for ev in events)
         finally:
             db.close()
+
+    @mcp.tool()
+    def kb_list() -> str:
+        """List every knowledge base and the topics it covers.
+        Call this FIRST when you do not know which knowledge base to query, then
+        pass the chosen name as the `kb` argument of ask() or search().
+        """
+        from softwiki.config import get_workspace_dir, get_workspaces_root
+        from softwiki.kb.context import current_kb_name
+        from softwiki.kb.registry import list_kb_infos, render_kb_list as _render
+        active = current_kb_name() or os.path.basename(get_workspace_dir())
+        return _render(list_kb_infos(get_workspaces_root()), active=active)
+
+    @mcp.tool()
+    def kb_describe(kb: str) -> str:
+        """Show full detail for one knowledge base: topics, descriptions, synonyms.
+        Args:
+            kb: Knowledge base name as returned by kb_list().
+        """
+        from softwiki.config import get_workspaces_root
+        from softwiki.kb.context import resolve_kb_dir
+        from softwiki.kb.registry import get_kb_topics, load_kb, render_kb_describe as _describe
+        kb_path = resolve_kb_dir(kb, get_workspaces_root())
+        if kb_path is None:
+            return f"Knowledge base '{kb}' not found. Call kb_list() to see available kb names."
+        return _describe(load_kb(kb_path), get_kb_topics(kb_path))
 
     @mcp.tool()
     def list_workspaces() -> str:
@@ -425,16 +469,20 @@ def create_mcp_server():
 def create_sse_app():
     """Create a FastMCP app using the legacy HTTP+SSE transport (two endpoints: GET /sse, POST /messages)."""
     from softwiki.mcp.role_middleware import RoleMiddleware
+    from softwiki.kb.context import KbHeaderMiddleware
     app = create_mcp_server().sse_app()
     app.add_middleware(RoleMiddleware)
+    app.add_middleware(KbHeaderMiddleware)
     return app
 
 
 def create_streamable_http_app():
     """Create a FastMCP app using the Streamable HTTP transport (single /mcp endpoint)."""
     from softwiki.mcp.role_middleware import RoleMiddleware
+    from softwiki.kb.context import KbHeaderMiddleware
     app = create_mcp_server().streamable_http_app()
     app.add_middleware(RoleMiddleware)
+    app.add_middleware(KbHeaderMiddleware)
     return app
 
 
@@ -449,9 +497,11 @@ def create_combined_app():
     sse_app = mcp.sse_app()
     http_app = mcp.streamable_http_app()
     from softwiki.mcp.role_middleware import RoleMiddleware
+    from softwiki.kb.context import KbHeaderMiddleware
     app = Starlette(
         routes=[*sse_app.routes, *http_app.routes],
         lifespan=http_app.router.lifespan_context,
     )
     app.add_middleware(RoleMiddleware)
+    app.add_middleware(KbHeaderMiddleware)
     return app

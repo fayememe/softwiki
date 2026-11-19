@@ -17,6 +17,7 @@
 - **远程**：`ssh://git@git.example.internal:2222/operator/softwiki.git`（branch `master`）。
 - **trial-host team trial（2026-11-02）**：`trial.example.internal`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，kb-alpha 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-trial.md`。
 - **trial-host 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 trial-host 出口封锁（见 `deployment-trial.md`「出口封锁实测」）。
+- **多 KB v0（2026-11-19）**：`docs/02-design/multi-kb.md`；一个 MCP 端口服务全部知识库。`kb_list` / `kb_describe`（零 DB）+ `ask`/`search` 的 `kb` 参数 + 请求级 workspace（ContextVar，不写 `os.environ`）+ `/api/kb`；描述三级回退 `meta.yaml` → `scope.md` → `topics.yaml`；engine 按 DB URL 缓存并限 32；auth 关闭时 `/api/workspace`、`/wiki/switch` 返回 403。实测：同进程交替 `kb=lsl-kb` / `kb=eva-kb` 不串库，调用后默认库未被污染。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
@@ -87,6 +88,20 @@
 ### M2 — 能隔离（P0）
 - [~] T7–T9 认证/ACL：代码在，但 **demo 阶段不启用**；不接 WebUI 登录、不做权限强制
 - 注：当前实例按 `wiki-admin` 使用；`SOFTWIKI_AUTH_ENABLED` 保持关闭
+
+### M2.5 — 多 KB（2026-11-19）
+> 设计：`docs/02-design/multi-kb.md`
+- [x] 请求级 workspace：`softwiki/kb/context.py`（ContextVar，不写 `os.environ`）
+- [x] `kb_list` / `kb_describe` MCP 工具（L1 零 DB）
+- [x] `ask` / `search` 加 `kb` 参数（stdio + SSE/Streamable HTTP 双传输）
+- [x] `POST /api/ask` 加 `kb`；新增 `GET /api/kb`
+- [x] `META`/`scope.md`/`topics` 三级描述回退（`softwiki/kb/registry.py`）
+- [x] engine 改为按 DB URL 缓存字典 + LRU 上限（`SOFTWIKI_ENGINE_CACHE_MAX`）
+- [x] auth 关闭时 `/api/workspace` 与 `/wiki/switch` 返回 403
+- [x] `X-SoftWiki-KB` 头选择库（MCP 中间件）
+- [x] 测试 `tests/test_multi_kb.py` 16 项；全量 **111 passed**
+- [ ] WebUI 的 KB 选择器改为传 `kb`（目前仍是跨端口跳转）
+- [ ] 跨库叠加（v1）；`with_stats`；`meta.yaml` 建库模板
 
 ### M3 — 能交付（P1）
 - [x] T10 模板系统（`research-report` / `course-qa`）

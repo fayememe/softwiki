@@ -251,6 +251,7 @@ class AskRequest(BaseModel):
     workflow: Optional[str] = None
     mode: Optional[str] = None
     history: Optional[List[Dict[str, str]]] = None
+    kb: Optional[str] = None
 
 class IngestUrlRequest(BaseModel):
     url: str
@@ -1018,6 +1019,13 @@ def canonical_claim_evidence(claim_id: str):
 @app.post("/api/ask")
 def ask_question(req: AskRequest):
     """Executes CJK-aware hybrid search and synthesizes an answer using LLM."""
+    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+
+    try:
+        previous_kb = enter_kb(req.kb)
+    except KbResolutionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
     db = SessionLocal()
     try:
         engine = AnswerEngine()
@@ -1034,11 +1042,13 @@ def ask_question(req: AskRequest):
             "citation_check": verify_citations(answer, getattr(engine, "last_citations", [])),
             "mode": req.mode or "normal",
             "workflow": req.workflow,
+            "kb": req.kb or os.path.basename(get_workspace_dir()),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+        restore_kb(previous_kb)
 
 class ReportRequest(BaseModel):
     question: str
@@ -1819,17 +1829,57 @@ def list_workflows():
 @app.get("/api/workspaces")
 def get_workspaces():
     """List all available workspaces and indicate which is active."""
+    from softwiki.kb.context import current_kb_name
+
     all_ws = list_workspaces()
-    active = os.path.basename(get_workspace_dir())
+    active = current_kb_name() or os.path.basename(get_workspace_dir())
     return {"workspaces": all_ws, "active": active}
 
 class WorkspaceSwitchRequest(BaseModel):
     workspace: str
 
+@app.get("/api/kb")
+def list_knowledge_bases():
+    """List knowledge bases with the topics each one covers (no database access)."""
+    from softwiki.config import get_workspaces_root
+    from softwiki.kb.context import current_kb_name
+    from softwiki.kb.registry import list_kb_infos
+
+    infos = list_kb_infos(get_workspaces_root())
+    active = current_kb_name() or os.path.basename(get_workspace_dir())
+    return {
+        "active": active,
+        "kbs": [
+            {
+                "name": info.name,
+                "description": info.description,
+                "description_source": info.description_source,
+                "language": info.language,
+                "tags": info.tags,
+                "has_index": info.has_index,
+                "topics": [
+                    {"group": g.name, "topics": g.topics} for g in info.groups
+                ],
+            }
+            for info in infos
+        ],
+    }
+
+
 @app.post("/api/workspace")
 def switch_workspace(req: WorkspaceSwitchRequest, request: Request):
     """Switch the active workspace at runtime."""
     require_capability("system.admin")
+    if not auth_enabled():
+        # Without auth there is no per-user workspace, so this would change the
+        # workspace for every caller sharing the process. Use ask(kb=...) instead.
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Switching the active workspace requires authentication. "
+                "Pass kb=<name> to /api/ask instead, or list them with /api/workspaces."
+            ),
+        )
     ws_path = os.path.join(get_workspaces_root(), req.workspace)
     ws_path = os.path.abspath(ws_path)
     if not os.path.isdir(os.path.join(ws_path, ".softwiki")):
@@ -1939,6 +1989,11 @@ def wiki_index():
 def wiki_switch_workspace(workspace: str = Form(...)):
     """Switch workspace from the wiki UI."""
     require_capability("system.admin")
+    if not auth_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="Switching the active workspace requires authentication.",
+        )
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ws_path = os.path.join(project_root, "workspace", workspace)
     ws_path = os.path.abspath(ws_path)

@@ -10,7 +10,7 @@ graph TD
 | Category | Description |
 |----------|-------------|
 | [01-architecture](./01-architecture/overview.md) | System architecture, data flow, interface definitions |
-| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [chat UX](./02-design/chat-ux.md) |
+| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md) |
 | [03-operations](./03-operations/setup.md) | Setup, CLI, storage operations |
 | [04-guides](./04-guides/quickstart.md) | Quickstart, Shell/WebUI usage, workflows |
 | [05-roadmap](./05-roadmap/status.md) | Project status, phase planning; [agent-web plan](./05-roadmap/agent-web-plan.md) |
@@ -39,6 +39,7 @@ graph TD
 - **知识系统思想**：[`02-design/knowledge-system-philosophy.md`](./02-design/knowledge-system-philosophy.md)
 - **知识系统实现计划**：[`05-roadmap/knowledge-system-plan.md`](./05-roadmap/knowledge-system-plan.md)
 - **Chat UX 设计（参考 opencoco）**：[`02-design/chat-ux.md`](./02-design/chat-ux.md)（🚧 待评审；只借鉴其会话式 chat，业务流沿用现有实现）
+- **多 KB（v0 已落地）**：[`02-design/multi-kb.md`](./02-design/multi-kb.md)——一个 MCP 服务全部知识库；`ask`/`search` 带 `kb`，`kb_list`/`kb_describe` 供 agent 路由；`/api/kb`；auth 关闭时 `/api/workspace` 返回 403；engine 按库缓存。
 - **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 Wiki 已用 canonical claims 重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 claim；Wiki rebuild worker + artifact history；structured claim + NLI judge（1 个真实冲突，2 claims disputed）；conflict filters/evidence；MMR；citation check；备份 `/tmp/kb_alpha_before_knowledge_v2.sql`。
 - **Session / 沙盒 / 审核计划**：[`05-roadmap/agent-session-sandbox-plan.md`](./05-roadmap/agent-session-sandbox-plan.md)
 - **已知限制**：出站 LLM/embedding 许可未确认；OCR 未做；TLS/反代未做；Agent remote MCP 仍暴露写工具（靠 opencode permission）；L2 非流式；部分 PDF 标题为 `Untitled Document`。
