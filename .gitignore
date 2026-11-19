@@ -28,3 +28,6 @@ workspace/
 .DS_Store
 Thumbs.db
 .playwright-mcp/
+
+# Session scratch notes (local only, never committed)
+mymd/
