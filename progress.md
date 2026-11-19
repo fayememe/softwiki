@@ -17,7 +17,7 @@
 - **远程**：`ssh://git@git.example.internal:2222/operator/softwiki.git`（branch `master`）。
 - **trial-host team trial（2026-11-02）**：`trial.example.internal`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，kb-alpha 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-trial.md`。
 - **trial-host 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 trial-host 出口封锁（见 `deployment-trial.md`「出口封锁实测」）。
-- **多 KB v0（2026-11-19）**：`docs/02-design/multi-kb.md`；一个 MCP 端口服务全部知识库。`kb_list` / `kb_describe`（零 DB）+ `ask`/`search` 的 `kb` 参数 + 请求级 workspace（ContextVar，不写 `os.environ`）+ `/api/kb`；描述三级回退 `meta.yaml` → `scope.md` → `topics.yaml`；engine 按 DB URL 缓存并限 32；auth 关闭时 `/api/workspace`、`/wiki/switch` 返回 403。实测：同进程交替 `kb=lsl-kb` / `kb=eva-kb` 不串库，调用后默认库未被污染。
+- **多 KB v0（2026-11-19）**：`docs/02-design/multi-kb.md`；一个 MCP 端口服务全部知识库。`kb_list` / `kb_describe`（零 DB）+ `ask`/`search` 的 `kb` 参数 + 请求级 workspace（ContextVar，不写 `os.environ`）+ `/api/kb`；描述三级回退 `meta.yaml` → `scope.md` → `topics.yaml`；engine 按 DB URL 缓存并限 32；auth 关闭时 `/api/workspace`、`/wiki/switch` 返回 403。**本机 Docker 已验证**（6300/6301/6308）：交替 4 次 + 并发 6 请求均不串库；MCP 调用后默认库未被污染；`/api/kb` 零 DB。**尚未部署到 trial-host。**
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
@@ -100,6 +100,7 @@
 - [x] auth 关闭时 `/api/workspace` 与 `/wiki/switch` 返回 403
 - [x] `X-SoftWiki-KB` 头选择库（MCP 中间件）
 - [x] 测试 `tests/test_multi_kb.py` 16 项；全量 **111 passed**
+- [x] 本机 Docker 部署验证（6300/6301/6308 四容器 healthy；跨库/并发/边界全部通过）
 - [ ] WebUI 的 KB 选择器改为传 `kb`（目前仍是跨端口跳转）
 - [ ] 跨库叠加（v1）；`with_stats`；`meta.yaml` 建库模板
 
@@ -237,6 +238,8 @@
 - [ ] **trial-host 汉化未入库**：前端 i18n（zh/en/ja，311 keys）只在 trial-host 源码里，已构建运行；无 git，备份 `backup-20261116/web-src-bak-20261116-1030.tgz`。待定是否收编，缺口见 `docs/03-operations/deployment-trial.md`。
 
 ## 下一步（NEXT）
+
+0. **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
 
 0. **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.1 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
