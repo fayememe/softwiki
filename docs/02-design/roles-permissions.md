@@ -130,11 +130,21 @@ ingest
 
 ## 6. 安全边界
 
+> ⚠ **本节描述的信任模型正在被取代。** 新的身份接入与权限设计见
+> [`auth-oidc.md`](./auth-oidc.md)（外部身份源 → 本地用户表 → 映射 → 角色 + `kb_scope` + 审计）。
+> 在切换完成前，下列限制仍然成立。
+
 - 无用户系统
 - 无 API key
 - 角色 header/cookie 可伪造
 - 只允许内部/受信网络
 - 对外前必须加 token / auth / TLS
+
+**已知的实现缺陷（待 `auth-oidc.md` 落地时一并修）**：
+
+- `softwiki/api/server.py` 角色中间件默认回退到 `wiki-admin`；
+- `softwiki/permissions.py` 的 `normalize_role()` 对未知角色回退到 `wiki-admin`；
+- 上述两点合起来意味着「角色写错 = 拿到最高权限」，必须改成 fail-closed。
 
 ## 7. 实现状态
 
@@ -147,3 +157,6 @@ ingest
 - [x] team trial mapping（work 可 ingest/index）
 - [ ] API key -> role（后续）
 - [ ] 用户系统（后续）
+
+> 后续方向已明确：不做用户系统，改为**接外部身份源**（OIDC / 微信 / 客户自有），
+> 见 [`auth-oidc.md`](./auth-oidc.md)。

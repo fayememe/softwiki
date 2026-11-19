@@ -239,10 +239,15 @@
 
 ## 下一步（NEXT）
 
-0. **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
-0.1 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
-0.2 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
-0.3 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
+0. **身份接入 / 权限（2026-11-19 设计完成，待评审，未开工）**：`docs/02-design/auth-oidc.md`。
+   已定：认证归外部、授权归本地；`(issuer, subject)` 联合唯一；本地用户表 + 组映射 + `kb_scope`（默认 `*` 通配）；不在组里默认 `pending`；超级用户默认关闭、仅本机、不信任 `X-Forwarded-For`、敏感操作二次认证；卸载库=脱钩；审计日志；降级模式 `min(固有, 会话)`；先做 OIDC + 微信两个 adapter。
+   **评审通过后的落地顺序**：审计日志 → 超级用户开关/仅本机/二次认证 → 卸载库（脱钩）→ OIDC + 用户表 + 映射 + 三态 + 管理页 → 降级模式。
+0.0 **必修的安全缺陷**（`auth-oidc.md` §9）：`api/server.py:106-122` 角色中间件默认回退 `wiki-admin`；`permissions.py:55-60` `normalize_role()` 未知角色回退 `wiki-admin`；`permissions.py:82-83` 空 `except`。合起来 = 角色写错就拿到最高权限，必须改 fail-closed。
+0.05 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
+0.1 **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
+0.2 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
+0.3 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
+0.4 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
 1. **P1 收尾**：Graph/Timeline 版本继承；evidence 多对多映射；投影重算。
 2. **P2 冲突召回**：structured claim 全量/按需；NLI 定时；评测集；人工队列。
 3. **Claim 覆盖率**：继续用 alias/新 canonical 收编 7,781 unmapped；当前 15.94%，effective 17.80%。
