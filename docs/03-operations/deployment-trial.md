@@ -295,4 +295,33 @@ ssh faye@118.193.105.3 'cd /opt/aitools/apps/softwiki && \
 
 建议正式收编时拆两个 commit（「i18n 框架 + 字典」/「组件接线」），先补 `layout` metadata 与 `lang`、`lib/api.ts` 错误串、`Expand sidebar`，再决定是否默认 `zh`。
 
+### 品质独立核查（2026-11-19）
+
+对 trial-host 上的 i18n 实现做了独立评审（不看既有结论，重新验证）：
+
+| 检查项 | 方法 | 结果 |
+|---|---|---|
+| 字典 key 完整性 | 解析三份字典叶子 key 并与 en 比对 | **311 key，zh/ja 与 en 完全对齐，0 缺失** |
+| 调用点覆盖 | 源码中所有 `t('...')` 字面量 vs 字典 | **274 处调用，0 处指向不存在的 key** |
+| 未翻译残留 | zh 中与 en 取值相同的条目 | **仅 `SWAgent`（产品名）** |
+| 占位符一致性 | `{n}` 等占位符在三种语言间比对 | **0 处不一致** |
+| 硬编码中文残留 | 扫描组件源码 | **仅 `LanguageSwitcher` 的「中/日」标签**（合理） |
+| 硬编码英文残留 | JSX 文本 / placeholder / title | `Enter`（键盘键名，合理）、`Expand sidebar`（未走 `sidebar.expand`）、`https://example.com/article`（示例 URL） |
+| TypeScript 类型 | `tsc --noEmit --strict` 引用 `Dict` 约束 | **零错误** |
+| 组件接入率 | 使用 `useT()` 的文件数 | **18 / 21**（未接入的：`layout.tsx`、`LanguageSwitcher.tsx`、`i18n/index.tsx` 本身） |
+| 与上游同源度 | 组件名逐一比对 | **15 个组件完全同名，trial 只多 `LanguageSwitcher`** |
+
+**质量结论：实现是合格的，不是机翻拼凑。** 结构（`en` 定义 key 模板 + `Dict` 类型强制另两份对齐）、回退链（当前语言 → en → key 原文）、插值、`localStorage` 持久化、SSR 安全都已经到位。
+
+发现的问题（均为**可修的小缺口**，不是设计错误）：
+
+1. **`t(key: string)` 没有 key 联合类型约束。** 写错 key 不会编译报错，只会在运行时静默显示 key 名。这是可维护性缺陷——将来新增文案写错字无人发现。
+2. **`I18nProvider` 挂在 `app/page.tsx`（`'use client'`）**，而不是 `layout.tsx`。后果是：`<html lang>` 与 `metadata` 无法随语言变化，首屏 / SEO / 分享卡片恒为英文。
+3. **首屏闪烁**：SSR 用 `DEFAULT_LOCALE='zh'`，但用户若选过 `en`/`ja`，`useEffect` 挂载后才纠正 → **英文用户每次刷新先看到一闪中文**。
+4. `lib/api.ts` 与后端错误串未国际化，会原样显示英文。
+5. 侧边栏收起时 `Expand sidebar` 未走 `sidebar.expand`（字典里有这个 key）。
+6. 日期用浏览器 locale，不跟随所选 UI 语言。
+
+**与上游的关系**：trial-host 的 web 与本仓库同源，组件集合一致，差异约 730 行且几乎全部是 i18n 接线；唯一非 i18n 的功能性改动是新增 `app/wikiweb/route.ts`（静态门户路由，与 i18n 无关，应单独评估是否收编）。
+
 
