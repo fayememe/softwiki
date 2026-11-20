@@ -191,6 +191,29 @@
 - [ ] 会话按 KB 打标、删除/重命名、Last-Event-ID 续传
 - [ ] P2 wiki 专属：pin 文档/claim、答案存 wiki/claim、右侧 claims/conflicts 上下文
 
+### M8 — LLM-Wiki 粒度重构（2026-11-20）
+> 设计：`docs/02-design/wiki-page-granularity.md`
+- [x] 试点确认阈值：23 条清楚 / 129 条退化；一页上限固定 **25**，超限拆页不截断
+- [x] `softwiki/wiki/subject_pages.py`：subject 枚举（关系度 ≥5）+ 母题排除（覆盖 ≥15% 语料）+ 拆页
+- [x] 禁止静默截断：超过上限要么拆页要么报错，每页记录 `claims_covered/total`
+- [x] API `GET /api/wiki/pages`、`POST /api/wiki/pages/build`、`GET /api/wiki/pages/{slug}`
+- [x] WebUI **Wiki Pages** 面板：搜索 + 类型筛选 + 分页 tab + `25/144 claims` 徽章
+- [x] `scripts/wiki_build_batch.py` 批量生成
+- [x] 测试 `tests/test_wiki_subject_pages.py` 9 项；全量 183 passed
+- [x] 部署 trial-host 两栈，批量生成 coffee / ai-history
+- [x] 侧栏分组重构（Home / Knowledge / Assist / Contributor / Admin）；`wiki` 面板下线，`wikipages` 更名 **LLM Wiki**
+- [x] documents / claims / LLM Wiki 分页（服务端 `limit/offset`；claims 6,691 条不再全量渲染）
+- [x] 徽章显示完整数字；表格列宽 / 行距优化
+- [x] `AdminPanel`（Users 放行 + 审计日志），仅 admin 可见
+- [x] 角色驱动导航可见性：Contributor 组 work+，Admin 组 admin
+- [ ] `topics.yaml` 接入为策展覆盖层
+- [ ] 增量重建（claim 变更只重生成受影响 subject）
+- [ ] 文档标题清洗（`Document` / `Study authors` 占位名）
+- [ ] 与 wikiweb 门户对接（门户由 agent 生成，另行讨论）
+- [ ] Home 跨 KB 总览（各库统计 + 日志）
+- [ ] KB 管理面板（注册表 / 卸载脱钩）
+- [ ] 贡献者笔记审核入库（manage/work 可见）
+
 ## Pending issues / Blocker
 
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。

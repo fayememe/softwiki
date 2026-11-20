@@ -822,6 +822,14 @@ class WikiPreviewRequest(BaseModel):
     intervention: Optional[str] = None
     include_saved: bool = True
 
+
+class WikiPageBuildRequest(BaseModel):
+    subject: str
+    force: bool = False
+    # "split" honours the fixed cap by emitting several pages;
+    # "fail" refuses oversized subjects (used while piloting).
+    oversize: str = "split"
+
 class WikiApplyRequest(BaseModel):
     topics: List[str]
     intervention: Optional[str] = None
@@ -2196,6 +2204,68 @@ def get_wiki_page(topic: str):
     }
 
 
+@app.get("/api/wiki/pages")
+def list_wiki_subject_pages(refresh: bool = False, limit: int = 0):
+    """List generated one-subject-per-page wiki pages.
+
+    `refresh=true` recomputes candidate subjects from the graph (no generation).
+    """
+    from softwiki.wiki.subject_pages import (
+        SUBJECT_PAGE_CLAIM_LIMIT, list_generated_pages, subject_candidates,
+    )
+
+    db = SessionLocal()
+    try:
+        listing = list_generated_pages(db)
+        body: dict = {
+            "limit": SUBJECT_PAGE_CLAIM_LIMIT,
+            "generated": listing.get("generated", False),
+            "subjects": listing.get("subjects", []),
+        }
+        if not body["subjects"] or refresh:
+            candidates = subject_candidates(db, limit=limit or None)
+            body["candidates"] = candidates
+            body["candidate_count"] = len(candidates)
+        return JSONResponse(body, headers={"Cache-Control": "no-store"})
+    finally:
+        db.close()
+
+
+@app.post("/api/wiki/pages/build")
+def build_wiki_subject_page(req: WikiPageBuildRequest):
+    """Generate page(s) for one subject. Never truncates silently."""
+    require_capability("wiki.apply")
+    from softwiki.wiki.subject_pages import generate_subject_pages
+
+    db = SessionLocal()
+    try:
+        try:
+            result = generate_subject_pages(
+                db, req.subject, force=req.force, oversize=req.oversize,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        return {"status": "success", **result}
+    finally:
+        db.close()
+
+
+@app.get("/api/wiki/pages/{slug}")
+def get_wiki_subject_page(slug: str):
+    from softwiki.wiki.subject_pages import read_page
+
+    db = SessionLocal()
+    try:
+        page = read_page(db, slug)
+        if page is None:
+            raise HTTPException(status_code=404, detail=f"Wiki page '{slug}' not found")
+        return page
+    finally:
+        db.close()
+
+
 @app.get("/api/wiki/history/{topic}")
 def get_wiki_history(topic: str, limit: int = 50):
     db = SessionLocal()
@@ -2244,11 +2314,34 @@ def get_wiki_history_version(topic: str, version_id: int):
 
 
 @app.get("/api/documents")
-def list_documents():
-    """Lists all ingested documents with metadata."""
+def list_documents(limit: Optional[int] = None, offset: int = 0):
+    """Lists ingested documents with metadata.
+
+    Without `limit` the full list is returned (compatibility); with `limit` the
+    response is a bounded page so the UI never ships tens of thousands of rows.
+    """
     db = SessionLocal()
     try:
-        documents = db.query(Document).order_by(Document.id.desc()).all()
+        query = db.query(Document).order_by(Document.id.desc())
+        if limit is not None:
+            total = query.count()
+            documents = query.offset(max(0, offset)).limit(max(1, min(limit, 500))).all()
+            rows = [
+                {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "url": doc.url,
+                    "source_name": doc.source_name,
+                    "source_type": doc.source_type,
+                    "published_at": doc.published_at.strftime('%Y-%m-%d') if doc.published_at else "Unknown",
+                    "collected_at": doc.collected_at.strftime('%Y-%m-%d') if doc.collected_at else "Unknown",
+                    "author": doc.author,
+                    "trust_level": doc.trust_level,
+                }
+                for doc in documents
+            ]
+            return {"items": rows, "total": total, "limit": limit, "offset": offset}
+        documents = query.all()
         return [
             {
                 "id": doc.id,
@@ -2269,11 +2362,37 @@ def list_documents():
         db.close()
 
 @app.get("/api/claims")
-def list_claims():
-    """Lists all extracted claims with actor and stance."""
+def list_claims(limit: Optional[int] = None, offset: int = 0):
+    """Lists extracted claims.
+
+    Without `limit` returns the full list (compatibility); with `limit` a bounded
+    page plus the total count.
+    """
     db = SessionLocal()
     try:
-        claims = db.query(Claim).order_by(Claim.published_at.desc()).all()
+        query = db.query(Claim).order_by(Claim.published_at.desc())
+        if limit is not None:
+            total = query.count()
+            claims = query.offset(max(0, offset)).limit(max(1, min(limit, 500))).all()
+            return {
+                "items": [
+                    {
+                        "id": c.id,
+                        "document_id": c.document_id,
+                        "text": c.text,
+                        "actor": c.actor,
+                        "topic": c.topic,
+                        "stance": c.stance,
+                        "confidence": c.confidence,
+                        "published_at": c.published_at.strftime('%Y-%m-%d') if c.published_at else "Unknown",
+                    }
+                    for c in claims
+                ],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+        claims = query.all()
         return [
             {
                 "id": c.id,
