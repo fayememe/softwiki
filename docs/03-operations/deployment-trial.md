@@ -228,22 +228,48 @@ ai-history:  documents 160 / chunks 5,497 / claims 9,526 / entities 9,232 / rela
 **`/wikiweb` 404 的原因**：这个路由只在 trial-host 上被临时加过，从未进入本仓库。
 本次从仓库源码重建镜像后，路由和静态内容一起消失。
 
-**修法**：
+**修法（2026-11-20 第二轮：按库分离）**：
 
-- 新增 `web/app/wikiweb/route.ts`：把 `/wikiweb` 307 到 `/wikiweb/index.html`。
-- 门户站点本身是**生成产物**（约 20MB、上千页），不进仓库；
-  改为运行时挂载：`${WIKIWEB_DIR:-./wikiweb}:/app/public/wikiweb:ro`。
-- `.gitignore` 增加 `wikiweb/`。
+- 新增 `web/app/wikiweb/route.ts`：把 `/wikiweb` 307 到 `WIKIWEB_ENTRY` 指定的页面。
+- 门户是**生成产物**，不进仓库，改为**放进各自的 workspace**：
+
+  ```text
+  workspace/coffee/exports/wikiweb/
+  ├── assets/          # wiki.css / wiki.js
+  └── coffee/          # 站点本体（index / all / about / category / timeline）
+  workspace/ai-history/exports/wikiweb/
+  ├── assets/
+  └── ai-history/
+  ```
+
+- compose 每个 web 容器只挂自己库的目录：
+  `${WIKIWEB_DIR}:/app/public/wikiweb:ro`，`WIKIWEB_ENTRY` 指向本站入口。
+  `.env` → `coffee/index.html`，`.env.ai` → `ai-history/index.html`。
+- 站点内部使用**层级相对路径**（`../assets/`、`../../assets/`），所以库目录必须保持在挂载根下一层，
+  不能把 `coffee/*` 直接摊到根上。
+
+**为什么必须按库拆**：原来是一个共用站点，落地页同时列出两个库 —— 打开 6108 的人能点进
+ai-history，绕过了 `kb_scope`。拆开后 `6108/wikiweb/ai-history/...` 直接 404。
 
 验证：
 
 ```text
-/wikiweb                    307 -> /wikiweb/index.html
-/wikiweb/index.html         200  1,253B
-/wikiweb/coffee/index.html  200 18,697B
-/wikiweb/ai-history/index.html 200 16,967B
-/wikiweb/assets/wiki.css    200 10,721B
+6108 /wikiweb                       307 -> /wikiweb/coffee/index.html
+6108 /wikiweb/coffee/index.html     200
+6108 /wikiweb/assets/wiki.css       200
+6108 /wikiweb/coffee/category/concept.html 200  84,298B
+6108 /wikiweb/ai-history/index.html 404   ← 隔离生效
+6109 /wikiweb                       307 -> /wikiweb/ai-history/index.html
+6109 /wikiweb/coffee/index.html     404   ← 隔离生效
 ```
+
+浏览器实测：落地页 `data-kb` 分别为 Coffee / AI History，无对方链接，CSS 生效，
+页内搜索各返回 8 条，无 pageerror。
+
+旧的共用副本（20MB）已改名为 `wikiweb.old-20261120/`，可删。
+
+**未来**：门户目前是静态快照，Wiki 改了不会自动更新 —— 缺一个生成器（`softwiki wiki site`），
+见 NEXT。
 
 **移除 SWAgent 入口**：侧栏底部的 `SWAgent ↗` 与聊天页头部的 `Agent ↗` 都已删除；
 聊天里 `Quick / SWAgent` 的模式切换保留（那是功能本身，不是入口）。

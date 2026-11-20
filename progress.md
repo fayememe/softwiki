@@ -248,6 +248,7 @@
    全量测试 **175 passed**（基线 111）；`web` 构建通过。
    **剩余**：管理面 UI（目前只有 `/api/admin/*`）、pending 用户放行界面、标准 OIDC 授权码流程（当前走 `claims` 路径）、超级用户状态多进程存储。
 0.3 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
+0.35 **Wiki 静态门户生成器（未做）**：门户已按库放进 `workspace/<kb>/exports/wikiweb/` 并与 `kb_scope` 隔离，但仍是**静态快照**——Wiki 重建后不会更新。需要 `softwiki wiki site`：从 canonical claims + wiki 产物渲染 HTML（index / all / about / category / timeline / `search-index.json` / `assets`），可挂到已有 `wiki_rebuild_tasks` worker 之后。估 2–4 人天。
 0.4 **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
 0.5 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.6 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
@@ -285,10 +286,15 @@
 
 - **2026-11-20 Wiki Portal 404 修复 + 移除 SWAgent 入口**：
   - `/wikiweb` 的路由只在 trial-host 上临时加过，从未进仓库，本次重建镜像后消失 → 404。
-  - `web/app/wikiweb/route.ts` 补回（307 到 index.html）；门户内容是生成产物（20MB），
-    不进 git，改为 compose 挂载 `${WIKIWEB_DIR:-./wikiweb}:/app/public/wikiweb:ro`。
-  - 实测 6108/6109 的 `/wikiweb`、`/wikiweb/{coffee,ai-history}/index.html`、`assets/wiki.css` 均 200。
+  - `web/app/wikiweb/route.ts` 补回；门户内容不进 git，改为**放进各自 workspace**：
+    `workspace/<kb>/exports/wikiweb/`（`assets/` + `<kb>/`），compose 按栈挂自己那份，
+    `WIKIWEB_ENTRY` 指定入口页。
+  - **按库分离顺带修掉越权**：原共用落地页同时列出两个库，6108 可点进 ai-history，绕过 `kb_scope`；
+    现在跨库路径 404。实测 6108/6109 各站、嵌套分类页、`assets`、`search-index.json` 均 200，
+    浏览器侧 `data-kb` 正确、无对方链接、页内搜索可用、无 pageerror。
+  - 旧共用副本改名 `wikiweb.old-20261120/`（20MB，可删）。
   - 侧栏 `SWAgent ↗` 与聊天页头 `Agent ↗` 两个外链入口已删；`Quick / SWAgent` 模式切换保留。
+  - **遗留**：门户仍是静态快照，Wiki 更新后不会自动重建 —— 需要生成器（`softwiki wiki site`）。
 
 - **2026-11-17 trial-host 汉化核查**：
   - 中国侧在 trial-host 源码上加了前端 i18n：`web/lib/i18n`（zh/en/ja，默认 zh，311 keys，`localStorage` 持久化，缺 key 回退英文），新增 `LanguageSwitcher`，19 个组件/hook 接入 `useT()`，约 730 行；zh/ja key 与占位符均对齐。
