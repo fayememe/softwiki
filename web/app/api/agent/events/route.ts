@@ -13,6 +13,12 @@ export async function GET(request: Request) {
   const headers: Record<string, string> = { Accept: 'text/event-stream' };
   const role = request.headers.get('x-softwiki-role');
   if (role) headers['x-softwiki-role'] = role;
+  // Forward reverse-proxy identity headers. next.config rewrites pass headers
+  // through automatically, but this handler builds its own request, so in
+  // SOFTWIKI_AUTH_MODE=proxy the API would otherwise see an anonymous caller.
+  request.headers.forEach((value, name) => {
+    if (name.toLowerCase().startsWith('x-auth-request-')) headers[name] = value;
+  });
 
   let upstream: Response;
   try {

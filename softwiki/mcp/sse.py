@@ -468,21 +468,27 @@ def create_mcp_server():
 
 def create_sse_app():
     """Create a FastMCP app using the legacy HTTP+SSE transport (two endpoints: GET /sse, POST /messages)."""
+    from softwiki.mcp.netacl_middleware import NetworkAllowlistMiddleware
     from softwiki.mcp.role_middleware import RoleMiddleware
     from softwiki.kb.context import KbHeaderMiddleware
     app = create_mcp_server().sse_app()
     app.add_middleware(RoleMiddleware)
     app.add_middleware(KbHeaderMiddleware)
+    # Outermost: a blocked peer must not reach the tool layer at all.
+    app.add_middleware(NetworkAllowlistMiddleware)
     return app
 
 
 def create_streamable_http_app():
     """Create a FastMCP app using the Streamable HTTP transport (single /mcp endpoint)."""
+    from softwiki.mcp.netacl_middleware import NetworkAllowlistMiddleware
     from softwiki.mcp.role_middleware import RoleMiddleware
     from softwiki.kb.context import KbHeaderMiddleware
     app = create_mcp_server().streamable_http_app()
     app.add_middleware(RoleMiddleware)
     app.add_middleware(KbHeaderMiddleware)
+    # Outermost: a blocked peer must not reach the tool layer at all.
+    app.add_middleware(NetworkAllowlistMiddleware)
     return app
 
 
@@ -496,6 +502,7 @@ def create_combined_app():
     mcp = create_mcp_server()
     sse_app = mcp.sse_app()
     http_app = mcp.streamable_http_app()
+    from softwiki.mcp.netacl_middleware import NetworkAllowlistMiddleware
     from softwiki.mcp.role_middleware import RoleMiddleware
     from softwiki.kb.context import KbHeaderMiddleware
     app = Starlette(
@@ -504,4 +511,6 @@ def create_combined_app():
     )
     app.add_middleware(RoleMiddleware)
     app.add_middleware(KbHeaderMiddleware)
+    # Outermost: a blocked peer must not reach the tool layer at all.
+    app.add_middleware(NetworkAllowlistMiddleware)
     return app

@@ -197,6 +197,17 @@
 - [ ] 会话按 KB 打标、删除/重命名、Last-Event-ID 续传
 - [ ] P2 wiki 专属：pin 文档/claim、答案存 wiki/claim、右侧 claims/conflicts 上下文
 
+### M9 — 反代身份接入（proxy 模式，2026-11-20）
+> 文档：`docs/03-operations/auth-proxy.md`；设计：`docs/02-design/auth-oidc.md`
+- [x] `SOFTWIKI_AUTH_MODE=proxy`：从 `X-Auth-Request-User/-Groups` 取身份，走既有用户表/组映射/角色/kb_scope
+- [x] `softwiki/identity/proxy.py`：信任边界在代码内强制（只认 `SOFTWIKI_TRUSTED_PROXIES`，不看 `X-Forwarded-For`）
+- [x] `softwiki/netacl.py`：来源 CIDR 白名单，默认关闭，配置错误 fail-closed
+- [x] MCP 侧 `NetworkAllowlistMiddleware`；web `/api/agent/events` 转发 `x-auth-request-*`
+- [x] `docker-compose.auth-demo.yml`：Casdoor（含微信登录）+ oauth2-proxy forward-auth
+- [x] 测试 `tests/test_identity_proxy.py`(8) + `tests/test_netacl.py`(9)；`scripts/e2e_proxy_auth.py` 实测
+      trusted authenticated=True / forged rejected=True
+- [ ] trial-host 实际启用（等 CIDR / IdP 参数）
+
 ### M8 — LLM-Wiki 粒度重构（2026-11-20）
 > 设计：`docs/02-design/wiki-page-granularity.md`
 - [x] 试点确认阈值：23 条清楚 / 129 条退化；一页上限固定 **25**，超限拆页不截断
@@ -281,7 +292,12 @@
    已落地：权限 fail-closed、审计日志、超级用户窗口（默认关闭/仅本机/TTL/二次认证）、OIDC + 微信 adapter、本地用户表 + 组映射 + 三态、`kb_scope` 过滤、降级工作模式、知识库注册表 + 建库向导、图谱子图 API 与页面重写。
    全量测试 **175 passed**（基线 111）；`web` 构建通过。
    **剩余**：管理面 UI（目前只有 `/api/admin/*`）、pending 用户放行界面、标准 OIDC 授权码流程（当前走 `claims` 路径）、超级用户状态多进程存储。
-0.3 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
+0.3 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。
+   **已有两条可用的收口手段**（2026-11-20）：
+   - `SOFTWIKI_ALLOWED_CIDRS`：应用层来源白名单（`softwiki/netacl.py`），默认关闭，写错则拒绝所有人；
+   - **proxy 模式**：`SOFTWIKI_AUTH_MODE=proxy` + oauth2-proxy/Casdoor，softwiki 只读受信 header，
+     协议层交给反代。演示栈 `docker-compose.auth-demo.yml`，文档 `docs/03-operations/auth-proxy.md`。
+   仍待办：trial-host 上实际启用（需要 operator 提供允许的 CIDR / IdP 参数）。
 0.35 **Wiki 静态门户生成器（未做）**：门户已按库放进 `workspace/<kb>/exports/wikiweb/` 并与 `kb_scope` 隔离，但仍是**静态快照**——Wiki 重建后不会更新。需要 `softwiki wiki site`：从 canonical claims + wiki 产物渲染 HTML（index / all / about / category / timeline / `search-index.json` / `assets`），可挂到已有 `wiki_rebuild_tasks` worker 之后。估 2–4 人天。
 0.4 **多 KB v0 已部署 trial-host，并完成真隔离（2026-11-20）**：`docs/02-design/multi-kb.md`。
    - **第一版的问题**：两栈挂同一个 workspace 根 → 数据库隔离但**文件不隔离**，菜单里还能看到对方的库。

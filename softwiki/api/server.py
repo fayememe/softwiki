@@ -53,7 +53,7 @@ from softwiki.permissions import (
     set_downgrade,
     set_role,
 )
-from softwiki import audit
+from softwiki import audit, netacl
 from softwiki.identity import (
     IdentityDenied,
     RequestIdentity,
@@ -173,7 +173,27 @@ def _identity_for_request(request: Request) -> RequestIdentity:
             return RequestIdentity(source_ip=peer, superuser=True)
         return RequestIdentity(authorization=authz, source_ip=peer, superuser=True)
 
-    # local / oidc: the identity must have been established by the auth routes.
+    # local / oidc / proxy: the identity must have been established by the
+    # auth routes — except `proxy`, where a forward-auth proxy has already
+    # authenticated the user and injected headers. Headers are only honoured
+    # when the TCP peer is a configured trusted proxy, so a direct call cannot
+    # forge an identity (see softwiki/identity/proxy.py).
+    if mode == "proxy":
+        from softwiki.identity.proxy import identity_from_headers
+
+        external = identity_from_headers(request.headers, peer)
+        if external is not None:
+            store = UserStore()
+            try:
+                authz = store.authorize(external)
+            except IdentityDenied:
+                return RequestIdentity(source_ip=peer)
+            request.state.identity = RequestIdentity(
+                authorization=authz, source_ip=peer, authenticated=True
+            )
+            return request.state.identity
+        # Fall through: no trusted proxy header -> not authenticated.
+
     session = superuser_session()
     if session is not None:
         store = UserStore()
@@ -195,6 +215,29 @@ def _downgrade_from_request(request: Request) -> Optional[str]:
     return request.headers.get("X-SoftWiki-Downgrade") or request.cookies.get(
         "softwiki_downgrade"
     )
+
+
+@app.middleware("http")
+async def network_gate_middleware(request: Request, call_next):
+    """Refuse peers outside SOFTWIKI_ALLOWED_CIDRS.
+
+    Outermost layer: runs before identity resolution so a blocked peer costs
+    nothing and learns nothing. Disabled unless the allowlist is configured.
+    """
+    if not netacl.enabled():
+        return await call_next(request)
+
+    allowed, reason = netacl.check(request.client.host if request.client else None)
+    if not allowed:
+        audit.record(
+            "netacl.deny",
+            result="denied",
+            target=request.url.path,
+            detail=reason or "",
+            source_ip=request.client.host if request.client else None,
+        )
+        return JSONResponse({"detail": f"Forbidden: {reason}"}, status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -349,12 +392,18 @@ class MappingPatch(BaseModel):
 def auth_providers():
     from softwiki.identity import available_adapters
 
-    return {
+    body = {
         "mode": auth_mode(),
         "adapters": available_adapters(),
         "superuser_token_configured": bool(os.getenv("SOFTWIKI_SUPERUSER_TOKEN", "").strip()),
         "unknown_user_policy": UserStore().unknown_policy(),
     }
+    if auth_mode() == "proxy":
+        # Diagnostics only: header names and trusted peers, never identities.
+        from softwiki.identity.proxy import describe as describe_proxy
+
+        body["proxy"] = describe_proxy()
+    return body
 
 
 @app.post("/api/auth/login")

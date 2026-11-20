@@ -1,0 +1,60 @@
+# Demo authentication stack: Casdoor (user system) + oauth2-proxy (forward-auth).
+#
+# Usage — always layered on top of the main compose file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.auth-demo.yml \
+#     up -d casdoor oauth2-proxy
+#
+# Requirements in .env (see docs/03-operations/auth-proxy.md):
+#   SOFTWIKI_AUTH_MODE=proxy
+#   SOFTWIKI_TRUSTED_PROXIES=172.16.0.0/12,127.0.0.1
+#   WEB_HOST_PORT=127.0.0.1:6108     # web must NOT stay public
+#   MCP_HOST_PORT=127.0.0.1:6100
+#   OIDC_CLIENT_ID / OIDC_CLIENT_SECRET / OAUTH2_PROXY_COOKIE_SECRET
+#
+# Public surface becomes oauth2-proxy on ${AUTH_PROXY_PORT:-6180} only.
+
+services:
+  # Open-source user system. Has WeChat/QQ/GitHub providers built in, so a
+  # "sign in with WeChat" demo needs no custom code.
+  casdoor:
+    image: casbin/casdoor:latest
+    ports:
+      # Admin UI. Keep it on loopback in production and reach it via SSH tunnel.
+      - "127.0.0.1:${CASDOOR_ADMIN_PORT:-8000}:8000"
+    volumes:
+      - casdoor_data:/var/lib/mysql
+    restart: unless-stopped
+
+  # Does the OIDC dance and injects X-Auth-Request-* headers for softwiki.
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    command:
+      - --provider=oidc
+      # Casdoor's discovery document. Issuer must match what Casdoor reports;
+      # if it differs (e.g. behind a different hostname) add
+      # --insecure-oidc-skip-issuer-verification for the demo only.
+      - --oidc-issuer-url=${OIDC_ISSUER_URL:-http://casdoor:8000}
+      - --client-id=${OIDC_CLIENT_ID:-softwiki}
+      - --client-secret=${OIDC_CLIENT_SECRET:-change-me}
+      - --cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:-change-me-32-bytes-minimum-secret}
+      - --cookie-secure=false
+      - --email-domain=*
+      - --scope=openid profile email groups
+      - --oidc-groups-claim=groups
+      - --upstream=http://web:6108
+      - --http-address=0.0.0.0:4180
+      - --reverse-proxy=true
+      - --skip-provider-button=true
+      # Emits X-Auth-Request-User / -Email / -Groups. softwiki reads these,
+      # and only from peers inside SOFTWIKI_TRUSTED_PROXIES.
+      - --set-xauthrequest=true
+      - --pass-user-headers=true
+    ports:
+      - "${AUTH_PROXY_PORT:-6180}:4180"
+    depends_on:
+      - casdoor
+    restart: unless-stopped
+
+volumes:
+  casdoor_data:

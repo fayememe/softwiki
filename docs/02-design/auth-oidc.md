@@ -218,7 +218,13 @@ users
 - [ ] 微信登录定位：面向公众/校外入口，还是校内便利登录？（微信不提供组信息，权限只能人工绑定）
 - [ ] 旧 `auth_middleware` + `User/WorkspaceMember` 是复用还是替换（当前保留，`SOFTWIKI_AUTH_ENABLED` 仍可启用）
 - [ ] 多进程部署时超级用户会话与二次认证状态只在单进程内存中，需外部存储
-- [ ] OIDC 的 code 交换（标准授权码流程）尚未在应用内实现；`claims` 路径已可用
+- [x] **proxy 模式**：信任反代注入的身份 header（`SOFTWIKI_AUTH_MODE=proxy`），
+      协议由 oauth2-proxy / Authelia / Authentik 完成；
+      信任边界在代码里强制（只认 `SOFTWIKI_TRUSTED_PROXIES` 内的来源，不看 `X-Forwarded-For`）。
+      运维文档：[../03-operations/auth-proxy.md](../03-operations/auth-proxy.md)
+- [x] 来源地址白名单 `SOFTWIKI_ALLOWED_CIDRS`（`softwiki/netacl.py`，默认关闭，配置错误时拒绝所有人）
+- [ ] OIDC 的 code 交换（标准授权码流程）仍未在应用内实现；`claims` 路径可用，
+      但要接真实 IdP 应走 proxy 模式（见上）
 
 ## 12. 实现状态（2026-11-19）
 

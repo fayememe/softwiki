@@ -13,6 +13,11 @@ Three modes
     superuser is a *gated escape hatch*.
 ``oidc``
     Same as ``local``, but an external provider must be configured.
+``proxy``
+    A reverse proxy (oauth2-proxy / Authelia / Authentik forward-auth) has
+    already authenticated the user and injected identity headers. The app does
+    no protocol work; it only reads those headers, and only from peers listed
+    in ``SOFTWIKI_TRUSTED_PROXIES`` — otherwise anyone could forge them.
 
 The superuser is never a row in a table. It is a *capability of the machine*
 that must be opened deliberately:
@@ -41,7 +46,7 @@ from softwiki.audit import record
 
 logger = logging.getLogger(__name__)
 
-MODES = ("off", "local", "oidc")
+MODES = ("off", "local", "oidc", "proxy")
 
 #: Addresses that count as "this machine". Loopback only: a container peer
 #: address (172.x) is *not* local, which is the safe default.
