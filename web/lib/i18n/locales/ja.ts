@@ -46,6 +46,7 @@ export const ja: Dict = {
     graph: 'グラフ',
     timeline: 'タイムライン',
     wiki: 'ウィキ',
+    kbwizard: '新規KB',
     wikiPortal: 'Wiki ポータル',
     wikiPortalTitle: '新しいタブでナレッジ Wiki ポータルを開く',
     swagent: 'SWAgent',
@@ -257,11 +258,52 @@ export const ja: Dict = {
 
   graph: {
     searchPlaceholder: 'エンティティを検索…',
+    shown: '{shown} / {total} エンティティを表示中',
+    loading: 'グラフを読み込み中…',
+    empty: 'エンティティがまだありません。文書を取り込むとグラフが生成されます。',
+    truncated: '展開が打ち切られました。再びダブルクリックで深く探索できます',
+    resetView: '表示をリセット',
+    expand: '隣接ノードを展開',
+    prune: '未展開を隠す',
+    noRelations: '現在の表示に関係がありません。',
   },
 
   timeline: {
     title: 'タイムライン',
     empty: 'タイムラインのイベントはまだありません。',
+  },
+
+  kbWizard: {
+    title: 'ナレッジベースの新規作成',
+    subtitle:
+      '3 ステップで作成します。プレビューでは書き込まれるファイルを確認でき、確認後にのみディスクへ書き込みます。解除してもデータベースとファイルは残り、再登録で復元できます。',
+    step1: '基本情報',
+    step3: '確認',
+    name: '名前',
+    namePlaceholder: '例: coffee-kb',
+    nameHelp: '英数字・ピリオド・ハイフン・アンダースコア。ディレクトリ名にもなります。',
+    nameRequired: '名前は必須です。',
+    nameInvalid: '英数字・ピリオド・ハイフン・アンダースコアのみ、64 文字まで。',
+    description: '説明',
+    descriptionPlaceholder: 'このナレッジベースには何を入れますか？',
+    descriptionHelp:
+      'kb_describe でエージェントに表示されます。空欄なら scope.md、次にトピックグループへフォールバックします。',
+    template: 'テンプレート',
+    language: '言語',
+    preview: '計画をプレビュー',
+    planTitle: '{name} の作成計画',
+    planHelp: 'まだ何も書き込まれていません。ファイル一覧を確認してから作成してください。',
+    create: '作成',
+    back: '戻る',
+    exists: '既存',
+    created: 'ナレッジベース {name} を作成しました。',
+    registryTitle: 'ナレッジベース',
+    registryHelp: '解除してもデータベースとファイルは残り、再登録で元に戻せます。',
+    registryEmpty: 'ナレッジベースがまだありません。',
+    registered: '登録済み',
+    unregistered: '解除済み',
+    unhook: '解除',
+    rehook: '登録',
   },
 
   wiki: {

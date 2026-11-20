@@ -1,0 +1,16 @@
+topics:
+  policy:
+    name: 政策文件
+    group: Sources
+    description: 官方政策、法规、白皮书。
+    synonyms: [policy, 政策]
+  research:
+    name: 研究报告
+    group: Sources
+    description: 智库、学术机构的研究报告。
+    synonyms: [research, 报告]
+  commentary:
+    name: 专家评论
+    group: Sources
+    description: 专栏、访谈、评论文章。
+    synonyms: [commentary, 评论]

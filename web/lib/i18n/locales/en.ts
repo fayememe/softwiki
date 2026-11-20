@@ -48,6 +48,7 @@ export const en = {
     graph: 'Graph',
     timeline: 'Timeline',
     wiki: 'Wiki',
+    kbwizard: 'New KB',
     wikiPortal: 'Wiki Portal',
     wikiPortalTitle: 'Open the Knowledge Wiki portal (new tab)',
     swagent: 'SWAgent',
@@ -260,11 +261,53 @@ export const en = {
 
   graph: {
     searchPlaceholder: 'Search entities…',
+    shown: '{shown} of {total} entities drawn',
+    loading: 'Loading graph…',
+    empty: 'No entities yet. Ingest documents to build the graph.',
+    truncated: 'Expansion truncated — double-click again to go deeper',
+    resetView: 'Reset view',
+    expand: 'Expand neighbours',
+    prune: 'Hide unexpanded',
+    noRelations: 'No relations in the current view.',
   },
 
   timeline: {
     title: 'Timeline',
     empty: 'No timeline events yet.',
+  },
+
+  kbWizard: {
+    title: 'New knowledge base',
+    subtitle:
+      'Create a kb in three steps. Preview shows every file that would be written before anything touches disk. Unhooking a kb keeps its database and files: bring it back by registering it again.',
+    step1: 'Basics',
+    step3: 'Review',
+    name: 'Name',
+    namePlaceholder: 'e.g. coffee-kb',
+    nameHelp: 'Letters, digits, dot, dash and underscore. Used as the directory name.',
+    nameRequired: 'A name is required.',
+    nameInvalid: 'Only letters, digits, dot, dash and underscore are allowed, max 64 characters.',
+    description: 'Description',
+    descriptionPlaceholder: 'What belongs in this knowledge base?',
+    descriptionHelp:
+      'Shown to agents in kb_describe. Leave empty to fall back to scope.md, then to topic groups.',
+    template: 'Template',
+    language: 'Language',
+    preview: 'Preview plan',
+    planTitle: 'Plan for {name}',
+    planHelp: 'Nothing has been written yet. Review the files, then create.',
+    create: 'Create',
+    back: 'Back',
+    exists: 'exists',
+    created: 'Knowledge base {name} created.',
+    registryTitle: 'Knowledge bases',
+    registryHelp:
+      'Unhooking removes a kb from softwiki without deleting its data. It stays on disk and can be re-registered.',
+    registryEmpty: 'No knowledge bases yet.',
+    registered: 'registered',
+    unregistered: 'unhooked',
+    unhook: 'Unhook',
+    rehook: 'Register',
   },
 
   wiki: {

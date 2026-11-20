@@ -1,0 +1,16 @@
+topics:
+  lecture:
+    name: 讲义
+    group: Materials
+    description: 课堂讲义与幻灯片。
+    synonyms: [lecture, 讲义, 课件]
+  textbook:
+    name: 教材
+    group: Materials
+    description: 教材与参考书章节。
+    synonyms: [textbook, 教材]
+  exercise:
+    name: 习题
+    group: Practice
+    description: 作业、习题与解答。
+    synonyms: [exercise, 习题, 作业]

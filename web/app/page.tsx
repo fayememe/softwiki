@@ -10,6 +10,7 @@ import ConflictsPanel from '@/components/ConflictsPanel';
 import WikiPanel from '@/components/WikiPanel';
 import DashboardPanel from '@/components/DashboardPanel';
 import GraphPanel from '@/components/GraphPanel';
+import KbWizardPanel from '@/components/KbWizardPanel';
 import TimelinePanel from '@/components/TimelinePanel';
 import GlobalSearch from '@/components/GlobalSearch';
 import { apiStatus, apiListWorkspaces, apiSwitchWorkspace } from '@/lib/api';
@@ -337,6 +338,7 @@ function HomeInner() {
         {activePanel === 'graph' && <GraphPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
         {activePanel === 'wiki' && <WikiPanel />}
+        {activePanel === 'kbwizard' && <KbWizardPanel />}
       </main>
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
