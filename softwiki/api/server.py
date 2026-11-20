@@ -208,6 +208,10 @@ async def role_middleware(request: Request, call_next):
     request.state.granted_role = identity.role
     request.state.identity = identity
     request.state.source_ip = identity.source_ip
+    # Snapshot the caller now: the context vars are reset in `finally`, so
+    # calling identity.actor() afterwards would report the env fallback role
+    # instead of the role the request actually ran as.
+    actor = identity.actor()
 
     try:
         response = await call_next(request)
@@ -215,7 +219,7 @@ async def role_middleware(request: Request, call_next):
         audit.record(
             f"{request.method} {request.url.path}",
             result="error",
-            actor=identity.actor(),
+            actor=actor,
             source_ip=identity.source_ip,
         )
         raise
@@ -229,7 +233,7 @@ async def role_middleware(request: Request, call_next):
         audit.record(
             f"{request.method} {request.url.path}",
             result="ok" if response.status_code < 400 else f"http-{response.status_code}",
-            actor=identity.actor(),
+            actor=actor,
             source_ip=identity.source_ip,
         )
     return response

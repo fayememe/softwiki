@@ -1,0 +1,27 @@
+# Fast rebuild of the API image from an already-verified dependency layer.
+#
+# Why this exists: on trial-host `pip install -e .` inside the build fails with
+# ResolutionImpossible after ~8 minutes, even though `pyproject.toml` is
+# byte-identical to the one used by the last successful build. No dependencies
+# changed, so re-resolving them buys nothing and only breaks the build.
+#
+# `pip install -e .` in the base image left an editable install pointing at
+# /app, so copying new source over it is enough — no reinstall is required.
+#
+# Usage (trial-host):
+#   docker tag softwiki-api:latest softwiki-api:base-<date>   # once, before switching
+#   docker build -f deploy/Dockerfile.api-fast -t softwiki-api:latest .
+#
+# Roll back: docker tag softwiki-api:base-<date> softwiki-api:latest
+#
+# Go back to the regular `Dockerfile` once the resolver problem is understood.
+ARG BASE=softwiki-api:base-20261119
+FROM ${BASE}
+
+WORKDIR /app
+COPY softwiki ./softwiki
+COPY scripts ./scripts
+COPY kb-templates ./kb-templates
+
+EXPOSE 6200 6100
+CMD ["python", "-m", "softwiki.cli.main", "api", "--host", "0.0.0.0", "--port", "6200"]

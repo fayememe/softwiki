@@ -350,6 +350,16 @@ def test_write_requests_are_audited_and_reads_are_not(client, tmp_path):
     assert all(r["identity"] == f"{LOCAL_ISSUER}:{LOCAL_SUBJECT}" for r in records)
 
 
+def test_audit_records_the_role_the_request_ran_as(client, tmp_path):
+    """The audit actor must not fall back to the env role after the request."""
+    audit_path = tmp_path / "audit.log"
+    client.post("/api/kb/create", json={"name": "audit-kb", "dry_run": True})
+    records = [json.loads(line) for line in audit_path.read_text().splitlines() if line.strip()]
+    entry = next(r for r in records if r["action"] == "POST /api/kb/create")
+    assert entry["role"] == "wiki-admin"
+    assert entry["result"] == "ok"
+
+
 def test_admin_can_manage_mapping(client):
     put = client.put("/api/admin/mapping", json={"groups": {"staff": ["wiki-work"]}})
     assert put.status_code == 200

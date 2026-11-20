@@ -28,6 +28,8 @@ ENV PIP_NO_CACHE_DIR=1
 COPY pyproject.toml README.md ./
 COPY softwiki ./softwiki
 COPY scripts ./scripts
+# Knowledge base templates are read from <repo>/kb-templates by the wizard.
+COPY kb-templates ./kb-templates
 RUN pip install -e .
 EXPOSE 6200 6100
 CMD ["python", "-m", "softwiki.cli.main", "api", "--host", "0.0.0.0", "--port", "6200"]

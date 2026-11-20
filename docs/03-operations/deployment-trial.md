@@ -24,7 +24,7 @@ AI History MCP:  http://trial.example.internal:6102/mcp
 Coffee SWA:      http://trial.example.internal:6111
 AI History SWA:  http://trial.example.internal:6112
 Coffee API:      http://127.0.0.1:6200
-AI History API:  http://127.0.0.1:6202
+AI History API:  http://127.0.0.1:6212   # 6202 被卡死容器占用，见「卡死的容器」
 ```
 
 API 已绑定 `127.0.0.1:6200`，不公网暴露。
@@ -142,6 +142,82 @@ sudo docker exec -i hermes hermes mcp test softwiki
 sudo docker exec -i hermes hermes chat -q "Use SoftWiki to list documents." --oneshot -Q
 # 0
 ```
+
+## 2026-11-19 部署：身份 / 审计 / 建库向导 / 图谱重写
+
+### 本次新增的内容
+
+| 类别 | 内容 |
+|---|---|
+| 权限 | 角色 fail-closed（拼错回退 `wiki-study`）、降级工作模式、审计日志 |
+| 身份 | `softwiki/identity/`（OIDC + 微信 adapter、本地用户表、超级用户窗口、三态） |
+| 接口 | `/api/auth/*`、`/api/admin/*`、`/api/kb/templates|create|registry`、`/api/graph/overview|subgraph` |
+| 知识库 | `config/kbs.yaml` 注册表；仓库 `kb-templates/` |
+| WebUI | 「新建库」面板、图谱页 Canvas 重写 |
+| 依赖 | **无新增**，`pyproject.toml` 与旧版一致 |
+
+`off` 模式（当前 trial-host 的状态）行为不变：仍是单机管理员，不需要登录。
+所有 `SOFTWIKI_AUTH_MODE` 相关能力默认不启用。
+
+### 构建遇到的坑
+
+`docker-compose build api` 卡在 `pip install -e .`，约 8 分钟后报
+`ResolutionImpossible`，而 `pyproject.toml` 与 9 天前成功构建时**完全一致**
+（说明不是依赖变更导致，是解析/镜像源问题）。本次改用
+`deploy/Dockerfile.api-fast`：以已验证的旧镜像为依赖层，只覆盖源码。
+`pip install -e .` 留下的 editable 安装指向 `/app`，覆盖源码即可生效，无需重装。
+
+```bash
+# 保留可回滚的依赖层
+sudo docker tag softwiki-api:latest softwiki-api:base-20261119
+# 只换源码
+sudo docker build -f deploy/Dockerfile.api-fast -t softwiki-api:latest .
+```
+
+依赖解析问题**未定位**，下次需要真正重建依赖时再查。
+
+### 卡死的容器（遗留）
+
+重建过程中 `softwiki-ai-api-1` 停在 `zap_pid_ns_processes`（PID 1 无法被回收），
+`docker rm -f`、`ctr tasks kill` 均无效，重命名后改名 `softwiki-ai-api-1-stuck`，
+**仍占用 `127.0.0.1:6202`**。
+
+因此 ai-history 的 API 临时改绑 **`127.0.0.1:6212`**（容器内仍是 6200，
+Web 通过 compose 网络的 `api:6200` 访问，不受影响）。
+
+需要在维护窗口重启 Docker 守护进程才能清掉
+（该机器还有 hermes/redis/pg/nginx 等共享服务，不宜在业务时段重启）。
+清理后把 ai-api 改回 6202，并按 compose 管理。
+
+### 验收结果（2026-11-19）
+
+```text
+coffee api health 200 | ai api health 200
+coffee web 200       | ai web 200
+coffee mcp 200       | ai mcp 200
+coffee /api/kb 200   | graph overview 200 | graph subgraph 200
+auth me 200          | admin audit 200
+agent status coffee 200 | agent status ai 200
+```
+
+数据完整性（与部署前一致）：
+
+```text
+coffee:      documents 185 / chunks 3,489 / claims 6,691 / entities 6,005 / relationships 8,179 / events 2,297
+ai-history:  documents 160 / chunks 5,497 / claims 9,526 / entities 9,232 / relationships 12,067 / events 3,279
+```
+
+- `/api/ask` 两个库均返回带页码引用与 `citation_check` 的答案。
+- 审计日志落在 `/opt/aitools/apps/softwiki/workspace/.softwiki-audit/audit.log`，
+  已确认记录的是**实际生效角色**（`wiki-admin`），不是环境变量里的 `wiki-study`。
+- 建库向导 dry-run 返回完整文件计划，未落盘。
+
+### 上线后待测（未在本轮验证）
+
+- 浏览器里图谱页的交互（缩放/拖拽/双击展开）与不卡顿
+- WebUI「新建库」面板的真实点击流程（只会跑过 API 层）
+- SWAgent 真机对话（只验证了 `/api/agent/status`）
+- 两库的 Wiki / Conflicts / Report 页面回归
 
 ## 网络限制
 
