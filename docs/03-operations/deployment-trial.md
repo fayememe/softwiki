@@ -223,6 +223,68 @@ ai-history:  documents 160 / chunks 5,497 / claims 9,526 / entities 9,232 / rela
   已确认记录的是**实际生效角色**（`wiki-admin`），不是环境变量里的 `wiki-study`。
 - 建库向导 dry-run 返回完整文件计划，未落盘。
 
+### 2026-11-20 部署：多 KB 可用性 + LLM-Wiki 一实体一页 + 导航重构
+
+**本次上线内容**
+
+| 类别 | 内容 |
+|---|---|
+| 多 KB | `/api/kb?verify=true` 探测本实例能否服务该库（缓存 15s / 超时 3s）；`meta.yaml: web_url`；库选择器改为数据驱动 |
+| LLM-Wiki | `softwiki/wiki/subject_pages.py`：一实体一页、固定 25 条上限、超限拆页不静默截断；`/api/wiki/pages*`；WebUI **LLM Wiki** 面板 |
+| 导航 | 侧栏分五组（Home / Knowledge / Assist / Contributor / Admin），角色驱动可见性；`wiki` 面板下线，`wikipages` 更名 **LLM Wiki** |
+| 列表 | documents / claims / LLM Wiki 全部服务端分页（50/页）；徽章显示完整数字；表格列宽与行距收紧 |
+| 管理面 | `AdminPanel`：用户列表（角色覆盖 / pending 放行 / `kb_scope` 可见数）+ 审计日志 |
+
+**验收（2026-11-20）**
+
+```text
+容器 8 个全部 healthy（api/web ×2、mcp ×2、postgres ×2）
+coffee api 6200 200 | ai api 6202 200
+coffee web 6108 200 | ai web 6109 200
+coffee mcp 6100 initialize 200 | ai mcp 6102 initialize 200
+```
+
+库可用性探测（关键：两栈共用 workspace 根，但 PostgreSQL 各自独立）：
+
+```text
+6200: coffee available=true   ai-history available=false
+6202: ai-history available=true  coffee available=false
+冷探测 55ms；缓存命中 10–14ms
+```
+
+UI（headless Chrome）：库选择器正确显示 2 项并把不可用的那个置灰，
+提示「1 kb not served by this instance」；`pageErrors=[]`。
+
+LLM-Wiki 页面：
+
+```text
+6200: 45 subjects（28 个超限已拆页）
+6202: 40 subjects（27 个超限已拆页）
+抽检 Arabica 266/266 claims / 11 页，Australia 34/34 / 2 页，无静默丢弃
+```
+
+数据库清理：删除空残留库 `softwiki_ai`（`public` schema 0 张表、无对应目录）。
+
+**扩容实测**：ai 栈 `mkdir workspace/probe-kb` + `CREATE DATABASE softwiki_probe_kb`
+→ `/api/kb?verify=true` 立刻 `available=true` → 验证后删除目录与库。
+
+> 结论：**每个栈都能独立加库，无需改代码**；跨栈（6200 问 ai-history）仍不行，
+> 因为库在另一个 PostgreSQL。
+
+### 线上已知故障（2026-11-20，非本次改动）
+
+`oneroute` 的 `/v1/embeddings` 返回 `Error code: 504`，**单次耗时 185 秒**才失败：
+
+```text
+[rag] embedding unavailable, using BM25 only: Error code: 504
+```
+
+后果：`/api/ask` 先等 embedding 超时再降级 BM25，实测 200s 未返回；
+新文档入库无法向量化。同一时刻 chat completions 正常（8.6s）。
+
+用 `git stash` 对照确认与本次改动无关。临时办法是换 embedding 供应商，
+或用本机 Ollama 的 `nomic-embed-text`。
+
 ### 2026-11-20 修复：Wiki Portal 404 / 移除 SWAgent 入口
 
 **`/wikiweb` 404 的原因**：这个路由只在 trial-host 上被临时加过，从未进入本仓库。

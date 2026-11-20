@@ -219,6 +219,11 @@
 
 ## Pending issues / Blocker
 
+- [!] **trial-host embedding 上游 504（2026-11-20 发现）**：`oneroute` 的 `/v1/embeddings` 返回 `Error code: 504`，单次耗时 **185s** 才失败；容器日志 `[rag] embedding unavailable, using BM25 only`。因此 `/api/ask` 会先卡 185s 再降级，实测 200s 超时未返回。
+  - 影响：新入库无法向量化、ask 极慢；检索退化为 BM25。
+  - 不是本次改动引入（stash 对照确认）；chat 通道正常（8.6s 返回）。
+  - 需要换 embedding 供应商或用本地 `nomic-embed-text`（Ollama 已装）。
+
 - [x] **真实 PDF**：已提供 81 篇 ARM 技术文档。
 - [~] **出站 LLM/embedding**：当前用 OpenAI + DeepSeek；学校内网是否允许出站仍未确认。
 - [x] **测试基线**：86 passed（离线；含 knowledge v2 / NLI / citation / permissions / cleanup / embedding / thinking）。
@@ -300,7 +305,8 @@
   - **库选择器重写**：原来写死 `{coffee:6108, ai-history:6109}` 两张卡片，现在从 `/api/kb?verify=true` 取，不可用的库置灰并提示「N kb not served by this instance」。
   - **加库实测**：ai 栈 `mkdir workspace/probe-kb` + `CREATE DATABASE softwiki_probe_kb` → `/api/kb?verify=true` 立刻 `available=true` → 已删除目录与库。**证明每栈可独立扩容，无需改代码。**
   - **清理**：删除空残留库 `softwiki_ai`（0 张表、无对应目录）。
-  - **测试**：新增 `tests/test_kb_health.py` 5 项；相关回归 43 passed；`npm run build` 通过。
+  - **测试**：新增 `tests/test_kb_health.py` 5 项；相关回归 107 passed；`npm run build` 通过。
+  - **全量 pytest 仍会挂**：按文件分批跑，`test_mcp` / `test_answer_engine` / `test_abstain` / `test_report` / `test_user_mode` 需网络或长时间运行会卡；**已用 `git stash` 对照确认与本次改动无关**（无改动时同样 124 超时）。
   - **前端同时完成**（同一 session 前半段）：LLM-Wiki 一实体一页（`softwiki/wiki/subject_pages.py`）、侧栏五组重构、documents/claims/LLM Wiki 分页、徽章完整数字、表格列宽修整、AdminPanel（用户放行 + 审计）。
 
 - **2026-11-19 身份接入 / 权限 / 图谱 / 建库向导**（一次端到端落地）：
