@@ -18,14 +18,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import ssl
 import sys
 import urllib.error
 import urllib.request
 
 
-def _get(url: str, headers: dict, timeout: float = 10.0):
+def _get(url: str, headers: dict, timeout: float = 10.0, insecure: bool = False):
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    context = ssl._create_unverified_context() if insecure else None
+    with urllib.request.urlopen(req, timeout=timeout, context=context) as resp:
         return resp.status, json.load(resp)
 
 
@@ -36,12 +38,14 @@ def main() -> int:
     ap.add_argument("--groups", default="", help="value for the groups header")
     ap.add_argument("--user-header", default="X-Auth-Request-User")
     ap.add_argument("--groups-header", default="X-Auth-Request-Groups")
+    ap.add_argument("--insecure", action="store_true",
+                    help="skip TLS verification (self-signed demo certificates)")
     args = ap.parse_args()
 
     base = args.base.rstrip("/")
 
     try:
-        _, providers = _get(f"{base}/api/auth/providers", {})
+        _, providers = _get(f"{base}/api/auth/providers", {}, insecure=args.insecure)
     except urllib.error.URLError as exc:
         print(f"FAIL cannot reach {base}: {exc}")
         return 2
@@ -65,7 +69,7 @@ def main() -> int:
         headers[args.groups_header] = args.groups
 
     try:
-        _, me = _get(f"{base}/api/auth/me", headers)
+        _, me = _get(f"{base}/api/auth/me", headers, insecure=args.insecure)
     except urllib.error.URLError as exc:
         print(f"FAIL /api/auth/me: {exc}")
         return 2

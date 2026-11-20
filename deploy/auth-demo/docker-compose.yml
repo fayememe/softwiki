@@ -1,0 +1,70 @@
+# Lightweight auth demo: Authelia (forward-auth) + nginx + softwiki in proxy mode.
+#
+# No database, no external IdP: Authelia reads users from a YAML file, so the
+# whole chain runs in three small containers. This is an *example*, not a
+# production blueprint — swap Authelia for the customer's own IdP.
+#
+#   ./setup.sh          # generate secrets + user hashes, then start
+#   open http://localhost:6190
+#
+# Only nginx is published. The API and Authelia are reachable solely on the
+# internal network, which is what makes trusting the headers safe.
+
+services:
+  authelia:
+    image: authelia/authelia:4.38
+    # Run as the invoking user so the YAML/SQLite it writes stay editable
+    # instead of turning into root-owned files.
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./authelia:/config
+    networks:
+      - authnet
+    restart: unless-stopped
+
+  softwiki:
+    image: ${SOFTWIKI_IMAGE:-softwiki-api:auth-demo}
+    command: ["python", "-m", "softwiki.cli.main", "api", "--host", "0.0.0.0", "--port", "6200"]
+    environment:
+      # Identity comes from the proxy; we never implement the protocol.
+      SOFTWIKI_AUTH_MODE: proxy
+      # Only this network is believed. nginx lives here; the outside does not.
+      SOFTWIKI_TRUSTED_PROXIES: 172.31.240.0/24
+      SOFTWIKI_PROXY_USER_HEADER: X-Auth-Request-User
+      SOFTWIKI_PROXY_GROUPS_HEADER: X-Auth-Request-Groups
+      SOFTWIKI_PROXY_EMAIL_HEADER: X-Auth-Request-Email
+      SOFTWIKI_PROXY_NAME_HEADER: X-Auth-Request-Name
+      SOFTWIKI_PROXY_ISSUER_LABEL: demo
+      WORKSPACES_ROOT: /data/workspaces
+      WORKSPACE_DIR: /data/workspaces/demo
+      SOFTWIKI_ALLOW_MOCK_EMBEDDINGS: "1"
+      SOFTWIKI_DISABLE_LIGHTRAG: "1"
+      SOFTWIKI_ENABLE_WEB_SEARCH: "0"
+      SOFTWIKI_ROLE: wiki-study
+    volumes:
+      - ./workspaces:/data/workspaces
+    networks:
+      - authnet
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    ports:
+      - "127.0.0.1:6190:6190"
+      - "127.0.0.1:6191:6191"
+    networks:
+      - authnet
+    depends_on:
+      - authelia
+      - softwiki
+    restart: unless-stopped
+
+networks:
+  authnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.240.0/24
