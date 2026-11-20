@@ -193,22 +193,68 @@ C 的唯一优势是「同库内跨 schema JOIN」，但：
 - 缓存淘汰未实现，`workspace_cache.max_loaded` 仅预留。
 - 移植（`kb export` / `kb import`）不在 v0 范围；未来形态为「打包目录 + `pg_dump`」。
 
-## 7. trial-host 现状（2026-11-20）
+## 7. trial-host 现状（2026-11-20 二次修正：真正的隔离）
 
-两套 compose 栈，**共用同一个 workspace 根**，但各有独立 PostgreSQL：
+第一版把两套栈都挂在**同一个 workspace 根**上，结果是「数据库隔离、文件不隔离」：
+`coffee` 的容器能读 `ai-history` 的全部文档、导出和索引，菜单里也能看到对方。
+`/api/kb?verify=true` 只是把症状标出来，没有解决。
 
-| 栈 | Web | MCP | API | PostgreSQL 内的库 |
-|---|---|---|---|---|
-| coffee | 6108 | 6100 | 127.0.0.1:6200 | `softwiki_coffee` |
-| ai | 6109 | 6102 | 127.0.0.1:6202 | `softwiki_ai_history` |
+现在每套栈只挂自己的根：
 
-因此：
+```text
+workspace/                          # 宿主机
+├── stacks/
+│   ├── coffee/
+│   │   └── coffee/                 # kb（.softwiki/ config/ exports/ raw/ ...）
+│   └── ai/
+│       └── ai-history/
+├── config/                         # 共享：身份（users.yaml）
+└── .softwiki-audit/                # 共享：审计日志
+```
 
-- 两栈都能**看见**全部库目录（`/api/kb` 各返回 2 条）；
-- 但只能**服务**自己 PostgreSQL 里有库的那一个（`?verify=true` 正确标出另一个不可用）；
-- 每栈独立扩容：在任一栈内 `mkdir` + `CREATE DATABASE` 即可加库，已实测。
+容器内：
 
-跨栈提问（6200 问 ai-history）会失败，因为 D3 的隔离边界是「每库一个 database」，
-前提是**同一个 PostgreSQL 实例**。要让一个栈服务全部库，需合并两套 postgres
-（或让两个 postgres 互相可达），并同时处理 Hermes（一个 MCP 而非两个）与
-wikiweb（按库路径且不破坏 `kb_scope`）——独立决定，暂缓。
+```text
+/data/workspaces        <- workspace/stacks/<stack>      （只含本栈的库）
+/data/workspaces/config <- workspace/config
+/data/workspaces/.softwiki-audit <- workspace/.softwiki-audit
+WORKSPACES_ROOT=/data/workspaces
+WORKSPACE_DIR=/data/workspaces/<kb>
+```
+
+为什么把 `config` 和 `.softwiki-audit` 放在库目录之外再挂进来：身份和审计是
+**实例级**的，不是库级的；它们不含任何库内容，共享不会造成越权。库目录本身不共享。
+
+| 栈 | Web | MCP | API | 容器内可见的库 | PostgreSQL |
+|---|---|---|---|---|---|
+| coffee | 6108 | 6100 | 127.0.0.1:6200 | `coffee` | `softwiki_coffee` |
+| ai | 6109 | 6102 | 127.0.0.1:6202 | `ai-history` | `softwiki_ai_history` |
+
+**验收（2026-11-20）**
+
+```text
+6200 /api/kb?verify=true  active=coffee      kbs=[('coffee', True)]
+6202 /api/kb?verify=true  active=ai-history  kbs=[('ai-history', True)]
+6200 ask(kb="ai-history") -> 404 "Knowledge base 'ai-history' not found"
+容器内 ls /data/workspaces/ai-history -> No such file or directory
+6108 /wikiweb/ai-history/index.html -> 404
+数据未变：coffee 185 docs / 6,686 claims；ai-history 160 / 9,514
+```
+
+**在某个栈内加库**（不需要改代码）：
+
+```bash
+# 1. 把库目录放进该栈的根
+mkdir -p workspace/stacks/ai/ai-science/{config,.softwiki}
+# 2. 在该栈的 PostgreSQL 建库
+docker exec softwiki-ai-postgres-1 psql -U softwiki -d postgres \
+  -c "CREATE DATABASE softwiki_ai_science OWNER softwiki"
+# 3. 让容器看得到新目录（新增了一个挂载点则需重建容器；同一挂载点内新增目录不需要）
+```
+
+因为挂的是**目录**而不是单个库，往里加目录无需重建容器。
+
+**迁移**：`scripts/kb_layout_migrate.py --stack <stack> --kb <kb> [--apply]`，
+默认 dry-run。会检查 `.softwiki/` 才允许移动，并打印需要写入 `.env` 的变量。
+
+

@@ -6,7 +6,12 @@ x-api-common: &api-common
   env_file:
     - ${SOFTWIKI_ENV_FILE:-.env}
   environment:
-    WORKSPACE_DIR: /data/workspace/${SOFTWIKI_ACTIVE_WORKSPACE:-lsl-kb}
+    # Each stack gets its own workspaces root containing only the kbs it
+    # serves. Mounting the shared parent (the old behaviour) let every stack
+    # read every other stack's documents, exports and indexes — the databases
+    # were separated but the files were not.
+    WORKSPACES_ROOT: /data/workspaces
+    WORKSPACE_DIR: /data/workspaces/${SOFTWIKI_ACTIVE_WORKSPACE:-lsl-kb}
     SOFTWIKI_ENABLE_WEB_SEARCH: "true"
     AGENT_WEB_URL: ${AGENT_WEB_URL:-http://host.docker.internal:6111}
     AGENT_DEFAULT: ${AGENT_DEFAULT:-wiki-research}
@@ -15,7 +20,12 @@ x-api-common: &api-common
   extra_hosts:
     - "host.docker.internal:host-gateway"
   volumes:
-    - ${SOFTWIKI_WORKSPACE:-./workspace}:/data/workspace
+    # Stack-private root: only this stack's kbs live here.
+    - ${SOFTWIKI_STACK_ROOT:-./workspace/stacks/default}:/data/workspaces
+    # Shared across stacks on purpose: identity and audit are instance-level,
+    # not kb-level. Neither contains kb content.
+    - ${SOFTWIKI_SHARED_CONFIG:-./workspace/config}:/data/workspaces/config
+    - ${SOFTWIKI_AUDIT_DIR:-./workspace/.softwiki-audit}:/data/workspaces/.softwiki-audit
   restart: unless-stopped
   depends_on:
     postgres:

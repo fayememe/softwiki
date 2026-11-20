@@ -104,7 +104,10 @@
 - [x] 本机 Docker 部署验证（6300/6301/6308 四容器 healthy；跨库/并发/边界全部通过）
 - [x] `/api/kb?verify=true` 实例可用性探测（`softwiki/kb/health.py`，TTL 15s / 超时 3s）
 - [x] `meta.yaml` 可选 `web_url`；库选择器改为数据驱动（原为写死端口）
-- [x] trial-host 实测：加库 = `mkdir` + `CREATE DATABASE`，即时可见
+- [x] **每栈私有 workspace 根**：`workspace/stacks/<stack>/<kb>`，容器只挂自己的根
+      （`SOFTWIKI_STACK_ROOT`），identity / audit 单独共享挂载
+- [x] `scripts/kb_layout_migrate.py` 迁移脚本（默认 dry-run，校验 `.softwiki/`）
+- [x] trial-host 实测：加库 = 在库根加目录 + `CREATE DATABASE`，即时可见
 - [ ] WebUI 的 KB 选择器改为传 `kb`（目前仍是跨端口跳转）
 - [ ] 跨库叠加（v1）；`with_stats`；`meta.yaml` 建库模板
 
@@ -280,12 +283,13 @@
    **剩余**：管理面 UI（目前只有 `/api/admin/*`）、pending 用户放行界面、标准 OIDC 授权码流程（当前走 `claims` 路径）、超级用户状态多进程存储。
 0.3 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
 0.35 **Wiki 静态门户生成器（未做）**：门户已按库放进 `workspace/<kb>/exports/wikiweb/` 并与 `kb_scope` 隔离，但仍是**静态快照**——Wiki 重建后不会更新。需要 `softwiki wiki site`：从 canonical claims + wiki 产物渲染 HTML（index / all / about / category / timeline / `search-index.json` / `assets`），可挂到已有 `wiki_rebuild_tasks` worker 之后。估 2–4 人天。
-0.4 **多 KB v0 已部署 trial-host（2026-11-20）**：`docs/02-design/multi-kb.md`。
-   - 现状：两套 compose 栈**共用一个 workspace 根**，但各有独立 PostgreSQL；`/api/kb` 两边都能列出 2 个库。
-   - 已加 `/api/kb?verify=true`：探测本实例能否服务该库（缓存 15s、超时 3s），UI 把不可用的库置灰。
-   - 库选择器改为数据驱动（`meta.yaml: web_url`），不再写死 `coffee:6108 / ai-history:6109`。
-   - 实测：在 ai 栈 `mkdir` + `CREATE DATABASE` 新增 `probe-kb` → `available=true` → 已删除；另删除空残留库 `softwiki_ai`（0 表、无目录）。
-   - **仍不能跨栈提问**：6200 问 ai-history 会 500，因为库在另一个 postgres。要合并需同时处理 Hermes（一个 MCP）与 wikiweb（按库路径不破坏 kb_scope），暂时不动。
+0.4 **多 KB v0 已部署 trial-host，并完成真隔离（2026-11-20）**：`docs/02-design/multi-kb.md`。
+   - **第一版的问题**：两栈挂同一个 workspace 根 → 数据库隔离但**文件不隔离**，菜单里还能看到对方的库。
+   - **现状**：每栈私有根 `workspace/stacks/<stack>/<kb>`；`config`（身份）与 `.softwiki-audit`（审计）单独共享挂载。
+   - 验收：`6200 /api/kb` 只有 `coffee`，`6202` 只有 `ai-history`；`ask(kb="ai-history")` 从 6200 返回 **404**（不是 500）；容器内 `ls /data/workspaces/ai-history` 不存在；跨库门户 404。
+   - 加库：在栈根下新建目录 + 该栈 PG 建库即可（挂的是目录，不用重建容器）。
+   - `/api/kb?verify=true` 保留为诊断（目录存在但库没建时能看出来）。
+   - 若要「一个栈服务全部库」，仍需合并 PostgreSQL，并处理 Hermes（一个 MCP）与 wikiweb 路径——独立决定。
 0.5 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.6 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
 0.7 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
@@ -299,7 +303,9 @@
 ## 本 session 状态记录（handoff）
 
 - **2026-11-20 多 KB 可用性 + 导航/列表重构**：
-  - **多 KB 现状澄清**：trial-host 两套 compose 栈**共用 workspace 根**（api 挂 `/data/workspace`），所以 `/api/kb` 两边都列出 2 个库；但两栈各有独立 PostgreSQL，只有本栈 PG 里建过库的才能服务。跨栈提问 500 的根因是 `database "softwiki_ai_history" does not exist`。
+  - **多 KB 现状澄清**：第一版两栈共用 workspace 根，`/api/kb` 两边都列出 2 个库，但各自 PostgreSQL 独立 → 切过去 500（`database "softwiki_ai_history" does not exist`）。
+  - **随后修正为真隔离**：每栈私有根 `workspace/stacks/<stack>/<kb>`（`SOFTWIKI_STACK_ROOT`），容器只挂自己的根；`config` 与 `.softwiki-audit` 单独共享。验收：6200 只列 `coffee`、6202 只列 `ai-history`；跨库 `ask` 返回 404、跨库目录不存在、跨库门户 404。数据未变（185 / 160 篇）。
+  - **迁移工具**：`scripts/kb_layout_migrate.py`（默认 dry-run，校验 `.softwiki/`，打印需写入 `.env` 的变量）。trial-host 迁移前已备份 `docker-compose.yml.bak-20261120`、`.env.bak-stackroot`、`.env.ai.bak-stackroot`。
   - **`/api/kb?verify=true`**：新增 `softwiki/kb/health.py`，每库一次 `SELECT 1`（超时 3s、缓存 15s）；SQLite 额外校验文件存在（SQLite 会自动建空文件，否则假阳性）。默认 `/api/kb` 仍零 DB（设计 D1）。
   - **`meta.yaml: web_url`**：`KbInfo` 新字段，记录该库 WebUI 地址。trial-host 两库已补（6108/6109）。
   - **库选择器重写**：原来写死 `{coffee:6108, ai-history:6109}` 两张卡片，现在从 `/api/kb?verify=true` 取，不可用的库置灰并提示「N kb not served by this instance」。

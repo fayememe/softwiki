@@ -244,16 +244,29 @@ coffee web 6108 200 | ai web 6109 200
 coffee mcp 6100 initialize 200 | ai mcp 6102 initialize 200
 ```
 
-库可用性探测（关键：两栈共用 workspace 根，但 PostgreSQL 各自独立）：
+**库隔离（同日二次修正）**：此前两栈挂载同一个 workspace 根，导致
+「数据库隔离、文件不隔离」。已改为每栈私有根，详见
+[`docs/02-design/multi-kb.md`](../02-design/multi-kb.md) §7。
 
 ```text
-6200: coffee available=true   ai-history available=false
-6202: ai-history available=true  coffee available=false
-冷探测 55ms；缓存命中 10–14ms
+6200 /api/kb?verify=true -> active=coffee      kbs=[('coffee', True)]
+6202 /api/kb?verify=true -> active=ai-history  kbs=[('ai-history', True)]
+6200 ask(kb="ai-history") -> HTTP 404 "Knowledge base 'ai-history' not found"
+softwiki-api-1: ls /data/workspaces/ai-history -> No such file or directory
+6108 /wikiweb/ai-history/index.html -> 404
 ```
 
-UI（headless Chrome）：库选择器正确显示 2 项并把不可用的那个置灰，
-提示「1 kb not served by this instance」；`pageErrors=[]`。
+挂载现状：
+
+```text
+softwiki-api-1     workspace/stacks/coffee -> /data/workspaces
+                   workspace/config        -> /data/workspaces/config
+                   workspace/.softwiki-audit -> /data/workspaces/.softwiki-audit
+softwiki-ai-api-1  workspace/stacks/ai     -> /data/workspaces
+                   （config / audit 同样共享）
+```
+
+数据完整：coffee 185 docs / 6,686 claims；ai-history 160 docs / 9,514 claims。
 
 LLM-Wiki 页面：
 
@@ -263,13 +276,16 @@ LLM-Wiki 页面：
 抽检 Arabica 266/266 claims / 11 页，Australia 34/34 / 2 页，无静默丢弃
 ```
 
+UI（headless Chrome）：库选择器只列本栈的库（各 1 项），无「不可用」提示，
+`pageErrors=[]`。
+
 数据库清理：删除空残留库 `softwiki_ai`（`public` schema 0 张表、无对应目录）。
 
-**扩容实测**：ai 栈 `mkdir workspace/probe-kb` + `CREATE DATABASE softwiki_probe_kb`
-→ `/api/kb?verify=true` 立刻 `available=true` → 验证后删除目录与库。
+**扩容实测**：ai 栈在库根下新建目录 + `CREATE DATABASE softwiki_<kb>` →
+`/api/kb?verify=true` 立刻可见并 `available=true`（验证后已删除）。
 
-> 结论：**每个栈都能独立加库，无需改代码**；跨栈（6200 问 ai-history）仍不行，
-> 因为库在另一个 PostgreSQL。
+> 结论：**每个栈独立服务自己的库集**，加库不需要改代码；跨栈不可达（文件与
+> 数据库都不可达），这是刻意的隔离边界。
 
 ### 线上已知故障（2026-11-20，非本次改动）
 
