@@ -33,29 +33,32 @@ def test_user_mode_output_routing():
 
 def test_user_mode_write_restrictions():
     client = TestClient(app)
-    
+
+    # Roles are no longer self-declared by the caller (docs/02-design/auth-oidc.md):
+    # a higher role asks for a lower one through an explicit downgrade header.
     # 1. Test study mode restrictions
     os.environ["SOFTWIKI_MODE"] = "wiki-study"
+    study = {"X-SoftWiki-Downgrade": "wiki-study"}
     try:
-        response = client.post("/api/ingest/url", json={"url": "https://example.com", "source_id": "test"})
+        response = client.post("/api/ingest/url", json={"url": "https://example.com", "source_id": "test"}, headers=study)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
         
         import io
         dummy_file = io.BytesIO(b"dummy pdf content")
-        response = client.post("/api/ingest/file", files={"file": ("dummy.pdf", dummy_file, "application/pdf")})
+        response = client.post("/api/ingest/file", files={"file": ("dummy.pdf", dummy_file, "application/pdf")}, headers=study)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
         
-        response = client.post("/api/index")
+        response = client.post("/api/index", headers=study)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
         
-        response = client.delete("/api/documents/123")
+        response = client.delete("/api/documents/123", headers=study)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
 
-        response = client.post("/api/wiki/build", json={"topic": "test-topic"})
+        response = client.post("/api/wiki/build", json={"topic": "test-topic"}, headers=study)
         assert response.status_code == 403
         assert "disabled in study mode" in response.json()["detail"]
         
@@ -65,12 +68,13 @@ def test_user_mode_write_restrictions():
 
     # 2. Test work mode restrictions (allows wiki building, blocks others)
     os.environ["SOFTWIKI_MODE"] = "wiki-work"
+    work = {"X-SoftWiki-Downgrade": "wiki-work"}
     try:
-        response = client.post("/api/ingest/url", json={"url": "https://example.com", "source_id": "test"})
+        response = client.post("/api/ingest/url", json={"url": "https://example.com", "source_id": "test"}, headers=work)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
         
-        response = client.post("/api/index")
+        response = client.post("/api/index", headers=work)
         assert response.status_code == 403
         assert "disabled in study/work modes" in response.json()["detail"]
         

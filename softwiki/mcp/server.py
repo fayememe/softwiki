@@ -35,8 +35,14 @@ from softwiki.rag.bm25_store import Bm25Store
 from softwiki.rag.hybrid_search import HybridSearcher
 from softwiki.wiki.page_generator import WikiPageGenerator
 from softwiki.permissions import can, current_role
+from softwiki import audit
 
 mcp = FastMCP("softwiki")
+
+
+def _audit_mcp(action: str, *, target=None, result: str = "ok", detail: str = None) -> None:
+    """Record an MCP write in the shared audit log."""
+    audit.record(action, target=target, result=result, detail=detail)
 
 @mcp.tool()
 def status() -> str:
@@ -71,9 +77,12 @@ def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
     """
     if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user", "wiki-research"]:
         return f"Error: Write operations (ingest) are disabled in {os.getenv('SOFTWIKI_MODE')} mode."
+    if not can("ingest.write"):
+        return f"Error: role '{current_role()}' cannot ingest."
     if not url and not file:
         return "Error: You must provide either 'url' or 'file'."
-        
+    _audit_mcp("mcp.ingest", target={"url": url, "file": file, "source_id": source_id})
+
     db = SessionLocal()
     try:
         source_meta = {}
@@ -198,6 +207,9 @@ def index() -> str:
     """Rebuild vector and keyword search indexes for all documents in the active workspace."""
     if os.getenv("SOFTWIKI_MODE") in ["study", "work", "user", "wiki-study", "wiki-work", "wiki-user", "wiki-research"]:
         return f"Error: Write operations (index) are disabled in {os.getenv('SOFTWIKI_MODE')} mode."
+    if not can("index.write"):
+        return f"Error: role '{current_role()}' cannot rebuild the index."
+    _audit_mcp("mcp.index")
     db = SessionLocal()
     try:
         documents = DocumentRepository.get_all_documents(db)
@@ -298,6 +310,7 @@ def wiki_build(topic: str) -> str:
     """
     if not can("wiki.build"):
         return f"Error: role '{current_role()}' cannot build wiki pages."
+    _audit_mcp("mcp.wiki_build", target={"topic": topic})
     db = SessionLocal()
     try:
         generator = WikiPageGenerator()
@@ -902,6 +915,7 @@ def workspace_set(name: str) -> str:
     """
     if not can("system.admin"):
         return f"Error: role '{current_role()}' cannot switch workspaces."
+    _audit_mcp("mcp.workspace_set", target={"workspace": name})
     from softwiki.kb.context import resolve_kb_dir
     from softwiki.config import get_workspaces_root
     ws_path = resolve_kb_dir(name, get_workspaces_root())
@@ -940,6 +954,7 @@ def modules_set(enabled: str, scope: str = "global") -> str:
     """
     if not can("system.admin"):
         return f"Error: role '{current_role()}' cannot change modules."
+    _audit_mcp("mcp.modules_set", target={"enabled": enabled, "scope": scope})
     from softwiki.config import set_enabled_modules, set_workspace_modules
     valid = {"rag", "graph", "claimdb", "timeline", "llmwiki"}
     modules = [m.strip().lower() for m in enabled.split(",") if m.strip().lower() in valid]

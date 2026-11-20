@@ -1,5 +1,6 @@
 import os
 import shutil
+from contextlib import contextmanager
 from datetime import datetime
 from softwiki.config import get_workspace_dir
 from softwiki.source_store.db import Base, get_engine, SessionLocal
@@ -20,6 +21,22 @@ from softwiki.mcp.server import (
     softwiki_claim_query,
     softwiki_wiki_read,
 )
+
+@contextmanager
+def _admin_role():
+    """MCP write tools check the effective role, not just env flags.
+
+    Tool calls made outside a request carry no role; pin one explicitly so the
+    test exercises the write path rather than the permission guard.
+    """
+    from softwiki.permissions import reset_role, set_role
+
+    token = set_role("wiki-admin")
+    try:
+        yield
+    finally:
+        reset_role(token)
+
 
 def test_mcp_tools():
     temp_ws = "data/test_mcp_tools_ws"
@@ -65,7 +82,8 @@ def test_mcp_tools():
         assert "Documents Count: 1" in status_text
         
         # 3. Test indexing via MCP tool
-        index_res = softwiki_index()
+        with _admin_role():
+            index_res = softwiki_index()
         assert "Successfully rebuilt index" in index_res
         
         # 4. Test searching via MCP tool
@@ -85,7 +103,8 @@ topics:
     synonyms: ["interfaces", "database"]
 """)
             
-        wiki_res = softwiki_wiki_build("integration")
+        with _admin_role():
+            wiki_res = softwiki_wiki_build("integration")
         assert "Wiki page successfully compiled" in wiki_res
 
         # 6. Test web search via MCP tool
@@ -295,7 +314,8 @@ def test_ingest_immediately_searchable():
         db.close()
 
         # Manually trigger chunking + indexing (simulating what ingest() now does)
-        softwiki_index()
+        with _admin_role():
+            softwiki_index()
 
         # Now retrieve should find the document without any extra steps
         result = softwiki_retrieve("AT Field Absolute Terror soul", top_k=3)
@@ -362,7 +382,8 @@ def test_retrieve():
     temp_ws = "data/test_phase1_retrieve_ws"
     try:
         _setup_phase1_workspace(temp_ws)
-        softwiki_index()
+        with _admin_role():
+            softwiki_index()
 
         result = softwiki_retrieve("NERV Evangelion Instrumentality", top_k=5)
         assert "chunk_id=" in result

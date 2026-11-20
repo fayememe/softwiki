@@ -9,6 +9,7 @@ __pycache__/
 # Runtime
 .softwiki_runtime/
 output/
+data/
 
 # Workspace (user data)
 workspace/

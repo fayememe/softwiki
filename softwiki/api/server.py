@@ -38,7 +38,37 @@ from softwiki.knowledge.conflicts import list_conflicts, scan_conflicts, adjudic
 from softwiki.knowledge.wiki_queue import enqueue_stale_wiki, pending_count
 from softwiki.knowledge.nli import judge_candidates
 from softwiki.knowledge.cleanup import delete_document_knowledge
-from softwiki.permissions import can, current_role, normalize_role, role_capabilities, set_role, reset_role
+from softwiki.permissions import (
+    ROLE_ORDER,
+    SENSITIVE_CAPABILITIES,
+    can,
+    current_role,
+    granted_role,
+    is_sensitive,
+    normalize_role,
+    reset_downgrade,
+    reset_role,
+    role_capabilities,
+    role_level,
+    set_downgrade,
+    set_role,
+)
+from softwiki import audit
+from softwiki.identity import (
+    IdentityDenied,
+    RequestIdentity,
+    UserStore,
+    auth_mode,
+    check_reauth,
+    close_superuser,
+    current_identity,
+    is_local_address,
+    open_superuser,
+    reset_context,
+    set_context,
+    superuser_session,
+)
+from softwiki.identity.superuser import SuperuserDenied
 from softwiki.extraction.processor import run_extraction_pipeline
 from softwiki.rag.chunker import build_document_chunks
 from softwiki.rag.embedder import WikiEmbedder
@@ -84,7 +114,6 @@ def require_capability(capability: str):
             ),
         )
 
-
 def check_read_only():
     # Backward-compatible alias: callers should prefer require_capability().
     if not can("ingest.write") and not can("index.write") and not can("wiki.apply"):
@@ -99,31 +128,132 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_AUTH_EXEMPT = {"/api/login", "/api/health", "/health", "/docs", "/openapi.json", "/redoc"}
+_AUTH_EXEMPT = {
+    "/api/login",
+    "/api/health",
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/api/auth/providers",
+    "/api/auth/login",
+    "/api/auth/me",
+    "/api/auth/superuser",
+    "/api/kb",
+    "/api/kb/templates",
+}
+
+#: Read-only paths never enter the audit log (docs/02-design/auth-oidc.md §7).
+_READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def _client_ip(request: Request) -> Optional[str]:
+    """Peer address of the connection.
+
+    Deliberately *not* ``X-Forwarded-For``: that header is client-controlled,
+    and "what counts as local" is a security decision, not a convenience.
+    """
+    return request.client.host if request.client else None
+
+
+def _identity_for_request(request: Request) -> RequestIdentity:
+    """Resolve who is calling, per ``SOFTWIKI_AUTH_MODE``."""
+    peer = _client_ip(request)
+    mode = auth_mode()
+
+    if mode == "off":
+        # No identity system: the machine is the superuser. Still give it a row
+        # so that kb_scope / override / audit have a concrete owner.
+        store = UserStore()
+        try:
+            user = store.ensure_superuser_row()
+            authz = store.authorize_user(user)
+        except Exception as exc:  # noqa: BLE001 - a broken table must not lock the operator out
+            print(f"[auth] falling back to implicit superuser: {exc}", flush=True)
+            return RequestIdentity(source_ip=peer, superuser=True)
+        return RequestIdentity(authorization=authz, source_ip=peer, superuser=True)
+
+    # local / oidc: the identity must have been established by the auth routes.
+    session = superuser_session()
+    if session is not None:
+        store = UserStore()
+        try:
+            authz = store.authorize_user(store.ensure_superuser_row())
+        except Exception as exc:  # noqa: BLE001
+            print(f"[auth] superuser row unavailable: {exc}", flush=True)
+            return RequestIdentity(source_ip=peer, superuser=True)
+        return RequestIdentity(authorization=authz, source_ip=peer, superuser=True)
+
+    established = _identity_from_cookie(request)
+    if established is not None:
+        return established
+
+    return RequestIdentity(source_ip=peer)
+
+
+def _downgrade_from_request(request: Request) -> Optional[str]:
+    return request.headers.get("X-SoftWiki-Downgrade") or request.cookies.get(
+        "softwiki_downgrade"
+    )
 
 
 @app.middleware("http")
 async def role_middleware(request: Request, call_next):
-    # Trust-based role selection for the single-window team trial.
-    # Header wins; otherwise cookie; otherwise env/default.
-    role = (
-        request.headers.get("X-SoftWiki-Role")
-        or request.cookies.get("softwiki_role")
-        or os.getenv("SOFTWIKI_ROLE")
-        or os.getenv("SOFTWIKI_MODE")
-        or "wiki-admin"
-    )
-    role = normalize_role(role)
-    token = set_role(role)
-    request.state.role = role
+    """Attach identity, role and downgrade to the request."""
+    identity = _identity_for_request(request)
+    role_token = set_role(identity.role)
+    down_token = set_downgrade(_downgrade_from_request(request))
+    ctx_token = set_context(identity)
+    request.state.role = current_role()
+    request.state.granted_role = identity.role
+    request.state.identity = identity
+    request.state.source_ip = identity.source_ip
+
     try:
-        return await call_next(request)
+        response = await call_next(request)
+    except Exception:
+        audit.record(
+            f"{request.method} {request.url.path}",
+            result="error",
+            actor=identity.actor(),
+            source_ip=identity.source_ip,
+        )
+        raise
     finally:
-        reset_role(token)
+        reset_context(ctx_token)
+        reset_downgrade(down_token)
+        reset_role(role_token)
+
+    # Audit: write and sensitive operations only.
+    if request.method not in _READ_METHODS:
+        audit.record(
+            f"{request.method} {request.url.path}",
+            result="ok" if response.status_code < 400 else f"http-{response.status_code}",
+            actor=identity.actor(),
+            source_ip=identity.source_ip,
+        )
+    return response
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+    """Identity gate. Only enforced when not in single-machine mode."""
+    mode = auth_mode()
+    if mode != "off" and request.url.path not in _AUTH_EXEMPT:
+        identity = getattr(request.state, "identity", None)
+        if identity is None or not identity.authenticated:
+            return JSONResponse(
+                {"detail": "Authentication required", "mode": mode}, status_code=401
+            )
+        if identity.authorization and identity.authorization.pending:
+            return JSONResponse(
+                {
+                    "detail": "Account pending administrator approval",
+                    "identity": identity.identity,
+                },
+                status_code=403,
+            )
+
     if not auth_enabled():
         return await call_next(request)
     if request.url.path in _AUTH_EXEMPT:
@@ -164,6 +294,421 @@ async def auth_middleware(request: Request, call_next):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class ProviderLoginRequest(BaseModel):
+    """Sign in with an external identity.
+
+    ``claims`` is what a standard OIDC provider returned after the browser
+    round-trip; ``code`` is for non-standard flows (WeChat) where the backend
+    still has to exchange it.
+    """
+
+    provider: str
+    claims: Optional[Dict] = None
+    code: Optional[str] = None
+    redirect_uri: Optional[str] = None
+    state: Optional[str] = None
+    #: Passed through to non-standard adapters (WeChat). Until per-provider
+    #: secrets are stored, this is how an operator hooks one up.
+    app_id: Optional[str] = None
+    app_secret: Optional[str] = None
+
+
+class SuperuserOpenRequest(BaseModel):
+    ttl: Optional[str] = None
+    token: Optional[str] = None
+
+
+class ReauthRequest(BaseModel):
+    token: str
+
+
+class DowngradeRequest(BaseModel):
+    role: Optional[str] = None
+
+
+class UserPatch(BaseModel):
+    role_override: Optional[str] = None
+    kb_scope: Optional[object] = None
+    is_active: Optional[bool] = None
+
+
+class MappingPatch(BaseModel):
+    groups: Dict[str, List[str]]
+
+
+# -- identity: providers -------------------------------------------------
+
+
+@app.get("/api/auth/providers")
+def auth_providers():
+    from softwiki.identity import available_adapters
+
+    return {
+        "mode": auth_mode(),
+        "adapters": available_adapters(),
+        "superuser_token_configured": bool(os.getenv("SOFTWIKI_SUPERUSER_TOKEN", "").strip()),
+        "unknown_user_policy": UserStore().unknown_policy(),
+    }
+
+
+@app.post("/api/auth/login")
+def auth_login(req: ProviderLoginRequest, request: Request):
+    """Establish a session from an external identity."""
+    from softwiki.identity import ExternalIdentity, get_adapter
+
+    if auth_mode() == "off":
+        raise HTTPException(
+            status_code=400,
+            detail="Single-machine mode has no identity providers; use /api/auth/superuser",
+        )
+    try:
+        adapter = get_adapter(req.provider)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    issuer_name = f"{req.provider}:{os.getenv('SOFTWIKI_ISSUER_LABEL', req.provider)}"
+    try:
+        if req.claims:
+            identity = adapter.identity_from_claims(issuer_name, req.claims)
+        elif req.code:
+            identity = adapter.fetch_identity(issuer_name, req.code, redirect_uri=req.redirect_uri)
+        else:
+            raise HTTPException(
+                status_code=400, detail="provide either claims (OIDC) or code (WeChat)"
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    store = UserStore()
+    try:
+        authz = store.authorize(identity)
+    except IdentityDenied as exc:
+        audit.record(
+            "auth.login", result="denied", detail=str(exc), source_ip=_client_ip(request)
+        )
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    request.state.identity = RequestIdentity(
+        authorization=authz, source_ip=_client_ip(request), authenticated=True
+    )
+    audit.record(
+        "auth.login",
+        result="ok",
+        actor={
+            "mode": auth_mode(),
+            "identity": authz.identity,
+            "role": authz.granted_role,
+            "source_ip": _client_ip(request),
+        },
+        detail=f"pending={authz.pending}",
+    )
+
+    response = JSONResponse(
+        {
+            "identity": authz.identity,
+            "role": authz.granted_role,
+            "pending": authz.pending,
+            "kb_scope": authz.kb_scope,
+        }
+    )
+    response.set_cookie(
+        "softwiki_identity",
+        json.dumps({"issuer": identity.issuer, "subject": identity.subject}),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+def _identity_from_cookie(request: Request) -> Optional[RequestIdentity]:
+    """Rebuild a caller's identity from the session cookie.
+
+    The cookie only carries ``(issuer, subject)`` — the *who*. Role and
+    ``kb_scope`` are recomputed from the local tables on every request, so an
+    admin's edits take effect without anyone signing in again.
+    """
+    raw = request.cookies.get("softwiki_identity")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        store = UserStore()
+        user = store.find(str(data["issuer"]), str(data["subject"]))
+        if user is None:
+            return None
+        return RequestIdentity(
+            authorization=store.authorize_user(user),
+            source_ip=_client_ip(request),
+            authenticated=True,
+        )
+    except (ValueError, KeyError, IdentityDenied) as exc:
+        print(f"[auth] ignoring bad identity cookie: {exc}", flush=True)
+        return None
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    """Who am I, and what may I do here?"""
+    identity = getattr(request.state, "identity", None)
+    if identity is None:
+        return {"authenticated": False, "mode": auth_mode()}
+    return {
+        "authenticated": identity.authenticated,
+        "mode": auth_mode(),
+        "identity": identity.identity,
+        "superuser": identity.superuser,
+        "granted_role": identity.role,
+        "effective_role": current_role(),
+        "kb_scope": identity.kb_scope,
+        "pending": bool(identity.authorization and identity.authorization.pending),
+    }
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    audit.record("auth.logout", result="ok", source_ip=_client_ip(request))
+    response = JSONResponse({"status": "ok"})
+    response.delete_cookie("softwiki_identity")
+    response.delete_cookie("softwiki_downgrade")
+    return response
+
+
+# -- identity: superuser escape hatch ------------------------------------
+
+
+@app.get("/api/auth/superuser")
+def superuser_status(request: Request):
+    session = superuser_session()
+    peer = _client_ip(request)
+    return {
+        "mode": auth_mode(),
+        "session": session.describe() if session else None,
+        "local": is_local_address(peer),
+        "source_ip": peer,
+    }
+
+
+@app.post("/api/auth/superuser")
+def superuser_open(req: SuperuserOpenRequest, request: Request):
+    peer = _client_ip(request)
+    try:
+        session = open_superuser(source_ip=peer, ttl=req.ttl, token=req.token)
+    except SuperuserDenied as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid ttl: {exc}") from exc
+    return {"status": "ok", "session": session.describe()}
+
+
+@app.delete("/api/auth/superuser")
+def superuser_close(request: Request):
+    close_superuser(source_ip=_client_ip(request))
+    return {"status": "ok"}
+
+
+# -- identity: downgrade --------------------------------------------------
+
+
+@app.get("/api/auth/downgrade")
+def downgrade_status():
+    from softwiki.permissions import downgrade_role, granted_role
+
+    return {
+        "granted_role": granted_role(),
+        "effective_role": current_role(),
+        "downgrade": downgrade_role(),
+    }
+
+
+@app.post("/api/auth/downgrade")
+def downgrade_set(req: DowngradeRequest, request: Request):
+    """Work as a lower role.
+
+    Two refusals matter here:
+
+    * asking for a role **above the granted one** is escalation — always 403;
+    * while already downgraded, asking for a role above the *effective* one is
+      also refused, because a downgraded session must not undo its own
+      constraint. Clear the downgrade by posting the granted role through
+      ``/api/auth/downgrade/clear``.
+    """
+    from softwiki.permissions import ROLE_ORDER, role_level
+
+    identity = getattr(request.state, "identity", None)
+    granted = identity.role if identity else current_role()
+    target = normalize_role(req.role) if req.role else granted
+    effective = current_role()
+
+    if role_level(target) > role_level(granted):
+        raise HTTPException(
+            status_code=403,
+            detail=f"role '{target}' is above granted role '{granted}'",
+        )
+    if role_level(target) > role_level(effective):
+        raise HTTPException(
+            status_code=403,
+            detail=f"role '{target}' is above the current effective role '{effective}'; clear the downgrade first",
+        )
+
+    audit.record(
+        "auth.downgrade",
+        result="ok",
+        detail=f"{granted} -> {target}",
+        actor=getattr(request.state, "identity", None).actor()
+        if getattr(request.state, "identity", None)
+        else None,
+        source_ip=_client_ip(request),
+    )
+    response = JSONResponse({"granted_role": granted, "effective_role": target})
+    if target == granted:
+        response.delete_cookie("softwiki_downgrade")
+    else:
+        response.set_cookie("softwiki_downgrade", target, httponly=False, samesite="lax")
+    return response
+
+
+@app.delete("/api/auth/downgrade")
+def downgrade_clear(request: Request):
+    """Return to the granted role."""
+    identity = getattr(request.state, "identity", None)
+    granted = identity.role if identity else current_role()
+    audit.record(
+        "auth.downgrade.clear",
+        result="ok",
+        detail=f"back to {granted}",
+        source_ip=_client_ip(request),
+    )
+    response = JSONResponse({"granted_role": granted, "effective_role": granted})
+    response.delete_cookie("softwiki_downgrade")
+    return response
+
+
+# -- identity: admin ------------------------------------------------------
+
+
+def _require_admin(request: Request) -> None:
+    """Admin surfaces follow the *effective* role: a downgraded admin is locked out.
+
+    That is the point of downgrading — working as study means study everywhere.
+    """
+    if not can("permissions.write"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role '{current_role()}' cannot manage identities",
+        )
+
+
+def _reauth_guard(request: Request, token: Optional[str], action: str, capability: str) -> None:
+    """Sensitive actions need a fresh re-authentication, even for admins."""
+    identity = getattr(request.state, "identity", None)
+    name = identity.identity if identity else "anonymous"
+    if not check_reauth(name, token):
+        audit.record(
+            action,
+            result="denied",
+            detail="re-authentication required",
+            capability=capability,
+            source_ip=_client_ip(request),
+        )
+        raise HTTPException(status_code=403, detail="re-authentication required")
+
+
+@app.post("/api/auth/reauth")
+def reauth(req: ReauthRequest, request: Request):
+    from softwiki.identity import superuser as su
+
+    identity = getattr(request.state, "identity", None)
+    name = identity.identity if identity else "anonymous"
+    expected = su.reauth_token()
+    if expected and not su.check_reauth(name, req.token):
+        audit.record("auth.reauth", result="denied", source_ip=_client_ip(request))
+        raise HTTPException(status_code=403, detail="invalid re-authentication token")
+    su.mark_reauth(name)
+    audit.record("auth.reauth", result="ok", source_ip=_client_ip(request))
+    return {"status": "ok", "ttl_seconds": su.REAUTH_TTL_SECONDS}
+
+
+@app.get("/api/admin/users")
+def admin_users(request: Request):
+    _require_admin(request)
+    from softwiki.kb.registry import list_kb_infos
+
+    all_kbs = [kb.name for kb in list_kb_infos(get_workspaces_root())]
+    store = UserStore()
+    rows = []
+    for user in store.load():
+        role, pending = store.role_for(user)
+        from softwiki.identity.users import visible_kbs
+
+        visible = visible_kbs(user.kb_scope, all_kbs)
+        rows.append(
+            {
+                **user.to_dict(),
+                "resolved_role": role,
+                "pending": pending,
+                "visible_kbs": visible,
+                # A typo in kb_scope must not be fatal, but it must be visible.
+                "kb_scope_empty": bool(all_kbs) and not visible,
+            }
+        )
+    return {"users": rows, "all_kbs": all_kbs, "unknown_user_policy": store.unknown_policy()}
+
+
+@app.patch("/api/admin/users/{issuer}/{subject}")
+def admin_patch_user(
+    issuer: str, subject: str, patch: UserPatch, request: Request, reauth_token: Optional[str] = None
+):
+    _require_admin(request)
+    _reauth_guard(request, reauth_token, "admin.user.update", "permissions.write")
+    changes = {k: v for k, v in patch.dict().items() if v is not None}
+    if not changes:
+        raise HTTPException(status_code=400, detail="nothing to change")
+    if "role_override" in changes and changes["role_override"] not in ROLE_ORDER:
+        raise HTTPException(status_code=400, detail="unknown role")
+    try:
+        user = UserStore().update(issuer, subject, **changes)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    audit.record(
+        "admin.user.update",
+        target=f"{issuer}:{subject}",
+        result="ok",
+        detail=json.dumps(changes, ensure_ascii=False, default=str),
+        source_ip=_client_ip(request),
+    )
+    return user.to_dict()
+
+
+@app.get("/api/admin/mapping")
+def admin_mapping(request: Request):
+    _require_admin(request)
+    store = UserStore()
+    return {"groups": store.mapping(), "unknown_user_policy": store.unknown_policy()}
+
+
+@app.put("/api/admin/mapping")
+def admin_put_mapping(
+    patch: MappingPatch, request: Request, reauth_token: Optional[str] = None
+):
+    _require_admin(request)
+    _reauth_guard(request, reauth_token, "admin.mapping.update", "permissions.write")
+    store = UserStore()
+    store.save_mapping(patch.groups)
+    audit.record(
+        "admin.mapping.update",
+        result="ok",
+        detail=json.dumps(patch.groups, ensure_ascii=False),
+        source_ip=_client_ip(request),
+    )
+    return {"groups": store.mapping()}
+
+
+@app.get("/api/admin/audit")
+def admin_audit(request: Request, limit: int = 100):
+    _require_admin(request)
+    return {"records": audit.read_recent(limit=max(1, min(limit, 1000)))}
 
 
 @app.on_event("startup")
@@ -1819,6 +2364,152 @@ def list_graph():
     finally:
         db.close()
 
+
+@app.get("/api/graph/overview")
+def graph_overview(limit: int = 60):
+    """A small graph worth drawing.
+
+    The full graph is too large to lay out in a browser (thousands of nodes and
+    edges), so the panel starts from a handful of the best-connected entities
+    and expands on demand through ``/api/graph/subgraph``.
+    """
+    from sqlalchemy import func
+
+    db = SessionLocal()
+    try:
+        limit = max(5, min(limit, 300))
+        degree = (
+            db.query(Relationship.source_name.label("name"), func.count().label("n"))
+            .filter(Relationship.status == "active")
+            .group_by(Relationship.source_name)
+            .all()
+        )
+        degree += (
+            db.query(Relationship.target_name.label("name"), func.count().label("n"))
+            .filter(Relationship.status == "active")
+            .group_by(Relationship.target_name)
+            .all()
+        )
+        totals: Dict[str, int] = {}
+        for name, count in degree:
+            totals[name] = totals.get(name, 0) + count
+
+        top = sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+        seed_names = {name for name, _ in top}
+
+        entities = (
+            db.query(Entity).filter(Entity.name.in_(seed_names)).all() if seed_names else []
+        )
+        by_name = {ent.name: ent for ent in entities}
+
+        relationships = []
+        if seed_names:
+            relationships = (
+                db.query(Relationship)
+                .filter(Relationship.status == "active")
+                .filter(
+                    Relationship.source_name.in_(seed_names)
+                    | Relationship.target_name.in_(seed_names)
+                )
+                .limit(limit * 20)
+                .all()
+            )
+        return {
+            "entities": [
+                {
+                    "id": ent.id,
+                    "name": ent.name,
+                    "type": ent.type,
+                    "description": ent.description,
+                    "degree": totals.get(ent.name, 0),
+                }
+                for ent in entities
+            ],
+            "relationships": [_rel_payload(rel) for rel in relationships],
+            "total_entities": db.query(Entity).count(),
+            "total_relationships": db.query(Relationship)
+            .filter(Relationship.status == "active")
+            .count(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+def _rel_payload(rel) -> dict:
+    return {
+        "id": rel.id,
+        "source_name": rel.source_name,
+        "target_name": rel.target_name,
+        "relation_type": rel.relation_type,
+        "description": rel.description,
+        "document_id": rel.document_id,
+        "confidence": rel.confidence,
+        "published_at": rel.published_at.strftime("%Y-%m-%d") if rel.published_at else "Unknown",
+    }
+
+
+@app.get("/api/graph/subgraph")
+def graph_subgraph(entity: str, depth: int = 1, limit: int = 80):
+    """Neighbourhood of one entity, for click-to-expand."""
+    db = SessionLocal()
+    try:
+        if not entity.strip():
+            raise HTTPException(status_code=400, detail="entity is required")
+        depth = max(1, min(depth, 2))
+        limit = max(5, min(limit, 400))
+
+        selected = {entity}
+        frontier = {entity}
+        relationships: Dict[int, object] = {}
+
+        for _ in range(depth):
+            if not frontier:
+                break
+            rows = (
+                db.query(Relationship)
+                .filter(Relationship.status == "active")
+                .filter(
+                    Relationship.source_name.in_(frontier)
+                    | Relationship.target_name.in_(frontier)
+                )
+                .limit(limit * 4)
+                .all()
+            )
+            next_frontier = set()
+            for rel in rows:
+                if len(relationships) >= limit * 2:
+                    break
+                relationships[rel.id] = rel
+                for side in (rel.source_name, rel.target_name):
+                    if side not in selected:
+                        next_frontier.add(side)
+            selected |= next_frontier
+            frontier = next_frontier
+
+        entities = db.query(Entity).filter(Entity.name.in_(selected)).all()
+        return {
+            "root": entity,
+            "entities": [
+                {
+                    "id": ent.id,
+                    "name": ent.name,
+                    "type": ent.type,
+                    "description": ent.description,
+                }
+                for ent in entities
+            ],
+            "relationships": [_rel_payload(rel) for rel in relationships.values()],
+            "truncated": len(relationships) >= limit * 2,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 @app.get("/api/modules")
 def list_modules():
     """Returns status of all modular subsystems."""
@@ -1850,14 +2541,145 @@ def get_workspaces():
 class WorkspaceSwitchRequest(BaseModel):
     workspace: str
 
+
+class KbCreateRequest(BaseModel):
+    name: str
+    template: str = "generic"
+    description: str = ""
+    language: Optional[str] = "zh"
+    dry_run: bool = True
+    reauth_token: Optional[str] = None
+
+
+@app.get("/api/kb/templates")
+def kb_templates():
+    from softwiki.kb.registry_state import BUILTIN_TEMPLATES, template_dir
+
+    return {
+        "templates": [
+            {"name": name, "has_files": template_dir(name) is not None}
+            for name in BUILTIN_TEMPLATES
+        ]
+    }
+
+
+@app.post("/api/kb/create")
+def kb_create(req: KbCreateRequest, request: Request):
+    """Knowledge base wizard: plan first, then create.
+
+    ``dry_run=True`` (the default) returns the plan without touching disk, so an
+    operator can review exactly which files would be written before committing.
+    """
+    from softwiki.kb.registry_state import create_kb, plan_create
+
+    require_capability("kb.create")
+    identity = current_identity()
+    created_by = identity.identity if identity else "superuser"
+
+    try:
+        plan = plan_create(
+            req.name,
+            template=req.template,
+            description=req.description,
+            language=req.language,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if req.dry_run:
+        return {"dry_run": True, "plan": plan.to_dict()}
+
+    _reauth_guard(request, req.reauth_token, "kb.create", "kb.create")
+    try:
+        result = create_kb(plan, created_by=created_by)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    audit.record(
+        "kb.create",
+        target={"kb": plan.name, "template": plan.template},
+        result="ok",
+        detail=json.dumps({"written": result["written"]}, ensure_ascii=False),
+        source_ip=_client_ip(request),
+    )
+    return {"dry_run": False, "plan": plan.to_dict(), "result": result}
+
+
+@app.get("/api/kb/registry")
+def kb_registry(request: Request):
+    """Every kb on disk with its registration state."""
+    from softwiki.kb.registry_state import KbRegistry
+
+    require_capability("read.*")
+    return {"kbs": KbRegistry().records()}
+
+
+@app.post("/api/kb/{name}/unregister")
+def kb_unregister(name: str, request: Request, reauth_token: Optional[str] = None):
+    """Unhook a kb from softwiki.
+
+    This is the inverse of kb creation, **not** a delete: the database, the raw
+    documents and the configuration all stay on disk, so registering the same
+    name again brings it back. Removing files is an operator concern.
+    """
+    from softwiki.kb.registry_state import KbRegistry
+
+    require_capability("kb.unregister")
+    _reauth_guard(request, reauth_token, "kb.unregister", "kb.unregister")
+    identity = current_identity()
+    record = KbRegistry().unregister(
+        name, unregistered_by=identity.identity if identity else "superuser"
+    )
+    audit.record(
+        "kb.unregister",
+        target={"kb": name},
+        result="ok",
+        detail="data on disk retained",
+        source_ip=_client_ip(request),
+    )
+    return {"name": name, **record.to_dict()}
+
+
+@app.post("/api/kb/{name}/register")
+def kb_register(name: str, request: Request, reauth_token: Optional[str] = None):
+    """Bring an unhooked kb back into softwiki."""
+    from softwiki.kb.registry_state import KbRegistry
+
+    require_capability("kb.create")
+    _reauth_guard(request, reauth_token, "kb.register", "kb.create")
+    identity = current_identity()
+    try:
+        record = KbRegistry().register(
+            name, created_by=identity.identity if identity else "superuser"
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    audit.record("kb.register", target={"kb": name}, result="ok", source_ip=_client_ip(request))
+    return {"name": name, **record.to_dict()}
+
 @app.get("/api/kb")
 def list_knowledge_bases():
-    """List knowledge bases with the topics each one covers (no database access)."""
+    """List knowledge bases with the topics each one covers (no database access).
+
+    Only kbs that are (a) registered and (b) inside the caller's ``kb_scope``
+    are listed, so an unregistered kb disappears for agents and users alike
+    while its data stays on disk.
+    """
     from softwiki.config import get_workspaces_root
     from softwiki.kb.context import current_kb_name
     from softwiki.kb.registry import list_kb_infos
+    from softwiki.kb.registry_state import KbRegistry
+    from softwiki.identity.users import visible_kbs
 
-    infos = list_kb_infos(get_workspaces_root())
+    root = get_workspaces_root()
+    registered = set(KbRegistry(root).registered_names())
+    identity = current_identity()
+    scope = identity.kb_scope if identity else "*"
+
+    infos = [info for info in list_kb_infos(root) if info.name in registered]
+    visible = set(visible_kbs(scope, [info.name for info in infos]))
+    infos = [info for info in infos if info.name in visible]
+
     active = current_kb_name() or os.path.basename(get_workspace_dir())
     return {
         "active": active,
