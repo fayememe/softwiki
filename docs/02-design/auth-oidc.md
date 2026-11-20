@@ -3,6 +3,8 @@
 > status: 🚧 讨论中（2026-11-19，待评审）
 > 定位：**我们不做用户系统，只做「可接入」**。身份由客户/学校/第三方提供，我们负责把外部身份映射成本地权限。
 > 本文取代 `roles-permissions.md` §6「安全边界」的旧描述（当前为客户端自报角色、可伪造）。
+>
+> **2026-11-19：主体设计已实现**，见 §12。剩余未决见 §11。
 
 ## 0. 一句话设计
 
@@ -161,6 +163,15 @@ users
 
 **定位**：审计日志是**系统日志**，**不随内容删除一起被删**。否则删掉文档后审计记录也消失，日志就废了。
 
+### 7.1 实现
+
+- `softwiki/audit.py`，append-only JSON Lines；
+- 位置 `<workspaces root>/.softwiki-audit/audit.log`，可用 `SOFTWIKI_AUDIT_LOG` 覆盖；
+- API：`role_middleware` 统一记录所有非 GET/HEAD/OPTIONS 请求（异常也记 `result=error`）；
+- MCP：`ingest` / `index` / `wiki_build` / `workspace_set` / `modules_set` 显式记录；
+- 写失败只记 error log，不影响被审计的操作本身；
+- 读取：`GET /api/admin/audit`（管理面）。
+
 ## 8. 降级工作模式（原则）
 
 > **高等级用户可以使用低等级权限模式工作。**
@@ -172,6 +183,9 @@ users
 - 单机模式下同样适用：没有身份，也可以「以 `wiki-study` 只读操作」，这是防误操作手段，和身份无关。
 
 ## 9. 与现有代码的距离（现状核查）
+
+> **2026-11-19 更新：本节列出的缺陷已全部修复**，详见 §12 实现状态。
+> 保留原文作为改动前的证据。
 
 | 现状 | 位置 | 影响 |
 |---|---|---|
@@ -202,6 +216,36 @@ users
 ## 11. 未决
 
 - [ ] 微信登录定位：面向公众/校外入口，还是校内便利登录？（微信不提供组信息，权限只能人工绑定）
-- [ ] 旧 `auth_middleware` + `User/WorkspaceMember` 是复用还是替换
-- [ ] 管理员放行 `pending` 用户的具体界面形态
-- [ ] 审计日志存储：与业务库同库，还是独立文件/表
+- [ ] 旧 `auth_middleware` + `User/WorkspaceMember` 是复用还是替换（当前保留，`SOFTWIKI_AUTH_ENABLED` 仍可启用）
+- [ ] 多进程部署时超级用户会话与二次认证状态只在单进程内存中，需外部存储
+- [ ] OIDC 的 code 交换（标准授权码流程）尚未在应用内实现；`claims` 路径已可用
+
+## 12. 实现状态（2026-11-19）
+
+| 模块 | 文件 | 状态 |
+|---|---|---|
+| 权限 fail-closed / 降级 / KB scope | `softwiki/permissions.py` | ✅ |
+| 审计日志 | `softwiki/audit.py` | ✅ |
+| 身份源抽象 + OIDC / 微信 adapter | `softwiki/identity/{base,oidc,wechat}.py` | ✅ |
+| 超级用户窗口（仅本机、TTL、二次认证） | `softwiki/identity/superuser.py` | ✅ |
+| 本地用户表 / 组映射 / 三态 | `softwiki/identity/users.py` | ✅ |
+| API：`/api/auth/*`、`/api/admin/*` | `softwiki/api/server.py` | ✅ |
+| 知识库注册表 + 建库向导 | `softwiki/kb/registry_state.py`、`/api/kb/*` | ✅ |
+| WebUI 建库面板 | `web/components/KbWizardPanel.tsx` | ✅ |
+| 图谱子图 API | `/api/graph/overview`、`/api/graph/subgraph` | ✅ |
+| 图谱页重写（Canvas） | `web/components/GraphPanel.tsx` | ✅ |
+
+环境变量：
+
+| 变量 | 作用 |
+|---|---|
+| `SOFTWIKI_AUTH_MODE` | `off`（默认，单机即超级用户）/ `local` / `oidc` |
+| `SOFTWIKI_SUPERUSER_TOKEN` | 开启超级用户与二次认证用的 token；不配则远程不可开启 |
+| `SOFTWIKI_REAUTH_TOKEN` | 敏感操作二次认证 token，缺省回退到超级用户 token |
+| `SOFTWIKI_UNKNOWN_USER_POLICY` | `pending`（默认）/ `lowest` / `deny` |
+| `SOFTWIKI_AUDIT_LOG` | 审计日志路径，缺省 `<workspaces root>/.softwiki-audit/audit.log` |
+| `SOFTWIKI_DOWNGRADE_ROLE` | 进程级降级（请求级用 `X-SoftWiki-Downgrade` 或 cookie） |
+| `WECHAT_APP_ID` / `WECHAT_APP_SECRET` | 微信 adapter 凭据 |
+
+测试：`tests/test_identity.py`（37）、`tests/test_kb_wizard.py`（22）、`tests/test_graph_api.py`（5）；
+全量 `pytest tests -q` → **175 passed**。

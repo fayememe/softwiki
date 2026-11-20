@@ -18,8 +18,7 @@
 - **trial-host team trial（2026-11-02）**：`trial.example.internal`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，kb-alpha 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-trial.md`。
 - **trial-host 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 trial-host 出口封锁（见 `deployment-trial.md`「出口封锁实测」）。
 - **多 KB v0（2026-11-19）**：`docs/02-design/multi-kb.md`；一个 MCP 端口服务全部知识库。`kb_list` / `kb_describe`（零 DB）+ `ask`/`search` 的 `kb` 参数 + 请求级 workspace（ContextVar，不写 `os.environ`）+ `/api/kb`；描述三级回退 `meta.yaml` → `scope.md` → `topics.yaml`；engine 按 DB URL 缓存并限 32；auth 关闭时 `/api/workspace`、`/wiki/switch` 返回 403。**本机 Docker 已验证**（6300/6301/6308）：交替 4 次 + 并发 6 请求均不串库；MCP 调用后默认库未被污染；`/api/kb` 零 DB。**尚未部署到 trial-host。**
-- **本 session 已完成**：
-  - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
+- **本 session 已完成**：  - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
   - 落地 `docs/05-roadmap/trial-readiness.md`（10 步验收 + P0/P1 任务）；
   - 落地工作方式：`AGENTS.md`、`progress.md`、`opencode.json`、`docs/README.md` 交接段；
@@ -239,10 +238,10 @@
 
 ## 下一步（NEXT）
 
-0. **身份接入 / 权限（2026-11-19 设计完成，待评审，未开工）**：`docs/02-design/auth-oidc.md`。
-   已定：认证归外部、授权归本地；`(issuer, subject)` 联合唯一；本地用户表 + 组映射 + `kb_scope`（默认 `*` 通配）；不在组里默认 `pending`；超级用户默认关闭、仅本机、不信任 `X-Forwarded-For`、敏感操作二次认证；卸载库=脱钩；审计日志；降级模式 `min(固有, 会话)`；先做 OIDC + 微信两个 adapter。
-   **评审通过后的落地顺序**：审计日志 → 超级用户开关/仅本机/二次认证 → 卸载库（脱钩）→ OIDC + 用户表 + 映射 + 三态 + 管理页 → 降级模式。
-0.0 **必修的安全缺陷**（`auth-oidc.md` §9）：`api/server.py:106-122` 角色中间件默认回退 `wiki-admin`；`permissions.py:55-60` `normalize_role()` 未知角色回退 `wiki-admin`；`permissions.py:82-83` 空 `except`。合起来 = 角色写错就拿到最高权限，必须改 fail-closed。
+0. **身份接入 / 权限（2026-11-19 已实现）**：`docs/02-design/auth-oidc.md`。
+   已落地：权限 fail-closed、审计日志、超级用户窗口（默认关闭/仅本机/TTL/二次认证）、OIDC + 微信 adapter、本地用户表 + 组映射 + 三态、`kb_scope` 过滤、降级工作模式、知识库注册表 + 建库向导、图谱子图 API 与页面重写。
+   全量测试 **175 passed**（基线 111）；`web` 构建通过。
+   **剩余**：管理面 UI（目前只有 `/api/admin/*`）、pending 用户放行界面、标准 OIDC 授权码流程（当前走 `claims` 路径）、超级用户状态多进程存储。
 0.05 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
 0.1 **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
 0.2 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
@@ -256,6 +255,21 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-19 身份接入 / 权限 / 图谱 / 建库向导**（一次端到端落地）：
+  - **权限 fail-closed**：`permissions.py` 未知角色回退 `wiki-study`（原回退 `wiki-admin`）；角色中间件不再读 `X-SoftWiki-Role`；`_load_policy` 的可疑输入改为 log + 明确降级。
+  - **降级工作模式**：有效角色 = `min(固有, 会话降级)`；请求级用 `X-SoftWiki-Downgrade` 或 `softwiki_downgrade` cookie；`/api/auth/downgrade` 只能降不能升，降级后 `require_capability`/管理面一并按有效角色判定。
+  - **审计**：`softwiki/audit.py`，JSONL 落 `<workspaces root>/.softwiki-audit/audit.log`（`SOFTWIKI_AUDIT_LOG` 可覆盖）；API 记录所有非 GET 请求（含异常），MCP 记录 ingest/index/wiki_build/workspace_set/modules_set；只读不记。
+  - **超级用户**：`identity/superuser.py`；`off` 模式即机器本人（有本地行 `local:machine:superuser`）；其他模式默认关闭、仅本机（看 `request.client.host`，**不看** `X-Forwarded-For`）、远程开启强制 TTL、敏感操作二次认证（`SOFTWIKI_REAUTH_TOKEN` 缺省回退 `SOFTWIKI_SUPERUSER_TOKEN`）。
+  - **身份源**：`identity/base.py` 统一 `(issuer, subject, 属性)`；`oidc.py` 解析 claims；`wechat.py` 走 code→token→userinfo（微信无组信息，只能 pending 后人工授权）。
+  - **本地用户表**：`<workspaces root>/config/users.yaml` + `identity.yaml`；角色**每次请求重算**（改映射不用重新登录）；`is_active=false` 优先于外部组；三态 `pending|lowest|deny` 默认 `pending`。
+  - **`kb_scope`**：默认 `*` 通配（新库自动可见）；typo 不阻断但 `/api/admin/users` 返回 `kb_scope_empty`。
+  - **知识库注册表**：`kb/registry_state.py` + `config/kbs.yaml`；目录存在但无记录视为已注册（老部署零迁移）；卸载=脱钩，数据保留，可重新注册。
+  - **建库向导**：`POST /api/kb/create`（`dry_run` 默认 true）+ `/api/kb/templates` + `/api/kb/registry`；模板 `generic`/`research-report`/`course-qa` 在仓库 `kb-templates/`；WebUI「新建库」面板（zh/en/ja）。
+  - **图谱**：新增 `/api/graph/overview`（按度数取 Top N）与 `/api/graph/subgraph`（1–2 跳）；前端重写为 Canvas + 分帧力导向 + 缩放/平移/拖拽/悬停高亮/双击展开。旧实现全图渲染 + `nodes.find` + 80 次 O(n²) 迭代是卡死根因。
+  - **测试**：新增 `tests/test_identity.py`(37)、`tests/test_kb_wizard.py`(22)、`tests/test_graph_api.py`(5)；`tests/test_mcp.py` 与 `test_user_mode.py` 改为显式角色/降级（原依赖客户端自报）。全量 **175 passed**；`npm run build` 通过。
+  - **易踩坑**：`tests/` 里若把 `WORKSPACES_ROOT` 指到临时目录，用户表会写进去；反之会污染仓库 `data/`（已加入 `.gitignore`，本次测试确实产生过 `data/config/users.yaml`）。
+  - **未做**：管理面 Web UI、pending 放行界面、标准 OIDC 授权码交换、多进程下超级用户状态存储；**卸载库按 operator 要求暂不做前端强调**（后端已实现且测试覆盖）。
 
 - **2026-11-17 trial-host 汉化核查**：
   - 中国侧在 trial-host 源码上加了前端 i18n：`web/lib/i18n`（zh/en/ja，默认 zh，311 keys，`localStorage` 持久化，缺 key 回退英文），新增 `LanguageSwitcher`，19 个组件/hook 接入 `useT()`，约 730 行；zh/ja key 与占位符均对齐。
