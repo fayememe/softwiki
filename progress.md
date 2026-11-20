@@ -283,6 +283,13 @@
   - **实测**：coffee 6108 与 ai 6109 均 `nodeDrag=true`、`pageErrors=[]`、`consoleErrors=[]`、无 error overlay；建库校验与预览正常。
   - 已重建 `softwiki-web:latest` 并 force-recreate 两个 web 容器。
 
+- **2026-11-20 Wiki Portal 404 修复 + 移除 SWAgent 入口**：
+  - `/wikiweb` 的路由只在 trial-host 上临时加过，从未进仓库，本次重建镜像后消失 → 404。
+  - `web/app/wikiweb/route.ts` 补回（307 到 index.html）；门户内容是生成产物（20MB），
+    不进 git，改为 compose 挂载 `${WIKIWEB_DIR:-./wikiweb}:/app/public/wikiweb:ro`。
+  - 实测 6108/6109 的 `/wikiweb`、`/wikiweb/{coffee,ai-history}/index.html`、`assets/wiki.css` 均 200。
+  - 侧栏 `SWAgent ↗` 与聊天页头 `Agent ↗` 两个外链入口已删；`Quick / SWAgent` 模式切换保留。
+
 - **2026-11-17 trial-host 汉化核查**：
   - 中国侧在 trial-host 源码上加了前端 i18n：`web/lib/i18n`（zh/en/ja，默认 zh，311 keys，`localStorage` 持久化，缺 key 回退英文），新增 `LanguageSwitcher`，19 个组件/hook 接入 `useT()`，约 730 行；zh/ja key 与占位符均对齐。
   - 已构建进 `softwiki-web:latest`（`41150a94b441`，11-16 11:08），coffee/ai 两个 Web 容器已运行，SSR 输出中文。

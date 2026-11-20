@@ -11,6 +11,10 @@ __pycache__/
 output/
 data/
 
+# Generated Wiki portal site (mounted into the web container at runtime).
+# Root-anchored so the /wikiweb route handler in web/app stays tracked.
+/wikiweb/
+
 # Workspace (user data)
 workspace/
 

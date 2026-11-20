@@ -401,15 +401,6 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                 ))}
               </select>
             )}
-            <a
-              className={styles.agentBtn}
-              href="/swagent"
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t('chat.openAgentTitle')}
-            >
-              {t('chat.agentLink')} ↗
-            </a>
             {engine === 'quick' && (
               <button
                 className={styles.reportBtn}

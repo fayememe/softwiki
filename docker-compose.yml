@@ -82,6 +82,11 @@ services:
       API_INTERNAL_URL: http://api:6200
     ports:
       - "${WEB_HOST_PORT:-6308}:6108"
+    volumes:
+      # Static Wiki portal (generated artifact, not committed). Mounted read-only
+      # into public/ so Next serves /wikiweb/* ; web/app/wikiweb/route.ts sends
+      # /wikiweb to its index.
+      - ${WIKIWEB_DIR:-./wikiweb}:/app/public/wikiweb:ro
     depends_on:
       api:
         condition: service_healthy

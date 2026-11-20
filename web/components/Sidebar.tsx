@@ -41,7 +41,7 @@ function HomeIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function ConflictsIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l9 16H3L12 3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
 function GraphIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>; }
 function TimelineIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>; }
-function AgentIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>; }
+
 function PortalIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>; }
 function KbIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>; }
 
@@ -167,17 +167,6 @@ export default function Sidebar({
         >
           <span className={styles.navIcon}><PortalIcon /></span>
           {!effectiveCollapsed && <span className={styles.navLabel}>{t("sidebar.wikiPortal")}</span>}
-          {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
-        </a>
-        <a
-          className={`${styles.navItem} ${styles.navLink}`}
-          href="/swagent"
-          target="_blank"
-          rel="noopener noreferrer"
-          title={t("sidebar.swagentTitle")}
-        >
-          <span className={styles.navIcon}><AgentIcon /></span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>SWAgent</span>}
           {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
         </a>
       </nav>

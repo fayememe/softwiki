@@ -223,6 +223,32 @@ ai-history:  documents 160 / chunks 5,497 / claims 9,526 / entities 9,232 / rela
   已确认记录的是**实际生效角色**（`wiki-admin`），不是环境变量里的 `wiki-study`。
 - 建库向导 dry-run 返回完整文件计划，未落盘。
 
+### 2026-11-20 修复：Wiki Portal 404 / 移除 SWAgent 入口
+
+**`/wikiweb` 404 的原因**：这个路由只在 trial-host 上被临时加过，从未进入本仓库。
+本次从仓库源码重建镜像后，路由和静态内容一起消失。
+
+**修法**：
+
+- 新增 `web/app/wikiweb/route.ts`：把 `/wikiweb` 307 到 `/wikiweb/index.html`。
+- 门户站点本身是**生成产物**（约 20MB、上千页），不进仓库；
+  改为运行时挂载：`${WIKIWEB_DIR:-./wikiweb}:/app/public/wikiweb:ro`。
+- `.gitignore` 增加 `wikiweb/`。
+
+验证：
+
+```text
+/wikiweb                    307 -> /wikiweb/index.html
+/wikiweb/index.html         200  1,253B
+/wikiweb/coffee/index.html  200 18,697B
+/wikiweb/ai-history/index.html 200 16,967B
+/wikiweb/assets/wiki.css    200 10,721B
+```
+
+**移除 SWAgent 入口**：侧栏底部的 `SWAgent ↗` 与聊天页头部的 `Agent ↗` 都已删除；
+聊天里 `Quick / SWAgent` 的模式切换保留（那是功能本身，不是入口）。
+`/swagent` 路由与 `swagent-*` systemd 服务仍在，是否退役另行决定。
+
 ### 上线后待测（未在本轮验证）
 
 - 浏览器里图谱页的交互（缩放/拖拽/双击展开）与不卡顿
