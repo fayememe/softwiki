@@ -10,7 +10,7 @@ graph TD
 | Category | Description |
 |----------|-------------|
 | [01-architecture](./01-architecture/overview.md) | System architecture, data flow, interface definitions |
-| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
+| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [wiki page granularity](./02-design/wiki-page-granularity.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
 | [03-operations](./03-operations/setup.md) | Setup, CLI, storage operations |
 | [04-guides](./04-guides/quickstart.md) | Quickstart, Shell/WebUI usage, workflows |
 | [05-roadmap](./05-roadmap/status.md) | Project status, phase planning; [agent-web plan](./05-roadmap/agent-web-plan.md) |
@@ -39,7 +39,8 @@ graph TD
 - **知识系统思想**：[`02-design/knowledge-system-philosophy.md`](./02-design/knowledge-system-philosophy.md)
 - **知识系统实现计划**：[`05-roadmap/knowledge-system-plan.md`](./05-roadmap/knowledge-system-plan.md)
 - **Chat UX 设计（参考 opencoco）**：[`02-design/chat-ux.md`](./02-design/chat-ux.md)（🚧 待评审；只借鉴其会话式 chat，业务流沿用现有实现）
-- **多 KB（v0 已落地）**：[`02-design/multi-kb.md`](./02-design/multi-kb.md)——一个 MCP 服务全部知识库；`ask`/`search` 带 `kb`，`kb_list`/`kb_describe` 供 agent 路由；`/api/kb`；auth 关闭时 `/api/workspace` 返回 403；engine 按库缓存。
+- **多 KB（v0 已部署 trial-host，2026-11-20）**：[`02-design/multi-kb.md`](./02-design/multi-kb.md)——一个 MCP 服务全部知识库；`ask`/`search` 带 `kb`，`kb_list`/`kb_describe` 供 agent 路由；`/api/kb`（`?verify=true` 探测本实例可用性）；auth 关闭时 `/api/workspace` 返回 403；engine 按库缓存。两栈共用 workspace 根但各有 PostgreSQL，故只能服务本栈建过库的那些。
+- **LLM-Wiki 页面粒度（2026-11-20）**：[`02-design/wiki-page-granularity.md`](./02-design/wiki-page-granularity.md)——一实体一页，固定 25 条上限，超限拆页不静默截断；`/api/wiki/pages*`；WebUI **LLM Wiki** 面板（搜索 / 类型筛选 / 分页 / `covered/total` 徽章）。
 - **身份接入 / 权限（✅ 已实现 2026-11-19）**：[`02-design/auth-oidc.md`](./02-design/auth-oidc.md)——不做用户系统，只做「可接入」；外部身份 `(issuer, subject)` → 本地用户表 → 组映射 → 角色 + `kb_scope`；超级用户默认关闭、仅本机；卸载库=脱钩；审计日志；降级工作模式。
 - **Knowledge v2 v0（2026-10-30）**：9,766 canonical claims / 10,573 evidence；Conflicts API/UI；Adjudication；AnswerEngine 冲突感知；12 页 Wiki 已用 canonical claims 重建（stale 0）；Graph 6,994/7,211、Timeline 599/639 挂 claim；Wiki rebuild worker + artifact history；structured claim + NLI judge（1 个真实冲突，2 claims disputed）；conflict filters/evidence；MMR；citation check；备份 `/tmp/kb_alpha_before_knowledge_v2.sql`。
 - **Session / 沙盒 / 审核计划**：[`05-roadmap/agent-session-sandbox-plan.md`](./05-roadmap/agent-session-sandbox-plan.md)

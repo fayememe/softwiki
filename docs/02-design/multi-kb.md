@@ -90,6 +90,49 @@ language: "zh"                    # 可选
 tags: ["ARM", "SoC"]              # 可选
 ```
 
+### 2.5 实例可用性探测（2026-11-20 追加）
+
+`kb_list` / `/api/kb` 按 D1 只读文件系统、不碰数据库。这对 agent 是对的，对 UI 不够：
+**目录存在不代表本实例能服务它**——trial-host 上两套 compose 共用同一个 workspace 根，
+但各有独立的 PostgreSQL，因此 `coffee` 栈看得见 `ai-history` 目录却连不上它的库，
+切过去直接 500。
+
+修法：
+
+```http
+GET /api/kb                  # 保持零 DB（D1）
+GET /api/kb?verify=true      # 每个库执行一次 SELECT 1，结果缓存
+```
+
+```json
+{
+  "active": "coffee",
+  "verified": true,
+  "kbs": [
+    {"name": "coffee", "available": true, "web_url": "http://localhost:6108"},
+    {"name": "ai-history", "available": false,
+     "unavailable_reason": "...database \"softwiki_ai_history\" does not exist"}
+  ]
+}
+```
+
+- 探测：`softwiki/kb/health.py`，超时 3s，缓存 15s（`SOFTWIKI_KB_PROBE_TTL` / `_TIMEOUT`）。
+- SQLite 额外校验文件是否存在——SQLite 会自动建空文件，`SELECT 1` 会假阳性。
+- `meta.yaml` 新增可选 `web_url`：该库 WebUI 的地址（端口不同栈不同）；缺省则列表可见但不可跳转。
+- WebUI 的库选择器改为**数据驱动**（原来写死 `coffee:6108 / ai-history:6109` 两张卡片），
+  不可用的库置灰并提示「N kb not served by this instance」。
+
+**在一个栈里新增知识库**（无需改代码）：
+
+```bash
+mkdir -p workspace/<new-kb>/{config,.softwiki}
+docker exec <stack>-postgres-1 psql -U softwiki -d postgres \
+  -c "CREATE DATABASE softwiki_<new_kb> OWNER softwiki"
+```
+
+`DATABASE_URL_TEMPLATE` 的 `{workspace}` 会自动拼出新库名，`/api/kb?verify=true` 立刻可见。
+2026-11-20 在 ai 栈实测通过（建 `probe-kb` → available=true → 删除）。
+
 ## 3. 决策记录
 
 | # | 决策 | 理由 |
@@ -100,6 +143,8 @@ tags: ["ARM", "SoC"]              # 可选
 | D4 | `set_workspace_dir` 保留但收口：请求路径不得调用；auth 关闭时 `/api/workspace` 返回 403 | 函数本身无错，错的是请求路径调用它 |
 | D5 | **v0 只做单库 ask**，跨库留 v1 | 跨库有引用编号碰撞与冲突裁决两个真问题 |
 | D6 | 缓存淘汰不实现，仅预留 `workspace_cache.max_loaded` 配置位 | 实测 10 库 ≈ 1GB，20 库场景不构成问题 |
+| D7 | `/api/kb` 默认零 DB，`?verify=true` 才探测 | agent 要零成本列表；UI 必须知道本实例能否服务该库，否则会给出切过去 500 的选项 |
+| D8 | 可用性探测带 TTL 缓存（15s）+ 3s 超时 | 每次开页面探测 N 个库会很慢；探测失败必须降级为"不可用"，不能让列表 500 |
 
 ### 不选 schema（C）的理由
 
@@ -147,3 +192,23 @@ C 的唯一优势是「同库内跨 schema JOIN」，但：
 - 规模统计（docs/claims 计数）需 `with_stats`，v0 未实现。
 - 缓存淘汰未实现，`workspace_cache.max_loaded` 仅预留。
 - 移植（`kb export` / `kb import`）不在 v0 范围；未来形态为「打包目录 + `pg_dump`」。
+
+## 7. trial-host 现状（2026-11-20）
+
+两套 compose 栈，**共用同一个 workspace 根**，但各有独立 PostgreSQL：
+
+| 栈 | Web | MCP | API | PostgreSQL 内的库 |
+|---|---|---|---|---|
+| coffee | 6108 | 6100 | 127.0.0.1:6200 | `softwiki_coffee` |
+| ai | 6109 | 6102 | 127.0.0.1:6202 | `softwiki_ai_history` |
+
+因此：
+
+- 两栈都能**看见**全部库目录（`/api/kb` 各返回 2 条）；
+- 但只能**服务**自己 PostgreSQL 里有库的那一个（`?verify=true` 正确标出另一个不可用）；
+- 每栈独立扩容：在任一栈内 `mkdir` + `CREATE DATABASE` 即可加库，已实测。
+
+跨栈提问（6200 问 ai-history）会失败，因为 D3 的隔离边界是「每库一个 database」，
+前提是**同一个 PostgreSQL 实例**。要让一个栈服务全部库，需合并两套 postgres
+（或让两个 postgres 互相可达），并同时处理 Hermes（一个 MCP 而非两个）与
+wikiweb（按库路径且不破坏 `kb_scope`）——独立决定，暂缓。

@@ -52,6 +52,25 @@ def get_workspaces_root() -> str:
         return os.path.abspath(root)
     return os.path.dirname(get_workspace_dir())
 
+def db_url_for_workspace(workspace_path: str) -> str:
+    """Derive the database URL for a given workspace path.
+
+    Same rules as `get_db_url()`, but for an explicit workspace instead of the
+    request-scoped one — needed to probe whether *another* kb's database exists
+    in this instance's PostgreSQL.
+    """
+    template = os.getenv("DATABASE_URL_TEMPLATE")
+    if template:
+        workspace = os.path.basename(os.path.abspath(workspace_path))
+        safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in workspace)
+        return template.replace("{workspace}", safe)
+    explicit = os.getenv("DATABASE_URL")
+    if explicit and not explicit.startswith("sqlite:///data/"):
+        return explicit
+    db_path = os.path.join(os.path.abspath(workspace_path), ".softwiki", "processed.db")
+    return f"sqlite:///{db_path}"
+
+
 def get_db_url() -> str:
     """Returns the database URL for the active workspace."""
     template = os.getenv("DATABASE_URL_TEMPLATE")

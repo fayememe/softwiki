@@ -41,6 +41,9 @@ class KbInfo:
     tags: List[str] = field(default_factory=list)
     has_index: bool = False
     modules: List[str] = field(default_factory=list)
+    # Where this kb's own WebUI is served, when it runs as a separate stack
+    # (e.g. "http://host:6109"). Absent means "not navigable from the UI".
+    web_url: Optional[str] = None
 
     @property
     def topic_count(self) -> int:
@@ -207,6 +210,7 @@ def load_kb(kb_path: str) -> KbInfo:
         tags=[str(t) for t in tags],
         has_index=has_index,
         modules=_load_modules(kb_path),
+        web_url=(str(meta["web_url"]).strip() if meta.get("web_url") else None),
     )
 
 

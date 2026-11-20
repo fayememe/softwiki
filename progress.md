@@ -102,6 +102,9 @@
 - [x] `X-SoftWiki-KB` 头选择库（MCP 中间件）
 - [x] 测试 `tests/test_multi_kb.py` 16 项；全量 **111 passed**
 - [x] 本机 Docker 部署验证（6300/6301/6308 四容器 healthy；跨库/并发/边界全部通过）
+- [x] `/api/kb?verify=true` 实例可用性探测（`softwiki/kb/health.py`，TTL 15s / 超时 3s）
+- [x] `meta.yaml` 可选 `web_url`；库选择器改为数据驱动（原为写死端口）
+- [x] trial-host 实测：加库 = `mkdir` + `CREATE DATABASE`，即时可见
 - [ ] WebUI 的 KB 选择器改为传 `kb`（目前仍是跨端口跳转）
 - [ ] 跨库叠加（v1）；`with_stats`；`meta.yaml` 建库模板
 
@@ -272,7 +275,12 @@
    **剩余**：管理面 UI（目前只有 `/api/admin/*`）、pending 用户放行界面、标准 OIDC 授权码流程（当前走 `claims` 路径）、超级用户状态多进程存储。
 0.3 **trial-host 端口暴露**：现在是 `off` 模式且公网可达，等价于任何人都是超级用户。认证上线前至少先锁访问控制，优先级高于所有新功能。
 0.35 **Wiki 静态门户生成器（未做）**：门户已按库放进 `workspace/<kb>/exports/wikiweb/` 并与 `kb_scope` 隔离，但仍是**静态快照**——Wiki 重建后不会更新。需要 `softwiki wiki site`：从 canonical claims + wiki 产物渲染 HTML（index / all / about / category / timeline / `search-index.json` / `assets`），可挂到已有 `wiki_rebuild_tasks` worker 之后。估 2–4 人天。
-0.4 **多 KB v0 本机已验收**（2026-11-19）：`docs/02-design/multi-kb.md`；本机 compose（6300/6301/6308）实测跨库、并发、边界均通过。**未部署 trial-host**。下一步待定：是否把 trial-host 的两个 MCP（6100/6102）合并为一个，需先验证 Hermes 配置。
+0.4 **多 KB v0 已部署 trial-host（2026-11-20）**：`docs/02-design/multi-kb.md`。
+   - 现状：两套 compose 栈**共用一个 workspace 根**，但各有独立 PostgreSQL；`/api/kb` 两边都能列出 2 个库。
+   - 已加 `/api/kb?verify=true`：探测本实例能否服务该库（缓存 15s、超时 3s），UI 把不可用的库置灰。
+   - 库选择器改为数据驱动（`meta.yaml: web_url`），不再写死 `coffee:6108 / ai-history:6109`。
+   - 实测：在 ai 栈 `mkdir` + `CREATE DATABASE` 新增 `probe-kb` → `available=true` → 已删除；另删除空残留库 `softwiki_ai`（0 表、无目录）。
+   - **仍不能跨栈提问**：6200 问 ai-history 会 500，因为库在另一个 postgres。要合并需同时处理 Hermes（一个 MCP）与 wikiweb（按库路径不破坏 kb_scope），暂时不动。
 0.5 **trial-host 语料已补齐**：coffee 185 篇、ai-history 160 篇，均已建索引并验证 `/api/ask`。后续可继续加来源或换更权威语料，但数量目标已达成。
 0.6 **SWAgent 已恢复双实例**：coffee 6111 / ai-history 6112；AI API 已改用 `.env.ai`，active workspace 修正为 ai-history；Web KB selector 改为跨端口跳转。
 0.7 **Chat UX P0 已落地**：`docs/02-design/chat-ux.md`；后端 SSE + prompt_async + sessions/history，前端 parts 流式/工具卡片/停止重试/会话恢复。下一步：build-host 真机验收（opencode 1.19.5 事件 schema），再做 P1 Quick 阶段事件。
@@ -284,6 +292,16 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-20 多 KB 可用性 + 导航/列表重构**：
+  - **多 KB 现状澄清**：trial-host 两套 compose 栈**共用 workspace 根**（api 挂 `/data/workspace`），所以 `/api/kb` 两边都列出 2 个库；但两栈各有独立 PostgreSQL，只有本栈 PG 里建过库的才能服务。跨栈提问 500 的根因是 `database "softwiki_ai_history" does not exist`。
+  - **`/api/kb?verify=true`**：新增 `softwiki/kb/health.py`，每库一次 `SELECT 1`（超时 3s、缓存 15s）；SQLite 额外校验文件存在（SQLite 会自动建空文件，否则假阳性）。默认 `/api/kb` 仍零 DB（设计 D1）。
+  - **`meta.yaml: web_url`**：`KbInfo` 新字段，记录该库 WebUI 地址。trial-host 两库已补（6108/6109）。
+  - **库选择器重写**：原来写死 `{coffee:6108, ai-history:6109}` 两张卡片，现在从 `/api/kb?verify=true` 取，不可用的库置灰并提示「N kb not served by this instance」。
+  - **加库实测**：ai 栈 `mkdir workspace/probe-kb` + `CREATE DATABASE softwiki_probe_kb` → `/api/kb?verify=true` 立刻 `available=true` → 已删除目录与库。**证明每栈可独立扩容，无需改代码。**
+  - **清理**：删除空残留库 `softwiki_ai`（0 张表、无对应目录）。
+  - **测试**：新增 `tests/test_kb_health.py` 5 项；相关回归 43 passed；`npm run build` 通过。
+  - **前端同时完成**（同一 session 前半段）：LLM-Wiki 一实体一页（`softwiki/wiki/subject_pages.py`）、侧栏五组重构、documents/claims/LLM Wiki 分页、徽章完整数字、表格列宽修整、AdminPanel（用户放行 + 审计）。
 
 - **2026-11-19 身份接入 / 权限 / 图谱 / 建库向导**（一次端到端落地）：
   - **权限 fail-closed**：`permissions.py` 未知角色回退 `wiki-study`（原回退 `wiki-admin`）；角色中间件不再读 `X-SoftWiki-Role`；`_load_policy` 的可疑输入改为 log + 明确降级。

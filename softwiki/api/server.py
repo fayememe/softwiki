@@ -2781,12 +2781,17 @@ def kb_register(name: str, request: Request, reauth_token: Optional[str] = None)
     return {"name": name, **record.to_dict()}
 
 @app.get("/api/kb")
-def list_knowledge_bases():
-    """List knowledge bases with the topics each one covers (no database access).
+def list_knowledge_bases(verify: bool = False):
+    """List knowledge bases with the topics each one covers.
 
     Only kbs that are (a) registered and (b) inside the caller's ``kb_scope``
     are listed, so an unregistered kb disappears for agents and users alike
     while its data stays on disk.
+
+    ``verify=true`` additionally probes each kb's database, because a directory
+    can exist while its database was never created in this instance (the UI
+    must not offer a kb that answers with 500). The probe is cached for a few
+    seconds; the default stays filesystem-only, per design D1.
     """
     from softwiki.config import get_workspaces_root
     from softwiki.kb.context import current_kb_name
@@ -2804,22 +2809,37 @@ def list_knowledge_bases():
     infos = [info for info in infos if info.name in visible]
 
     active = current_kb_name() or os.path.basename(get_workspace_dir())
+
+    probed: dict[str, tuple] = {}
+    if verify:
+        from softwiki.kb.health import probe_kb
+
+        for info in infos:
+            probed[info.name] = probe_kb(info.path)
+
+    def _entry(info) -> dict:
+        entry = {
+            "name": info.name,
+            "description": info.description,
+            "description_source": info.description_source,
+            "language": info.language,
+            "tags": info.tags,
+            "has_index": info.has_index,
+            "web_url": info.web_url,
+            "topics": [
+                {"group": g.name, "topics": g.topics} for g in info.groups
+            ],
+        }
+        if verify:
+            available, reason = probed.get(info.name, (True, None))
+            entry["available"] = available
+            entry["unavailable_reason"] = reason
+        return entry
+
     return {
         "active": active,
-        "kbs": [
-            {
-                "name": info.name,
-                "description": info.description,
-                "description_source": info.description_source,
-                "language": info.language,
-                "tags": info.tags,
-                "has_index": info.has_index,
-                "topics": [
-                    {"group": g.name, "topics": g.topics} for g in info.groups
-                ],
-            }
-            for info in infos
-        ],
+        "verified": verify,
+        "kbs": [_entry(info) for info in infos],
     }
 
 
