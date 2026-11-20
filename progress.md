@@ -18,7 +18,7 @@
 - **trial-host team trial（2026-11-02）**：`trial.example.internal`，两个独立 KB（目标各 **100–200 篇**，按 150 篇/库推进；pilot 20/库）：`coffee-kb`（Web `6108` / MCP `6100` / API `127.0.0.1:6200` / DB `softwiki_coffee`）和 `ai-history-kb`（Web `6109` / MCP `6102` / API `127.0.0.1:6202` / DB `softwiki_ai_history`）；**`team` 已删除，kb-alpha 未部署**；opencode 1.19.5；oneroute/DeepSeek；BM25 fallback；Hermes WebUI `9119` 已配置两个 MCP（`softwiki_coffee` / `softwiki_ai`），16 tools each；详见 `docs/03-operations/deployment-trial.md`。
 - **trial-host 语料已达标（2026-11-03）**：`coffee-kb` **185 docs / 3,489 chunks / 6,691 claims / 8,179 rel / 2,297 events**；`ai-history-kb` **160 docs / 5,497 chunks / 9,526 claims / 12,067 rel / 3,279 events**；两库 stale wiki 0，`/api/ask` 引用正常。做法：**开发机抓正文 → markdown + front matter 推送入库**，绕开 trial-host 出口封锁（见 `deployment-trial.md`「出口封锁实测」）。
 - **多 KB v0（2026-11-19）**：`docs/02-design/multi-kb.md`；一个 MCP 端口服务全部知识库。`kb_list` / `kb_describe`（零 DB）+ `ask`/`search` 的 `kb` 参数 + 请求级 workspace（ContextVar，不写 `os.environ`）+ `/api/kb`；描述三级回退 `meta.yaml` → `scope.md` → `topics.yaml`；engine 按 DB URL 缓存并限 32；auth 关闭时 `/api/workspace`、`/wiki/switch` 返回 403。**本机 Docker 已验证**（6300/6301/6308）：交替 4 次 + 并发 6 请求均不串库；MCP 调用后默认库未被污染；`/api/kb` 零 DB。**尚未部署到 trial-host。**
-- **trial-host 已部署本轮功能（2026-11-19）**：身份接入 / 审计 / 建库向导 / 图谱重写已上线两栈；13/13 验收项全过；数据未变（coffee 185 篇、ai 160 篇）。**ai-history API 临时绑定 `127.0.0.1:6212`**（卡死容器仍占 6202，需维护窗口重启 Docker 才能清）。详见 `docs/03-operations/deployment-trial.md`「2026-11-19 部署」。
+- **trial-host 已部署本轮功能（2026-11-19 部署 / 2026-11-20 重启复核）**：身份接入 / 审计 / 建库向导 / 图谱重写已上线两栈；12/12 验收项全过；数据未变（coffee 185 篇 / 6,691 claims，ai 160 篇 / 9,526 claims）。卡死容器已清除，ai 栈交还 compose 管理，API 回到 `127.0.0.1:6202`。详见 `docs/03-operations/deployment-trial.md`「2026-11-19 部署」。
 - **本 session 已完成**：
   - 修正 venv editable 指向（原指向 `/home/operator/mydrv/git/softwki` 空壳）；
   - 补 `softwiki_search` / `softwiki_ask` 兼容别名，`test_mcp` 恢复可收集；
@@ -240,11 +240,9 @@
 
 ## 下一步（NEXT）
 
-0.1 **trial-host 部署已完成（2026-11-19）**：两栈都已跑新代码，13/13 验收通过；详见 `docs/03-operations/deployment-trial.md`「2026-11-19 部署」。
+0.1 **trial-host 部署已完成（2026-11-19 部署 / 2026-11-20 重启复核）**：两栈都已跑新代码，12/12 验收通过；详见 `docs/03-operations/deployment-trial.md`「2026-11-19 部署」。
    **上线后待测**：浏览器里的图谱交互、WebUI 建库面板点击流程、SWAgent 真机对话、Wiki/Conflicts/Report 回归。
-   **两个遗留**：
-   - `softwiki-ai-api-1-stuck` 卡死并占用 `6202`，ai API 临时走 `6212`；需维护窗口重启 Docker（该机有 hermes/redis/pg 等共享服务）。
-   - `pip install -e .` 在新构建中报 `ResolutionImpossible`，本次用 `deploy/Dockerfile.api-fast` 复用旧依赖层绕过；根因未定位。
+   **剩余遗留**：`pip install -e .` 在新构建中报 `ResolutionImpossible`，本次用 `deploy/Dockerfile.api-fast` 复用旧依赖层绕过；根因未定位，下次重建依赖前要查。
 0.2 **身份接入 / 权限（2026-11-19 已实现）**：`docs/02-design/auth-oidc.md`。
    已落地：权限 fail-closed、审计日志、超级用户窗口（默认关闭/仅本机/TTL/二次认证）、OIDC + 微信 adapter、本地用户表 + 组映射 + 三态、`kb_scope` 过滤、降级工作模式、知识库注册表 + 建库向导、图谱子图 API 与页面重写。
    全量测试 **175 passed**（基线 111）；`web` 构建通过。

@@ -24,7 +24,7 @@ AI History MCP:  http://trial.example.internal:6102/mcp
 Coffee SWA:      http://trial.example.internal:6111
 AI History SWA:  http://trial.example.internal:6112
 Coffee API:      http://127.0.0.1:6200
-AI History API:  http://127.0.0.1:6212   # 6202 被卡死容器占用，见「卡死的容器」
+AI History API:  http://127.0.0.1:6202
 ```
 
 API 已绑定 `127.0.0.1:6200`，不公网暴露。
@@ -176,31 +176,42 @@ sudo docker build -f deploy/Dockerfile.api-fast -t softwiki-api:latest .
 
 依赖解析问题**未定位**，下次需要真正重建依赖时再查。
 
-### 卡死的容器（遗留）
+### 卡死的容器（已解决 2026-11-20）
 
 重建过程中 `softwiki-ai-api-1` 停在 `zap_pid_ns_processes`（PID 1 无法被回收），
-`docker rm -f`、`ctr tasks kill` 均无效，重命名后改名 `softwiki-ai-api-1-stuck`，
-**仍占用 `127.0.0.1:6202`**。
+`docker rm -f`、`ctr tasks kill` 均无效，重命名为 `softwiki-ai-api-1-stuck` 后
+仍占用 `127.0.0.1:6202`；ai-history 的 API 曾临时改绑 `6212`。
 
-因此 ai-history 的 API 临时改绑 **`127.0.0.1:6212`**（容器内仍是 6200，
-Web 通过 compose 网络的 `api:6200` 访问，不受影响）。
+**清理办法（需要在无业务时段做）**：
 
-需要在维护窗口重启 Docker 守护进程才能清掉
-（该机器还有 hermes/redis/pg/nginx 等共享服务，不宜在业务时段重启）。
-清理后把 ai-api 改回 6202，并按 compose 管理。
+1. `sudo systemctl restart docker` —— 释放网络命名空间（端口随之空闲），
+   `unless-stopped` 的容器自动回来；swagent 由 systemd 拉起。
+2. **仅重启 docker 不够**：卡死 task 由独立的 `containerd-shim` 持有，
+   daemon 重启不会回收它。定位后单独杀掉：
+   ```bash
+   ps -eo pid,cmd | grep containerd-shim | grep <container-id>
+   sudo kill -9 <shim-pid>
+   ```
+3. `docker rm -f softwiki-ai-api-1-stuck` 即可删除记录。
 
-### 验收结果（2026-11-19）
+**经验**：容器卡在 `zap_pid_ns_processes` 时，`docker rm -f` 和 `ctr tasks kill`
+都会失败；真正的持有者是 shim 进程。**不要**为此重启整个 containerd
+（会影响该机上所有容器），杀掉单个 shim 就够。
+
+清理后 ai 栈已交还 compose 管理（`-p softwiki-ai`），API 回到 `6202`。
+
+### 验收结果（2026-11-19 部署 + 2026-11-20 重启复核）
 
 ```text
-coffee api health 200 | ai api health 200
-coffee web 200       | ai web 200
-coffee mcp 200       | ai mcp 200
-coffee /api/kb 200   | graph overview 200 | graph subgraph 200
-auth me 200          | admin audit 200
-agent status coffee 200 | agent status ai 200
+coffee api 6200 200 | ai api 6202 200
+coffee web 6108 200 | ai web 6109 200
+coffee mcp 6100 200 | ai mcp 6102 200
+coffee swa 6111 200 | ai swa 6112 200
+graph overview 200  | /api/kb 200
+hermes 9119 302->login 200 | agent-portal running
 ```
 
-数据完整性（与部署前一致）：
+数据完整性（重启前后一致）：
 
 ```text
 coffee:      documents 185 / chunks 3,489 / claims 6,691 / entities 6,005 / relationships 8,179 / events 2,297
