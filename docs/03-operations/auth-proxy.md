@@ -109,6 +109,63 @@ MCP_HOST_PORT=127.0.0.1:6100
 6. 反代、Casdoor、softwiki 之间的 HTTP 只在容器网络内；对外用 HTTPS。
 7. 审计日志里确认记录的是**真实生效角色**，不是环境变量里的默认值。
 
+## 6.5 对接契约（交付给客户/第三方）
+
+**我们提供接口，登录系统由对接方负责。** 边界如下：
+
+### 对接方负责
+
+| 项 | 说明 |
+|---|---|
+| 身份来源 | 自己的 IdP（学校 OIDC / 企业微信 / Casdoor / Keycloak…） |
+| 登录页、账号、密码、微信等第三方绑定 | 全在对接方的系统里 |
+| 合规 | 域名、ICP 备案、微信开放平台主体审核 —— **都是对接方的事** |
+| 反代 | 跑 oauth2-proxy / Authelia / Authentik，把身份写进 header |
+| 网络 | 让 softwiki 只被反代访问（不对外暴露 6108/6200/6100） |
+
+### 我们负责
+
+| 项 | 说明 |
+|---|---|
+| 信任这些 header | `X-Auth-Request-User`（必需）、`-Groups`、`-Email`、`-Name`（可选），名称可配 |
+| 只信任指定来源 | `SOFTWIKI_TRUSTED_PROXIES`，不合规来源一律当匿名 |
+| 组 → 角色映射 | `config/users.yaml`，对接方给组名，我们配角色 |
+| 首次登录 | 默认 `pending`，管理员在 **Users** 面板放行 |
+| 审计 | 记录真实生效角色与来源 |
+
+### 验收（对接方跑这一条即可）
+
+```bash
+python3 scripts/verify_proxy_headers.py https://<softwiki>/ --user alice --groups staff
+```
+
+期望输出：
+
+```text
+mode: proxy
+trusted peers: ['172.16.0.0/12']
+identity: proxy:campus:alice  role: wiki-study  pending: True
+OK  headers are honoured: the proxy identity reaches the app.
+```
+
+`pending: True` 是正常的——新用户第一次进来默认待放行。
+
+### 必须验证的负面用例
+
+| 场景 | 期望 |
+|---|---|
+| 直接访问 softwiki（绕过反代）并伪造 header | `authenticated: false` |
+| 不带任何 header 访问 | `authenticated: false` |
+| 未在组映射里的用户 | 角色回落 `wiki-study`，不能提权 |
+
+实测（本机）：
+
+```text
+受信来源 + X-Auth-Request-User: alice       → authenticated: true
+同一 header，来源改成非受信网段              → authenticated: false
+不带 header                                 → authenticated: false
+```
+
 ## 7. 换别的用户系统
 
 只要它能做 forward-auth 并注入 header，就适用：

@@ -206,6 +206,9 @@
 - [x] `docker-compose.auth-demo.yml`：Casdoor（含微信登录）+ oauth2-proxy forward-auth
 - [x] 测试 `tests/test_identity_proxy.py`(8) + `tests/test_netacl.py`(9)；`scripts/e2e_proxy_auth.py` 实测
       trusted authenticated=True / forged rejected=True
+- [x] `scripts/verify_proxy_headers.py`：对接方一条命令验收身份 header
+- [x] 对接契约写入 `docs/03-operations/auth-proxy.md` §6.5：
+      备案/域名/微信主体审核属对接方，我们只提供 header 契约 + 组映射 + 审计
 - [ ] trial-host 实际启用（等 CIDR / IdP 参数）
 
 ### M8 — LLM-Wiki 粒度重构（2026-11-20）
