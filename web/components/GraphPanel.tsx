@@ -152,14 +152,20 @@ export default function GraphPanel() {
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const viewRef = useRef<View>(view);
+  const hoveredRef = useRef<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
   const dragRef = useRef<{ name: string; dx: number; dy: number } | null>(null);
   const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const frameRef = useRef<number | null>(null);
   const sizeRef = useRef({ w: 800, h: 600 });
+  // Layout progress lives in a ref so that hovering does not restart it.
+  const settleRef = useRef(0);
 
   nodesRef.current = nodes;
   edgesRef.current = edges;
   viewRef.current = view;
+  hoveredRef.current = hovered;
+  selectedRef.current = selected;
 
   /** Candidate list for the sidebar: search is backed by the full entity table. */
   const [allEntities, setAllEntities] = useState<GraphEntity[]>([]);
@@ -246,6 +252,8 @@ export default function GraphPanel() {
 
     setNodes([...nodesRef.current, ...added]);
     setEdges([...edgesRef.current, ...newEdges]);
+    // New nodes need to be placed: let the loop integrate again.
+    settleRef.current = 0;
   }, []);
 
   const expand = useCallback(
@@ -268,7 +276,6 @@ export default function GraphPanel() {
     if (!ctx) return;
 
     let running = true;
-    let settle = 0;
 
     const draw = () => {
       if (!running) return;
@@ -283,9 +290,12 @@ export default function GraphPanel() {
 
       const list = nodesRef.current;
       const links = edgesRef.current;
-      if (list.length && settle < 220) {
+      // Stop integrating once settled, but resume when new nodes are added:
+      // a fresh node resets the counter in `merge`, which also keeps the loop
+      // from restarting the layout every time the pointer moves.
+      if (list.length && settleRef.current < 240) {
         simulate(list, links, w, h, 1);
-        settle += 1;
+        settleRef.current += 1;
       }
 
       const v = viewRef.current;
@@ -293,7 +303,7 @@ export default function GraphPanel() {
       ctx.translate(v.tx, v.ty);
       ctx.scale(v.scale, v.scale);
 
-      const focus = hovered ?? selected;
+      const focus = hoveredRef.current ?? selectedRef.current;
       const neighbor = new Set<string>();
       if (focus) {
         neighbor.add(focus);
@@ -401,7 +411,9 @@ export default function GraphPanel() {
       running = false;
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [hovered, selected]);
+    // Intentionally runs once: hover/selection are read through refs inside the
+    // loop, so hovering must not tear down the canvas and restart the layout.
+  }, []);
 
   // ── sizing ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -463,31 +475,54 @@ export default function GraphPanel() {
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = event.currentTarget;
-    if (dragRef.current) {
+
+    // Read the drag/pan anchor into locals *before* the state update. React may
+    // run the updater after pointerup has already cleared the ref, and reading
+    // `dragRef.current!.dx` inside the updater then throws (null.dx) — that was
+    // the crash when dragging a node.
+    const drag = dragRef.current;    if (drag) {
       const point = localPoint(event.clientX, event.clientY);
-      const name = dragRef.current.name;
-      setNodes((prev) =>
-        prev.map((node) =>
-          node.name === name
-            ? { ...node, x: point.x + dragRef.current!.dx, y: point.y + dragRef.current!.dy, vx: 0, vy: 0 }
-            : node,
-        ),
-      );
+      const { name, dx: offsetX, dy: offsetY } = drag;
+      const x = point.x + offsetX;
+      const y = point.y + offsetY;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      // Mutate during the drag and let the render loop pick it up: committing to
+      // state on every pointermove re-renders the whole panel (including the
+      // entity list) and makes dragging feel sluggish.
+      const node = nodesRef.current.find((n) => n.name === name);
+      if (node) {
+        node.x = x;
+        node.y = y;
+        node.vx = 0;
+        node.vy = 0;
+      }
       return;
     }
-    if (panRef.current) {
-      const dx = event.clientX - panRef.current.x;
-      const dy = event.clientY - panRef.current.y;
-      setView((v) => ({ ...v, tx: panRef.current!.tx + dx, ty: panRef.current!.ty + dy }));
+
+    const pan = panRef.current;
+    if (pan) {
+      const { tx, ty, x: startX, y: startY } = pan;
+      const nextTx = tx + (event.clientX - startX);
+      const nextTy = ty + (event.clientY - startY);
+      setView((v) => ({ ...v, tx: nextTx, ty: nextTy }));
       return;
     }
+
     const hit = hitTest(event.clientX, event.clientY);
     const name = hit?.name ?? null;
     if (name !== hovered) setHovered(name);
     canvas.style.cursor = hit ? 'pointer' : 'grab';
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    // Releasing the capture also covers the case where the pointer leaves the
+    // canvas mid-drag, which used to leave the ref set until the next click.
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    // Dragging mutated node positions in place; commit them once so state and
+    // the canvas agree from here on.
+    if (dragRef.current) setNodes([...nodesRef.current]);
     dragRef.current = null;
     panRef.current = null;
   };
@@ -497,21 +532,28 @@ export default function GraphPanel() {
     if (hit) expand(hit.name);
   };
 
-  const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
+  // Zoom is a native listener with `passive: false`: React registers wheel
+  // handlers as passive, so `preventDefault()` there logs a console error and
+  // the page still scrolls.
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
-    const v = viewRef.current;
-    const factor = Math.exp(-event.deltaY * 0.0015);
-    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
-    // Keep the point under the cursor fixed while zooming.
-    const tx = px - ((px - v.tx) / v.scale) * scale;
-    const ty = py - ((py - v.ty) / v.scale) * scale;
-    setView({ scale, tx, ty });
-  };
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      const v = viewRef.current;
+      const factor = Math.exp(-event.deltaY * 0.0015);
+      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
+      // Keep the point under the cursor fixed while zooming.
+      const tx = px - ((px - v.tx) / v.scale) * scale;
+      const ty = py - ((py - v.ty) / v.scale) * scale;
+      setView({ scale, tx, ty });
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, []);
 
   const focusNode = (name: string) => {
     setSelected(name);
@@ -583,9 +625,15 @@ export default function GraphPanel() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={() => setHovered(null)}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={() => {
+            setHovered(null);
+            // A drag that leaves the canvas must not stay "stuck" on a node.
+            if (!dragRef.current) return;
+            dragRef.current = null;
+            panRef.current = null;
+          }}
           onDoubleClick={onDoubleClick}
-          onWheel={onWheel}
         />
         {loading && <div className={styles.overlay}>{t('graph.loading')}</div>}
         {error && !loading && <div className={styles.overlay}>{error}</div>}
@@ -622,16 +670,18 @@ export default function GraphPanel() {
             <button
               className={styles.actionButton}
               onClick={() => {
-                setNodes((prev) => prev.filter((n) => n.name === selectedNode.name || n.expanded));
-                setEdges((prev) =>
-                  prev.filter(
-                    (e) =>
-                      e.source === selectedNode.name ||
-                      e.target === selectedNode.name ||
-                      nodesRef.current.find((n) => n.name === e.source)?.expanded ||
-                      nodesRef.current.find((n) => n.name === e.target)?.expanded,
-                  ),
+                // Keep the selected node and everything the original overview
+                // gave us; drop what expansion pulled in. Edges must then be
+                // filtered by the *surviving* node names, not by the old list.
+                const kept = nodesRef.current.filter(
+                  (n) => n.expanded || n.name === selectedNode.name,
                 );
+                const keptNames = new Set(kept.map((n) => n.name));
+                setNodes(kept);
+                setEdges((prev) =>
+                  prev.filter((e) => keptNames.has(e.source) && keptNames.has(e.target)),
+                );
+                settleRef.current = 240;
               }}
             >
               {t('graph.prune')}

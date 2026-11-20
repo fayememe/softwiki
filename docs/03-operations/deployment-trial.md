@@ -230,6 +230,38 @@ ai-history:  documents 160 / chunks 5,497 / claims 9,526 / entities 9,232 / rela
 - SWAgent 真机对话（只验证了 `/api/agent/status`）
 - 两库的 Wiki / Conflicts / Report 页面回归
 
+### 2026-11-20 修复：图谱拖拽导致页面报错
+
+**现象**：拖拽图谱即整页报错。
+
+**根因**：`GraphPanel` 在 `setNodes`/`setView` 的更新函数里读
+`dragRef.current!.dx` / `panRef.current!.tx`。React 可能在你松手之后才执行该更新函数，
+此时 ref 已被 `onPointerUp` 置空 —— `null.dx` 直接抛异常。
+构建和类型检查都通过，这是纯运行时错误。
+
+**顺带修掉的三个问题**：
+
+1. `settle` 是 effect 内局部变量，而 effect 依赖 `hovered`/`selected`：鼠标每划过一次
+   就把力导向布局重启一遍，节点会跳。改为 ref，循环只启动一次。
+2. 拖拽时每次 `pointermove` 都 `setNodes`，会重渲染整个侧栏（最多 300 项）。
+   改为拖拽期间直接改坐标、松手时提交一次。
+3. 滚轮 `preventDefault` 在 React 的被动监听器里无效（控制台报错且页面照旧滚动）。
+   改为原生 `addEventListener('wheel', ..., { passive: false })`。
+
+另外「隐藏未展开」改为按存活节点过滤边，指针离开画布时清理拖拽状态。
+
+**验证**：新增 `scripts/ui-smoke.mjs`，用真实浏览器（headless Chrome）跑
+拖拽 / 缩放 / 侧栏聚焦 / 展开 / 双击 / 隐藏 / 重置 / 搜索 + 建库 dry-run：
+
+```bash
+npm i puppeteer-core                    # 不必装进项目依赖
+PUPPETEER_DIR=$(pwd) node scripts/ui-smoke.mjs http://127.0.0.1:16108/
+```
+
+2026-11-20 两库实测结果：`nodeDrag=true`、`canvasStillThere=true`、
+`pageErrors=[]`、`consoleErrors=[]`、`hasErrorOverlay=false`、
+建库预览与校验均正常。
+
 ## 网络限制
 
 该机器无法访问：

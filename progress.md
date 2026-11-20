@@ -241,7 +241,7 @@
 ## 下一步（NEXT）
 
 0.1 **trial-host 部署已完成（2026-11-19 部署 / 2026-11-20 重启复核）**：两栈都已跑新代码，12/12 验收通过；详见 `docs/03-operations/deployment-trial.md`「2026-11-19 部署」。
-   **上线后待测**：浏览器里的图谱交互、WebUI 建库面板点击流程、SWAgent 真机对话、Wiki/Conflicts/Report 回归。
+   **上线后待测**：SWAgent 真机对话、Wiki/Conflicts/Report 回归。图谱页与建库面板已用真实浏览器冒烟（`scripts/ui-smoke.mjs`）。
    **剩余遗留**：`pip install -e .` 在新构建中报 `ResolutionImpossible`，本次用 `deploy/Dockerfile.api-fast` 复用旧依赖层绕过；根因未定位，下次重建依赖前要查。
 0.2 **身份接入 / 权限（2026-11-19 已实现）**：`docs/02-design/auth-oidc.md`。
    已落地：权限 fail-closed、审计日志、超级用户窗口（默认关闭/仅本机/TTL/二次认证）、OIDC + 微信 adapter、本地用户表 + 组映射 + 三态、`kb_scope` 过滤、降级工作模式、知识库注册表 + 建库向导、图谱子图 API 与页面重写。
@@ -275,6 +275,13 @@
   - **测试**：新增 `tests/test_identity.py`(37)、`tests/test_kb_wizard.py`(22)、`tests/test_graph_api.py`(5)；`tests/test_mcp.py` 与 `test_user_mode.py` 改为显式角色/降级（原依赖客户端自报）。全量 **175 passed**；`npm run build` 通过。
   - **易踩坑**：`tests/` 里若把 `WORKSPACES_ROOT` 指到临时目录，用户表会写进去；反之会污染仓库 `data/`（已加入 `.gitignore`，本次测试确实产生过 `data/config/users.yaml`）。
   - **未做**：管理面 Web UI、pending 放行界面、标准 OIDC 授权码交换、多进程下超级用户状态存储；**卸载库按 operator 要求暂不做前端强调**（后端已实现且测试覆盖）。
+
+- **2026-11-20 图谱拖拽崩溃修复**：
+  - **根因**：`GraphPanel` 在 `setNodes`/`setView` 更新函数里读 `dragRef.current!.dx`/`panRef.current!.tx`；React 可能在 `pointerup` 之后才执行更新函数，此时 ref 已置空 → `null.dx` 抛错。构建与类型检查都发现不了。
+  - **同时修**：布局进度改 ref（悬停不再重启布局）、拖拽改为直接改坐标+松手提交（避免每次 pointermove 重渲染侧栏）、滚轮改原生非被动监听、隐藏未展开按存活节点过滤边、指针离开画布清理拖拽。
+  - **验证工具**：新增 `scripts/ui-smoke.mjs`（headless Chrome，需 `npm i puppeteer-core`，用 `PUPPETEER_DIR` 指定安装位置）。覆盖拖拽/缩放/侧栏聚焦/展开/双击/隐藏/重置/搜索 + 建库 dry-run。
+  - **实测**：coffee 6108 与 ai 6109 均 `nodeDrag=true`、`pageErrors=[]`、`consoleErrors=[]`、无 error overlay；建库校验与预览正常。
+  - 已重建 `softwiki-web:latest` 并 force-recreate 两个 web 容器。
 
 - **2026-11-17 trial-host 汉化核查**：
   - 中国侧在 trial-host 源码上加了前端 i18n：`web/lib/i18n`（zh/en/ja，默认 zh，311 keys，`localStorage` 持久化，缺 key 回退英文），新增 `LanguageSwitcher`，19 个组件/hook 接入 `useT()`，约 730 行；zh/ja key 与占位符均对齐。
