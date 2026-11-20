@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { apiListDocuments, apiDeleteDocument } from '@/lib/api';
+import { useState, useEffect, useCallback } from 'react';
+import { apiListDocumentsPaged, apiDeleteDocument } from '@/lib/api';
 import type { Document } from '@/lib/api';
 import { useT } from '@/lib/i18n';
+import Pagination from './Pagination';
 import styles from './DocumentsPanel.module.css';
 
 interface DocumentsPanelProps {
@@ -13,25 +14,29 @@ interface DocumentsPanelProps {
 export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) {
   const t = useT();
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDocs = async () => {
+  const fetchDocs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiListDocuments();
-      setDocuments(data);
+      const data = await apiListDocumentsPaged(pageSize, (page - 1) * pageSize);
+      setDocuments(data.items);
+      setTotal(data.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('documents.fetchFailed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, t]);
 
   useEffect(() => {
-    fetchDocs();
-  }, []);
+    void fetchDocs();
+  }, [fetchDocs]);
 
   const handleDelete = async (id: number, title: string) => {
     if (!confirm(t('documents.deleteConfirm', { title }))) {
@@ -39,8 +44,8 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
     }
     try {
       await apiDeleteDocument(id);
-      setDocuments(prev => prev.filter(d => d.id !== id));
       if (onRefreshStats) onRefreshStats();
+      await fetchDocs();
     } catch (err) {
       alert(t('documents.deleteFailed', { msg: err instanceof Error ? err.message : t('common.unknown') }));
     }
@@ -86,19 +91,22 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
                 {documents.map(doc => (
                   <tr key={doc.id} className={styles.tr}>
                     <td className={styles.td}>
-                      <div className={styles.docTitle} title={doc.title}>
-                        {doc.title}
+                      <div className={styles.docTitleRow}>
+                        <span className={styles.docTitle} title={doc.title}>
+                          {doc.title}
+                        </span>
+                        {doc.url && (
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.docUrl}
+                            title={doc.url}
+                          >
+                            ↗
+                          </a>
+                        )}
                       </div>
-                      {doc.url && (
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={styles.docUrl}
-                        >
-                          {t('documents.link')} ↗
-                        </a>
-                      )}
                     </td>
                     <td className={styles.td}>{doc.source_name}</td>
                     <td className={styles.td}>
@@ -125,6 +133,15 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && !error && total > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
         )}
       </div>
     </div>

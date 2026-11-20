@@ -9,7 +9,18 @@ import RoleSelector from './RoleSelector';
 import KnowledgeBaseSelector from './KnowledgeBaseSelector';
 import styles from './Sidebar.module.css';
 
-export type ActivePanel = 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts' | 'graph' | 'timeline' | 'wiki' | 'kbwizard';
+export type ActivePanel =
+  | 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts'
+  | 'graph' | 'timeline' | 'llmwiki' | 'kbwizard' | 'users';
+
+const ROLE_RANK: Record<string, number> = {
+  'wiki-study': 1,
+  'wiki-work': 2,
+  'wiki-manage': 3,
+  'wiki-admin': 4,
+};
+
+type RoleId = 'wiki-study' | 'wiki-work' | 'wiki-manage' | 'wiki-admin';
 
 interface SidebarProps {
   activePanel: ActivePanel;
@@ -42,20 +53,53 @@ function ConflictsIcon() { return <svg width="18" height="18" viewBox="0 0 24 24
 function GraphIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>; }
 function TimelineIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>; }
 
+function PagesIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h9l4 4v12H4z"/><path d="M7 9h6"/><path d="M7 13h6"/><path d="M7 17h4"/></svg>; }
 function PortalIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>; }
 function KbIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>; }
 
-const TOOLS: { id: ActivePanel; icon: React.ReactNode }[] = [
-  { id: 'home',      icon: <HomeIcon /> },
-  { id: 'chat',      icon: <ChatIcon /> },
-  { id: 'ingest',    icon: <IngestIcon /> },
-  { id: 'documents', icon: <DocsIcon /> },
-  { id: 'claims',    icon: <ClaimsIcon /> },
-  { id: 'conflicts', icon: <ConflictsIcon /> },
-  { id: 'graph',     icon: <GraphIcon /> },
-  { id: 'timeline',  icon: <TimelineIcon /> },
-  { id: 'wiki',      icon: <WikiIcon /> },
-  { id: 'kbwizard',  icon: <KbIcon /> },
+const NAV_GROUPS: {
+  key: string;
+  labelKey?: string;
+  // Minimum role required to see the group. study < work < manage < admin.
+  minRole?: RoleId;
+  items: { id: ActivePanel; icon: React.ReactNode }[];
+}[] = [
+  {
+    key: 'overview',
+    items: [{ id: 'home', icon: <HomeIcon /> }],
+  },
+  {
+    key: 'knowledge',
+    labelKey: 'sidebar.groupKnowledge',
+    items: [
+      { id: 'documents', icon: <DocsIcon /> },
+      { id: 'claims', icon: <ClaimsIcon /> },
+      { id: 'graph', icon: <GraphIcon /> },
+      { id: 'timeline', icon: <TimelineIcon /> },
+      { id: 'llmwiki', icon: <WikiIcon /> },
+    ],
+  },
+  {
+    key: 'assist',
+    items: [{ id: 'chat', icon: <ChatIcon /> }],
+  },
+  {
+    key: 'contrib',
+    labelKey: 'sidebar.groupContrib',
+    minRole: 'wiki-work',
+    items: [
+      { id: 'ingest', icon: <IngestIcon /> },
+      { id: 'conflicts', icon: <ConflictsIcon /> },
+    ],
+  },
+  {
+    key: 'admin',
+    labelKey: 'sidebar.groupAdmin',
+    minRole: 'wiki-admin',
+    items: [
+      { id: 'kbwizard', icon: <KbIcon /> },
+    ],
+  },
 ];
 
 function formatDate(
@@ -81,9 +125,20 @@ export default function Sidebar({
 }: SidebarProps) {
   const { t, locale } = useI18n();
   const htmlLocale = locale === 'zh' ? 'zh-CN' : locale;
-  const isWiki = activePanel === 'wiki';
+  const isWiki = activePanel === 'llmwiki';
   const [collapsed, setCollapsed] = useState(false);
   const effectiveCollapsed = collapsed || isWiki;
+
+  // Role gates what the sidebar shows: contributors (work+) get ingest and
+  // conflicts, admins get KB management. Enforced server-side too; this only
+  // keeps the UI honest.
+  const [roleRank, setRoleRank] = useState(1);
+  useEffect(() => {
+    fetch('/api/permissions', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setRoleRank(ROLE_RANK[d.role] ?? 1))
+      .catch(() => setRoleRank(1));
+  }, []);
 
   // Auto-collapse when entering wiki, expand when leaving
   useEffect(() => { setCollapsed(isWiki); }, [isWiki]);
@@ -141,23 +196,31 @@ export default function Sidebar({
 
       {/* ── Middle: Tool Nav ── */}
       <nav className={styles.nav}>
-        {TOOLS.map(item => {
-          const b = badge(item.id);
-          return (
-            <button
-              key={item.id}
-              className={`${styles.navItem} ${activePanel === item.id ? styles.navActive : ''}`}
-              onClick={() => onPanelChange(item.id)}
-              title={collapsed ? t(`sidebar.${item.id}`) : undefined}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              {!effectiveCollapsed && <span className={styles.navLabel}>{t(`sidebar.${item.id}`)}</span>}
-              {!effectiveCollapsed && b !== undefined && b > 0 && (
-                <span className={styles.navBadge}>{b > 99 ? '99+' : b}</span>
-              )}
-            </button>
-          );
-        })}
+        {NAV_GROUPS.filter(g => !g.minRole || roleRank >= (ROLE_RANK[g.minRole] ?? 99)).map(group => (
+          <div key={group.key} className={styles.navGroup}>
+            {!effectiveCollapsed && group.labelKey && (
+              <div className={styles.navGroupLabel}>{t(group.labelKey)}</div>
+            )}
+            {group.items.map(item => {
+              const b = badge(item.id);
+              const label = t(`sidebar.${item.id}`);
+              return (
+                <button
+                  key={item.id}
+                  className={`${styles.navItem} ${activePanel === item.id ? styles.navActive : ''}`}
+                  onClick={() => onPanelChange(item.id)}
+                  title={collapsed ? label : undefined}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  {!effectiveCollapsed && <span className={styles.navLabel}>{label}</span>}
+                  {!effectiveCollapsed && b !== undefined && b > 0 && (
+                    <span className={styles.navBadge}>{b > 9999 ? '9999+' : b.toLocaleString()}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
         <a
           className={`${styles.navItem} ${styles.navLink}`}
           href="/wikiweb"

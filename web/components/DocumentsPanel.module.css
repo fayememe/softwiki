@@ -67,7 +67,7 @@
 
 .th {
   background: var(--bg-elevated);
-  padding: 14px 18px;
+  padding: 10px 14px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -86,26 +86,39 @@
 }
 
 .td {
-  padding: 14px 18px;
+  padding: 9px 14px;
   font-size: 13px;
   color: var(--text-primary);
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+/* Title and link sit on one line: the link is short, so giving it its own row
+   wasted vertical space on every document. */
+.docTitleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .docTitle {
   font-weight: 500;
   color: var(--text-primary);
-  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
 }
 
 .docUrl {
+  display: inline-block;
   color: var(--accent-blue);
   text-decoration: none;
   font-size: 11px;
   margin-left: 6px;
+  white-space: nowrap;
+  vertical-align: baseline;
 }
 
 .docUrl:hover {

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { apiListClaims } from '@/lib/api';
 import type { Claim } from '@/lib/api';
 import { useT } from '@/lib/i18n';
+import Pagination from './Pagination';
 import styles from './ClaimsPanel.module.css';
 
 const STANCES = ['supportive', 'cautious', 'opposed', 'unclear'];
@@ -17,6 +18,10 @@ export default function ClaimsPanel() {
   // Filter states
   const [selectedActor, setSelectedActor] = useState('all');
   const [selectedStance, setSelectedStance] = useState('all');
+
+  // Paging is applied after filtering, so the page always shows full rows.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const fetchClaims = async () => {
     setLoading(true);
@@ -44,6 +49,16 @@ export default function ClaimsPanel() {
     const matchStance = selectedStance === 'all' || (c.stance || 'unclear').toLowerCase() === selectedStance.toLowerCase();
     return matchActor && matchStance;
   });
+
+  // Reset to the first page whenever the filter result set changes shape.
+  useEffect(() => { setPage(1); }, [selectedActor, selectedStance]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredClaims.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pagedClaims = useMemo(
+    () => filteredClaims.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredClaims, currentPage, pageSize],
+  );
 
   return (
     <div className={styles.panel}>
@@ -123,13 +138,13 @@ export default function ClaimsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {filteredClaims.map(c => (
+                {pagedClaims.map(c => (
                   <tr key={c.id} className={styles.tr}>
                     <td className={`${styles.td} ${styles.actor}`}>{c.actor || t('common.unknown')}</td>
-                    <td className={styles.td}>
+                    <td className={`${styles.td} ${styles.topic}`}>
                       <span style={{ fontWeight: 500 }}>{c.topic || 'general'}</span>
                     </td>
-                    <td className={styles.td}>
+                    <td className={`${styles.td} ${styles.stance}`}>
                       <span className={`${styles.badge} ${styles[(c.stance || 'unclear').toLowerCase()] || styles.unclear}`}>
                         {c.stance || 'unclear'}
                       </span>
@@ -140,7 +155,7 @@ export default function ClaimsPanel() {
                     <td className={`${styles.td} ${styles.claimText}`}>
                       {c.text}
                     </td>
-                    <td className={styles.td} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    <td className={`${styles.td} ${styles.claimDate}`}>
                       {c.published_at}
                     </td>
                   </tr>
@@ -148,6 +163,15 @@ export default function ClaimsPanel() {
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && !error && filteredClaims.length > 0 && (
+          <Pagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={filteredClaims.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
         )}
       </div>
     </div>

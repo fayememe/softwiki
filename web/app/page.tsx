@@ -7,7 +7,8 @@ import IngestPanel from '@/components/IngestPanel';
 import DocumentsPanel from '@/components/DocumentsPanel';
 import ClaimsPanel from '@/components/ClaimsPanel';
 import ConflictsPanel from '@/components/ConflictsPanel';
-import WikiPanel from '@/components/WikiPanel';
+import WikiPagesPanel from '@/components/WikiPagesPanel';
+import AdminPanel from '@/components/AdminPanel';
 import DashboardPanel from '@/components/DashboardPanel';
 import GraphPanel from '@/components/GraphPanel';
 import KbWizardPanel from '@/components/KbWizardPanel';
@@ -337,8 +338,9 @@ function HomeInner() {
         {activePanel === 'conflicts' && <ConflictsPanel />}
         {activePanel === 'graph' && <GraphPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
-        {activePanel === 'wiki' && <WikiPanel />}
+        {activePanel === 'llmwiki' && <WikiPagesPanel />}
         {activePanel === 'kbwizard' && <KbWizardPanel />}
+        {activePanel === 'users' && <AdminPanel />}
       </main>
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

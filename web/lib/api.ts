@@ -465,14 +465,33 @@ export async function apiRebuildIndex(): Promise<IndexResult> {
   return res.json();
 }
 
+export interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export async function apiListDocuments(): Promise<Document[]> {
   const res = await fetch(`${API_BASE}/api/documents`);
   if (!res.ok) throw new Error(`Failed to list documents: ${res.status}`);
   return res.json();
 }
 
+export async function apiListDocumentsPaged(limit: number, offset: number): Promise<PagedResponse<Document>> {
+  const res = await fetch(`${API_BASE}/api/documents?limit=${limit}&offset=${offset}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to list documents: ${res.status}`);
+  return res.json();
+}
+
 export async function apiListClaims(): Promise<Claim[]> {
   const res = await fetch(`${API_BASE}/api/claims`);
+  if (!res.ok) throw new Error(`Failed to list claims: ${res.status}`);
+  return res.json();
+}
+
+export async function apiListClaimsPaged(limit: number, offset: number): Promise<PagedResponse<Claim>> {
+  const res = await fetch(`${API_BASE}/api/claims?limit=${limit}&offset=${offset}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to list claims: ${res.status}`);
   return res.json();
 }
@@ -508,6 +527,57 @@ export async function apiGetWikiPage(topic: string): Promise<WikiPageResponse> {
 export async function apiGetWikiHistory(topic: string): Promise<{ versions: WikiHistoryVersion[] }> {
   const res = await fetch(`${API_BASE}/api/wiki/history/${encodeURIComponent(topic)}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to load wiki history: ${res.status}`);
+  return res.json();
+}
+
+export interface SubjectPageEntry {
+  subject: string;
+  slug: string;
+  type?: string;
+  degree?: number;
+  claims_total: number;
+  claims_covered?: number;
+  pages?: string[];
+  page_count?: number;
+  parts?: number;
+  needs_split?: boolean;
+  description?: string;
+  updated_at?: string;
+}
+
+export interface SubjectPagesResponse {
+  limit: number;
+  generated: boolean;
+  subjects: SubjectPageEntry[];
+  candidates?: SubjectPageEntry[];
+  candidate_count?: number;
+}
+
+export async function apiListSubjectPages(refresh = false): Promise<SubjectPagesResponse> {
+  const res = await fetch(`${API_BASE}/api/wiki/pages?refresh=${refresh ? 'true' : 'false'}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to list wiki pages: ${res.status}`);
+  return res.json();
+}
+
+export async function apiGetSubjectPage(slug: string): Promise<{ slug: string; content: string; meta: Record<string, string> }> {
+  const res = await fetch(`${API_BASE}/api/wiki/pages/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Not found' }));
+    throw new Error(err.detail || `Wiki page not found: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function apiBuildSubjectPage(subject: string): Promise<{ status: string; subject: string; slug: string; claims_total: number; pages: SubjectPageEntry[] }> {
+  const res = await fetch(`${API_BASE}/api/wiki/pages/build`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject, oversize: 'split' }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(err.detail || `Wiki page build failed: ${res.status}`);
+  }
   return res.json();
 }
 

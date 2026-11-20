@@ -227,6 +227,29 @@
   border-color: rgba(85, 136, 255, 0.2);
 }
 
+/* ── Nav groups ── */
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navGroup + .navGroup {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.navGroupLabel {
+  padding: 2px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  opacity: 0.65;
+}
+
 /* ── Session Section ── */
 .sessionSection {
   flex: 1;

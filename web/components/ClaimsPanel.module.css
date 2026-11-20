@@ -101,7 +101,7 @@
 
 .th {
   background: var(--bg-elevated);
-  padding: 14px 18px;
+  padding: 10px 12px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -120,17 +120,46 @@
 }
 
 .td {
-  padding: 14px 18px;
+  padding: 9px 12px;
   font-size: 13px;
   color: var(--text-primary);
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+/* Fixed, narrow columns for short values; the claim text takes the rest.
+   Without this the browser spreads width by content and short cells (actor)
+   end up wide while the long description stays cramped. */
+td.actor {
+  width: 120px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+td.topic {
+  width: 120px;
+  max-width: 120px;
+}
+
+td.stance {
+  width: 90px;
+}
+
+td.confidence {
+  width: 76px;
+}
+
+td.claimDate {
+  width: 96px;
+  white-space: nowrap;
 }
 
 .claimText {
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-primary);
   font-weight: 400;
-  max-width: 450px;
+  min-width: 320px;
 }
 
 .actor {
