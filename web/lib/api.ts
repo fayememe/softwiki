@@ -36,6 +36,24 @@ export interface GraphResponse {
   relationships: GraphRelationship[];
 }
 
+export interface GraphOverviewEntity extends GraphEntity {
+  degree: number;
+}
+
+export interface GraphOverviewResponse {
+  entities: GraphOverviewEntity[];
+  relationships: GraphRelationship[];
+  total_entities: number;
+  total_relationships: number;
+}
+
+export interface GraphSubgraphResponse {
+  root: string;
+  entities: GraphEntity[];
+  relationships: GraphRelationship[];
+  truncated: boolean;
+}
+
 export interface TimelineEvent {
   id: number;
   title: string;
@@ -513,6 +531,23 @@ export async function apiDeleteDocument(id: number): Promise<{ status: string; m
 export async function apiListGraph(): Promise<GraphResponse> {
   const res = await fetch(`${API_BASE}/api/graph`);
   if (!res.ok) throw new Error(`Failed to list graph: ${res.status}`);
+  return res.json();
+}
+
+export async function apiGraphOverview(limit = 80): Promise<GraphOverviewResponse> {
+  const res = await fetch(`${API_BASE}/api/graph/overview?limit=${limit}`);
+  if (!res.ok) throw new Error(`Failed to load graph overview: ${res.status}`);
+  return res.json();
+}
+
+export async function apiGraphSubgraph(
+  entity: string,
+  depth = 1,
+  limit = 40,
+): Promise<GraphSubgraphResponse> {
+  const params = new URLSearchParams({ entity, depth: String(depth), limit: String(limit) });
+  const res = await fetch(`${API_BASE}/api/graph/subgraph?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to expand ${entity}: ${res.status}`);
   return res.json();
 }
 

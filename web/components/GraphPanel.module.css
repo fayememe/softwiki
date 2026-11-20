@@ -9,7 +9,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 220px;
+  width: 232px;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -33,6 +33,12 @@
 
 .search:focus {
   border-color: var(--accent-blue);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
 }
 
 .entityList {
@@ -81,36 +87,84 @@
   white-space: nowrap;
 }
 
+.resetButton {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
 /* ── Graph ── */
 .graphArea {
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 232px;
   overflow: hidden;
   z-index: 0;
 }
 
-.svg {
+.canvas {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: grab;
+  touch-action: none;
 }
 
-.nodeGroup {
-  transition: opacity var(--transition-fast);
-}
-
-.nodeGroup:hover {
-  opacity: 1;
-}
-
-.nodeLabel {
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
   pointer-events: none;
-  user-select: none;
-  paint-order: stroke;
-  stroke: rgba(0,0,0,0.6);
-  stroke-width: 3px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+}
+
+.badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+}
+
+.legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  max-width: calc(100% - 24px);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: capitalize;
 }
 
 /* ── Detail panel ── */
@@ -118,8 +172,8 @@
   position: absolute;
   bottom: 16px;
   right: 16px;
-  width: 280px;
-  max-height: 300px;
+  width: 300px;
+  max-height: 340px;
   background: var(--bg-surface);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
@@ -134,7 +188,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .detailDot {
@@ -148,6 +202,9 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detailType {
@@ -155,6 +212,36 @@
   color: var(--text-tertiary);
   text-transform: uppercase;
   margin-left: auto;
+  flex-shrink: 0;
+}
+
+.detailDescription {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.detailActions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.actionButton {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.actionButton:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
 }
 
 .detailRels {
@@ -166,7 +253,7 @@
 .detailRel {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   color: var(--text-secondary);
   padding: 4px 6px;
@@ -178,8 +265,15 @@
   background: var(--glass-bg-hover);
 }
 
+.detailRelName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100px;
+}
+
 .relArrow {
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--accent-blue);
   flex-shrink: 0;
 }
