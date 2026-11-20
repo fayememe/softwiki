@@ -310,7 +310,7 @@ def test_embedding_dimensions_passed(monkeypatch):
     class Client:
         embeddings = Emb()
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "1536")
-    monkeypatch.setattr(embedder, "get_openai_client", lambda: Client())
+    monkeypatch.setattr(embedder, "get_openai_client", lambda query=False: Client())
     monkeypatch.setattr(embedder._RATE_LIMITER, "acquire", lambda n: None)
     w = embedder.WikiEmbedder()
     w.model_name = "text-embedding-v4"
