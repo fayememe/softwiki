@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 _openai_client = None
+_openai_query_client = None
 _local_model = None
 
 
@@ -40,8 +41,26 @@ def _approx_tokens(text: str) -> int:
     return max(1, ascii_chars // 4 + (len(text) - ascii_chars))
 
 
-def get_openai_client():
-    global _openai_client
+def get_openai_client(query: bool = False):
+    """Embedding client.
+
+    Query-time embedding gets its own, much shorter budget: when the provider
+    is down, a search must fall back to BM25 in seconds, not minutes. Indexing
+    keeps the longer timeout and retries because a whole batch failing is worse
+    than waiting.
+    """
+    global _openai_client, _openai_query_client
+
+    if query:
+        if _openai_query_client is None:
+            from openai import OpenAI
+            api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+            api_base = os.getenv("EMBEDDING_API_BASE") or os.getenv("OPENAI_API_BASE")
+            default = min(8.0, float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "20")))
+            timeout = float(os.getenv("EMBEDDING_QUERY_TIMEOUT_SECONDS", str(default)))
+            _openai_query_client = OpenAI(api_key=api_key, base_url=api_base, timeout=timeout)
+        return _openai_query_client
+
     if _openai_client is None:
         from openai import OpenAI
         api_key = os.getenv("EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -91,15 +110,17 @@ class WikiEmbedder:
             except Exception as e:
                 print(f"Error loading embedding profile: {e}")
 
-    def _embed_openai(self, texts: List[str]) -> List[List[float]]:
-        client = get_openai_client()
+    def _embed_openai(self, texts: List[str], query: bool = False) -> List[List[float]]:
+        client = get_openai_client(query=query)
         model_lower = self.model_name.lower()
         default_batch = 10 if ("text-embedding-v4" in model_lower or "embedding-v4" in model_lower) else 100
         batch_size = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", str(default_batch))))
         concurrency = max(1, int(os.getenv("EMBEDDING_CONCURRENCY", "4")))
         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
 
-        max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "1")))
+        max_retries = (
+            0 if query else max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "1")))
+        )
         dimensions = os.getenv("EMBEDDING_DIMENSIONS")
         extra = {"dimensions": int(dimensions)} if dimensions else {}
 
@@ -150,4 +171,10 @@ class WikiEmbedder:
         raise ValueError(f"Unsupported EMBEDDING_PROVIDER: {self.provider}")
 
     def embed_query(self, text: str) -> List[float]:
+        # Query embedding uses a short timeout and no retries: a search whose
+        # provider is down must degrade to BM25 quickly (see get_openai_client).
+        if not text:
+            return []
+        if self.provider == "openai":
+            return self._embed_openai([text], query=True)[0]
         return self.embed_texts([text])[0]
