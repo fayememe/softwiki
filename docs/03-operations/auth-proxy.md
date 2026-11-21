@@ -166,6 +166,37 @@ OK  headers are honoured: the proxy identity reaches the app.
 不带 header                                 → authenticated: false
 ```
 
+## 6.6 已部署的示例（trial-host）
+
+`deploy/auth-demo/` 已部署在 trial-host，作为可点的参考实现：
+
+| 地址 | 说明 |
+|---|---|
+| `https://118.193.105.3:6190` | 应用（自签证书，浏览器会警告） |
+| `https://118.193.105.3:6191` | Authelia 登录页 |
+
+账号：`alice / demo123`（staff → wiki-work）、`bob / demo123`（student → wiki-study）。
+
+实测（2026-11-21，headless Chrome 真实登录）：
+
+```text
+alice -> identity=proxy:demo:alice  role=wiki-work   pending=false
+bob   -> identity=proxy:demo:bob    role=wiki-study  pending=false
+未映射组 -> role=wiki-study, pending=true
+```
+
+部署要点（踩过的坑，换环境时复用）：
+
+1. **compose 常经 `sudo` 调用**，sudo 会清空环境变量 → 参数写进 `.env` 由 compose 读取，
+   不要只靠命令行传参；
+2. 没有 docker 组权限时用 `COMPOSE_CMD="sudo -n /usr/local/bin/docker-compose"`、
+   `DOCKER_CMD="sudo -n docker"`；
+3. Authelia 4.38 强制 https，自签证书的 SAN 要包含公网 IP；
+4. 重新生成 storage 密钥时必须同时删 `db.sqlite3`，否则报
+   "encryption key does not appear to be valid"；
+5. 登录页的 SPA 资源是绝对路径 → 登录页必须独立端口，不能挂在 `/authelia/` 子路径；
+6. `ForwardAuth` 返回 302，nginx `auth_request` 不接受 → 用 `AuthRequest`（401）+ `error_page`。
+
 ## 7. 换别的用户系统
 
 只要它能做 forward-auth 并注入 header，就适用：

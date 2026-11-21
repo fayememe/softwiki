@@ -209,7 +209,10 @@
 - [x] `scripts/verify_proxy_headers.py`：对接方一条命令验收身份 header
 - [x] 对接契约写入 `docs/03-operations/auth-proxy.md` §6.5：
       备案/域名/微信主体审核属对接方，我们只提供 header 契约 + 组映射 + 审计
-- [ ] trial-host 实际启用（等 CIDR / IdP 参数）
+- [x] 轻量示例已部署 trial-host：`deploy/auth-demo/`（Authelia + nginx），
+      6190 应用 / 6191 登录页；实测 alice->wiki-work、bob->wiki-study、
+      未知组 pending、外部直连伪造 header 无效
+- [ ] 生产栈（6108/6109）实际启用认证（等 CIDR / 客户 IdP 参数）
 
 ### M8 — LLM-Wiki 粒度重构（2026-11-20）
 > 设计：`docs/02-design/wiki-page-granularity.md`
