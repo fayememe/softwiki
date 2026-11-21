@@ -32,9 +32,9 @@ session:
   secret: '__SESSION_SECRET__'
   expiration: '1h'
   cookies:
-    - domain: '127.0.0.1'
-      authelia_url: 'https://127.0.0.1:6191'
-      default_redirection_url: 'https://127.0.0.1:6190'
+    - domain: '__PUBLIC_HOST__'
+      authelia_url: 'https://__PUBLIC_HOST__:__PORTAL_PORT__'
+      default_redirection_url: 'https://__PUBLIC_HOST__:__APP_PORT__'
 
 storage:
   encryption_key: '__STORAGE_KEY__'

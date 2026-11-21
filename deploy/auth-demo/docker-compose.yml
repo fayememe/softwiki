@@ -15,7 +15,7 @@ services:
     image: authelia/authelia:4.38
     # Run as the invoking user so the YAML/SQLite it writes stay editable
     # instead of turning into root-owned files.
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${DEMO_UID:-1000}:${DEMO_GID:-1000}"
     volumes:
       - ./authelia:/config
     networks:
@@ -48,13 +48,19 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ${DEMO_NGINX_IMAGE:-nginx:1.27-alpine}
+    environment:
+      # Only DEMO_* placeholders are substituted; nginx's own $vars survive.
+      NGINX_ENVSUBST_FILTER: "^DEMO_"
+      DEMO_APP_PORT: ${DEMO_APP_PORT:-6190}
+      DEMO_PORTAL_PORT: ${DEMO_PORTAL_PORT:-6191}
+      DEMO_BIND_ADDR: ${DEMO_BIND_ADDR:-0.0.0.0}
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx:/etc/nginx/templates:ro
       - ./certs:/etc/nginx/certs:ro
     ports:
-      - "127.0.0.1:6190:6190"
-      - "127.0.0.1:6191:6191"
+      - "${DEMO_BIND_ADDR:-0.0.0.0}:${DEMO_APP_PORT:-6190}:${DEMO_APP_PORT:-6190}"
+      - "${DEMO_BIND_ADDR:-0.0.0.0}:${DEMO_PORTAL_PORT:-6191}:${DEMO_PORTAL_PORT:-6191}"
     networks:
       - authnet
     depends_on:

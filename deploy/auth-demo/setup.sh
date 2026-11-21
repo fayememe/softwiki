@@ -9,28 +9,51 @@ cd "$(dirname "$0")"
 
 IMAGE_AUTHELIA="authelia/authelia:4.38"
 
+# Public host/ports. Defaults are local; override for a remote install, e.g.
+#   DEMO_PUBLIC_HOST=203.0.113.10 DEMO_BIND_ADDR=0.0.0.0 ./setup.sh
+DEMO_PUBLIC_HOST="${DEMO_PUBLIC_HOST:-127.0.0.1}"
+DEMO_APP_PORT="${DEMO_APP_PORT:-6190}"
+DEMO_PORTAL_PORT="${DEMO_PORTAL_PORT:-6191}"
+DEMO_BIND_ADDR="${DEMO_BIND_ADDR:-0.0.0.0}"
+# Where compose comes from. On hosts without the docker group use e.g.
+#   COMPOSE_CMD="sudo -n /usr/local/bin/docker-compose"
+COMPOSE_CMD="${COMPOSE_CMD:-docker compose}"
+# Docker CLI used for one-off helpers (password hashing). Same story as compose.
+DOCKER_CMD="${DOCKER_CMD:-docker}"
+DEMO_UID="${DEMO_UID:-$(id -u)}"
+DEMO_GID="${DEMO_GID:-$(id -g)}"
+export DEMO_PUBLIC_HOST DEMO_APP_PORT DEMO_PORTAL_PORT DEMO_BIND_ADDR
+export DEMO_UID DEMO_GID
+
 say() { printf '%s\n' "$*"; }
 
 need() {
   command -v "$1" >/dev/null 2>&1 || { say "missing dependency: $1"; exit 1; }
 }
-need docker
 need openssl
+need python3
 
 # --- secrets -----------------------------------------------------------------
 if [ ! -f authelia/configuration.yml ]; then
   say "generating secrets..."
+  PUBLIC_HOST="$DEMO_PUBLIC_HOST" APP_PORT="$DEMO_APP_PORT" PORTAL_PORT="$DEMO_PORTAL_PORT" \
   python3 - <<'PY'
-import secrets, pathlib, string
+import os, secrets, pathlib, string
 alphabet = string.ascii_letters + string.digits
 def rnd(n): return "".join(secrets.choice(alphabet) for _ in range(n))
 tmpl = pathlib.Path("authelia/configuration.yml.tmpl").read_text()
 out = (tmpl
        .replace("__JWT_SECRET__", rnd(64))
        .replace("__SESSION_SECRET__", rnd(64))
-       .replace("__STORAGE_KEY__", rnd(64)))
+       .replace("__STORAGE_KEY__", rnd(64))
+       .replace("__PUBLIC_HOST__", os.environ["PUBLIC_HOST"])
+       .replace("__APP_PORT__", os.environ["APP_PORT"])
+       .replace("__PORTAL_PORT__", os.environ["PORTAL_PORT"]))
 pathlib.Path("authelia/configuration.yml").write_text(out)
 PY
+  # A new storage encryption key must go with a fresh database, otherwise
+  # Authelia refuses to start ("encryption key does not appear to be valid").
+  rm -f authelia/db.sqlite3
   chmod 600 authelia/configuration.yml
 else
   say "reusing existing authelia/configuration.yml"
@@ -43,7 +66,7 @@ fi
 if [ ! -f authelia/users.yml ]; then
   say "creating demo users (password: demo123)..."
   hash() {
-    docker run --rm "$IMAGE_AUTHELIA" \
+    ${DOCKER_CMD} run --rm "$IMAGE_AUTHELIA" \
       authelia crypto hash generate argon2 --password "$1" \
       | sed -n 's/^Digest: //p'
   }
@@ -75,10 +98,17 @@ fi
 mkdir -p certs
 if [ ! -f certs/demo.crt ]; then
   say "generating self-signed certificate (browsers will warn)..."
+  SAN="IP:127.0.0.1,DNS:localhost"
+  # Add the public host to the SAN list so browsers can pin it if desired.
+  if echo "$DEMO_PUBLIC_HOST" | grep -Eq '^[0-9.]+$'; then
+    SAN="$SAN,IP:$DEMO_PUBLIC_HOST"
+  else
+    SAN="$SAN,DNS:$DEMO_PUBLIC_HOST"
+  fi
   openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
     -keyout certs/demo.key -out certs/demo.crt \
-    -subj "/CN=127.0.0.1" \
-    -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" >/dev/null 2>&1
+    -subj "/CN=$DEMO_PUBLIC_HOST" \
+    -addext "subjectAltName=$SAN" >/dev/null 2>&1
   chmod 600 certs/demo.key
 fi
 
@@ -106,14 +136,27 @@ groups:
 EOF
 fi
 
+# Compose reads .env from the project directory. Needed because compose may be
+# invoked through sudo, which strips the caller's environment.
+cat > .env <<EOF
+DEMO_APP_PORT=${DEMO_APP_PORT}
+DEMO_PORTAL_PORT=${DEMO_PORTAL_PORT}
+DEMO_BIND_ADDR=${DEMO_BIND_ADDR}
+DEMO_UID=${DEMO_UID}
+DEMO_GID=${DEMO_GID}
+DEMO_NGINX_IMAGE=${DEMO_NGINX_IMAGE:-nginx:1.27-alpine}
+SOFTWIKI_IMAGE=${SOFTWIKI_IMAGE:-softwiki-api:auth-demo}
+EOF
+
 say "starting stack..."
-docker compose up -d
+# shellcheck disable=SC2086
+${COMPOSE_CMD} up -d
 
 say ""
-say "ready:  https://127.0.0.1:6190   app   (self-signed: accept the warning)"
-say "portal: https://127.0.0.1:6191   login page"
+say "ready:  https://${DEMO_PUBLIC_HOST}:${DEMO_APP_PORT}   app   (self-signed: accept the warning)"
+say "portal: https://${DEMO_PUBLIC_HOST}:${DEMO_PORTAL_PORT}   login page"
 say "login:  alice / demo123   (staff   -> wiki-work)"
 say "        bob   / demo123   (student -> wiki-study)"
 say ""
-say "verify: python3 ../../scripts/verify_proxy_headers.py https://127.0.0.1:6190 --insecure --user alice"
-say "note:   this box publishes nginx on 127.0.0.1 only; use an SSH tunnel from another host"
+say "verify: python3 ../../scripts/verify_proxy_headers.py https://${DEMO_PUBLIC_HOST}:${DEMO_APP_PORT} --insecure --user alice"
+say "bind:   ${DEMO_BIND_ADDR}:${DEMO_APP_PORT}/${DEMO_PORTAL_PORT} (only nginx is published)"

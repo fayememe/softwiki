@@ -1,14 +1,13 @@
-# Served from /etc/nginx/conf.d/ — server blocks only (no http/events wrapper).
+# Rendered by the nginx image's envsubst (only ${DEMO_*} is substituted, so
+# nginx variables like $host survive).
 #
-# Two ports on the same IP:
-#   6190  the application, guarded by forward-auth
-#   6191  the login portal, served at / (its bundle uses absolute asset paths)
-#
-# Authelia cookies are scoped to the host (127.0.0.1), not the port, so a login
-# on 6191 is visible on 6190.
+# Two ports on the same host:
+#   ${DEMO_APP_PORT}     the application, guarded by forward-auth
+#   ${DEMO_PORTAL_PORT}  the login portal, served at / (its bundle uses
+#                        absolute asset paths, so it cannot live under a prefix)
 
 server {
-  listen 6191 ssl;
+  listen ${DEMO_PORTAL_PORT} ssl;
   server_name _;
 
   ssl_certificate     /etc/nginx/certs/demo.crt;
@@ -25,7 +24,7 @@ server {
 }
 
 server {
-  listen 6190 ssl;
+  listen ${DEMO_APP_PORT} ssl;
   server_name _;
 
   ssl_certificate     /etc/nginx/certs/demo.crt;
@@ -35,8 +34,8 @@ server {
     auth_request /internal/authz;
     auth_request_set $target_url $scheme://$http_host$request_uri;
     # Not authenticated: send the browser to the portal, then back here.
-    error_page 401 =302 https://127.0.0.1:6191/?rd=$target_url;
-    error_page 403 =302 https://127.0.0.1:6191/?rd=$target_url;
+    error_page 401 =302 https://$host:${DEMO_PORTAL_PORT}/?rd=$target_url;
+    error_page 403 =302 https://$host:${DEMO_PORTAL_PORT}/?rd=$target_url;
 
     # Authelia returns the verified identity in response headers; copy them
     # onto the upstream request. These names are what softwiki reads.

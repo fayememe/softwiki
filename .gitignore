@@ -44,3 +44,4 @@ deploy/auth-demo/authelia/db.sqlite3
 deploy/auth-demo/authelia/notifications.txt
 deploy/auth-demo/certs/
 deploy/auth-demo/workspaces/
+deploy/auth-demo/.env
