@@ -137,6 +137,7 @@ _AUTH_EXEMPT = {
     "/redoc",
     "/api/auth/providers",
     "/api/auth/login",
+    "/api/auth/password",
     "/api/auth/me",
     "/api/auth/superuser",
     "/api/kb",
@@ -362,6 +363,13 @@ class ProviderLoginRequest(BaseModel):
     app_secret: Optional[str] = None
 
 
+class PasswordLoginRequest(BaseModel):
+    """Sign in as the built-in admin (escape hatch)."""
+
+    username: str = "admin"
+    password: str
+
+
 class SuperuserOpenRequest(BaseModel):
     ttl: Optional[str] = None
     token: Optional[str] = None
@@ -469,6 +477,53 @@ def auth_login(req: ProviderLoginRequest, request: Request):
     response.set_cookie(
         "softwiki_identity",
         json.dumps({"issuer": identity.issuer, "subject": identity.subject}),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+@app.post("/api/auth/password")
+def auth_password_login(req: PasswordLoginRequest, request: Request):
+    """Sign in as the built-in admin.
+
+    Rate limited per peer and audited. This is the only guessable entry point,
+    so it is deliberately narrow: one account, no user enumeration, one error
+    message for every failure.
+    """
+    from softwiki.identity.localauth import LOGIN_LIMITER, authenticate
+
+    peer = _client_ip(request)
+    if not LOGIN_LIMITER.allow(peer):
+        audit.record("auth.password", result="rate-limited", source_ip=peer)
+        raise HTTPException(status_code=429, detail="Too many attempts; try again later")
+
+    user = authenticate(req.username, req.password)
+    if user is None:
+        audit.record(
+            "auth.password", result="denied", target=str(req.username)[:64], source_ip=peer
+        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    store = UserStore()
+    authz = store.authorize_user(user)
+    audit.record(
+        "auth.password",
+        result="ok",
+        actor={"identity": authz.identity, "role": authz.granted_role, "source_ip": peer},
+    )
+
+    response = JSONResponse(
+        {
+            "identity": authz.identity,
+            "role": authz.granted_role,
+            "pending": authz.pending,
+            "kb_scope": authz.kb_scope,
+        }
+    )
+    response.set_cookie(
+        "softwiki_identity",
+        json.dumps({"issuer": user.issuer, "subject": user.subject}),
         httponly=True,
         samesite="lax",
     )
@@ -773,6 +828,29 @@ def warm_indexes():
         Bm25Store()
     except Exception as e:
         print(f"Index warmup skipped: {e}")
+
+
+@app.on_event("startup")
+def ensure_admin_account():
+    """Create the built-in admin on first start (no default password)."""
+    from softwiki.identity.localauth import ensure_builtin_admin
+
+    try:
+        created, generated = ensure_builtin_admin()
+    except Exception as exc:  # noqa: BLE001 - must not stop the API from serving
+        print(f"[auth] could not ensure built-in admin: {exc}", flush=True)
+        return
+    if created and generated:
+        print(
+            "\n" + "=" * 68
+            + "\n  Built-in admin created. Username: admin"
+            + f"\n  Password: {generated}"
+            + "\n  This is shown once. Change it with scripts/set_admin_password.py"
+            + "\n" + "=" * 68,
+            flush=True,
+        )
+    elif created:
+        print("[auth] built-in admin created from SOFTWIKI_ADMIN_PASSWORD", flush=True)
 
 
 @app.on_event("startup")

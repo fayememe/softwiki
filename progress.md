@@ -214,6 +214,16 @@
       未知组 pending、外部直连伪造 header 无效
 - [ ] 生产栈（6108/6109）实际启用认证（等 CIDR / 客户 IdP 参数）
 
+### M10 — 内置 admin 账号（2026-11-22）
+> 文档：`docs/03-operations/auth-proxy.md` §6.7
+- [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
+- [x] `POST /api/auth/password`（加入免认证路径）；`scripts/set_admin_password.py` 改密码
+- [x] 无默认密码：未设 `SOFTWIKI_ADMIN_PASSWORD` 则生成随机密码，启动日志打印一次
+- [x] 测试 `tests/test_localauth.py` 11 项；`scripts/e2e_admin_login.py` 实测
+      登录得 wiki-admin、错密码 401、限速生效
+- [ ] WebUI 登录页（目前只有 API，前端仍走外部 IdP / 反代）
+- [ ] 多进程下限速为每进程独立（单实例部署可接受）
+
 ### M8 — LLM-Wiki 粒度重构（2026-11-20）
 > 设计：`docs/02-design/wiki-page-granularity.md`
 - [x] 试点确认阈值：23 条清楚 / 129 条退化；一页上限固定 **25**，超限拆页不截断

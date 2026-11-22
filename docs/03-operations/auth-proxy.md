@@ -197,6 +197,31 @@ bob   -> identity=proxy:demo:bob    role=wiki-study  pending=false
 5. 登录页的 SPA 资源是绝对路径 → 登录页必须独立端口，不能挂在 `/authelia/` 子路径；
 6. `ForwardAuth` 返回 302，nginx `auth_request` 不接受 → 用 `AuthRequest`（401）+ `error_page`。
 
+## 6.7 内置 admin（安装时设密码）
+
+不需要任何外部 IdP 也能进系统，也用于身份系统故障时的应急：
+
+```ini
+# 首次启动时生效；之后不会被覆盖
+SOFTWIKI_ADMIN_PASSWORD=<安装时自己设，至少 12 位>
+```
+
+- 账号固定 `admin`，角色固定 `wiki-admin`
+- **没有默认密码**：没设环境变量就随机生成，启动日志打印一次
+- 只存 scrypt 哈希（每账号独立盐），不存明文
+- 登录接口 `POST /api/auth/password`，**按来源 IP 限速**（5 次/分钟）
+- 每次尝试都写审计（成功 / 失败 / 限速）
+- 改密码：`python3 scripts/set_admin_password.py`
+
+```bash
+curl -k -X POST https://<host>/api/auth/password \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"..."}'
+```
+
+> 定位：**应急入口**，不是用户系统。其他账号一律来自外部 IdP；
+> 内置账号只允许 `admin` 一个，`authenticate()` 会拒绝任何其他用户名。
+
 ## 7. 换别的用户系统
 
 只要它能做 forward-auth 并注入 header，就适用：
