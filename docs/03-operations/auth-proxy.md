@@ -219,6 +219,14 @@ curl -k -X POST https://<host>/api/auth/password \
   -d '{"username":"admin","password":"..."}'
 ```
 
+**反代必须放行这条路径。** 否则 provider 挂了就谁都进不去（鸡生蛋）。
+示例 nginx 里 `/api/auth/password`、`/api/auth/me`、`/api/auth/providers`
+不走 `auth_request`；softwiki 自己对这条路由限速并审计。
+
+代价：该接口对公网可达。密码是随机的 24 字符、5 次/分钟限速，暴力破解不可行；
+但生产环境更稳的做法是把它只绑到内网监听（或只允许内网来源），
+公网只保留反代。可用第 8 节的 `SOFTWIKI_ALLOWED_CIDRS` 区分内外网。
+
 > 定位：**应急入口**，不是用户系统。其他账号一律来自外部 IdP；
 > 内置账号只允许 `admin` 一个，`authenticate()` 会拒绝任何其他用户名。
 

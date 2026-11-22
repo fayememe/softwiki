@@ -221,6 +221,8 @@
 - [x] 无默认密码：未设 `SOFTWIKI_ADMIN_PASSWORD` 则生成随机密码，启动日志打印一次
 - [x] 测试 `tests/test_localauth.py` 11 项；`scripts/e2e_admin_login.py` 实测
       登录得 wiki-admin、错密码 401、限速生效
+- [x] 反代放行应急入口：nginx 对 `/api/auth/password|me|providers` 不走 auth_request
+      （否则 provider 挂掉时无法登录）；代价是该接口公网可达，靠限速 + 强随机密码
 - [ ] WebUI 登录页（目前只有 API，前端仍走外部 IdP / 反代）
 - [ ] 多进程下限速为每进程独立（单实例部署可接受）
 
