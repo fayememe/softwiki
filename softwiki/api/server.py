@@ -492,16 +492,21 @@ def auth_password_login(req: PasswordLoginRequest, request: Request):
     message for every failure.
     """
     from softwiki.identity.localauth import LOGIN_LIMITER, authenticate
+    from softwiki.identity.proxy import client_ip_for_audit
 
+    # Behind the reverse proxy the TCP peer is nginx, so every user would share
+    # one rate-limit bucket and every audit row would name the proxy. Use the
+    # forwarded address *only* when the peer is a configured trusted proxy.
     peer = _client_ip(request)
-    if not LOGIN_LIMITER.allow(peer):
-        audit.record("auth.password", result="rate-limited", source_ip=peer)
+    client = client_ip_for_audit(peer, request.headers.get("x-forwarded-for"))
+    if not LOGIN_LIMITER.allow(client):
+        audit.record("auth.password", result="rate-limited", source_ip=client)
         raise HTTPException(status_code=429, detail="Too many attempts; try again later")
 
     user = authenticate(req.username, req.password)
     if user is None:
         audit.record(
-            "auth.password", result="denied", target=str(req.username)[:64], source_ip=peer
+            "auth.password", result="denied", target=str(req.username)[:64], source_ip=client
         )
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -510,7 +515,7 @@ def auth_password_login(req: PasswordLoginRequest, request: Request):
     audit.record(
         "auth.password",
         result="ok",
-        actor={"identity": authz.identity, "role": authz.granted_role, "source_ip": peer},
+        actor={"identity": authz.identity, "role": authz.granted_role, "source_ip": client},
     )
 
     response = JSONResponse(
@@ -832,7 +837,14 @@ def warm_indexes():
 
 @app.on_event("startup")
 def ensure_admin_account():
-    """Create the built-in admin on first start (no default password)."""
+    """Create the built-in admin on first start (no default password).
+
+    Single-machine mode needs no account: every caller already *is* the machine
+    administrator. Creating a row there would only confuse the Users panel.
+    """
+    if auth_mode() == "off":
+        return
+
     from softwiki.identity.localauth import ensure_builtin_admin
 
     try:

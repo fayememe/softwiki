@@ -223,6 +223,9 @@
       登录得 wiki-admin、错密码 401、限速生效
 - [x] 反代放行应急入口：nginx 对 `/api/auth/password|me|providers` 不走 auth_request
       （否则 provider 挂掉时无法登录）；代价是该接口公网可达，靠限速 + 强随机密码
+- [x] 单机版不创建内置账号（`off` 模式下所有人已是本机管理员，多一行只会让 Users 面板困惑）
+- [x] 反代场景下限速/审计改用真实客户端地址（仅当来源是受信反代才采信 `X-Forwarded-For`）
+- [x] 三场景手册：`docs/03-operations/user-system-manual.md`
 - [ ] WebUI 登录页（目前只有 API，前端仍走外部 IdP / 反代）
 - [ ] 多进程下限速为每进程独立（单实例部署可接受）
 

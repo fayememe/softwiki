@@ -113,3 +113,25 @@ def test_login_updates_last_login():
     assert user.last_login_at
     stored = UserStore().find(localauth.ISSUER, localauth.SUBJECT)
     assert stored.last_login_at == user.last_login_at
+
+
+# --------------------------------------------------------------------------- #
+# Single-machine mode creates no account
+# --------------------------------------------------------------------------- #
+
+def test_no_account_created_in_single_machine_mode(monkeypatch):
+    """`off` means every caller already is the machine administrator."""
+    from softwiki.api.server import ensure_admin_account
+
+    monkeypatch.setenv("SOFTWIKI_AUTH_MODE", "off")
+    ensure_admin_account()
+    assert UserStore().find(localauth.ISSUER, localauth.SUBJECT) is None
+
+
+def test_account_created_in_proxy_mode(monkeypatch):
+    from softwiki.api.server import ensure_admin_account
+
+    monkeypatch.setenv("SOFTWIKI_AUTH_MODE", "proxy")
+    monkeypatch.setenv("SOFTWIKI_ADMIN_PASSWORD", "a-long-enough-pass")
+    ensure_admin_account()
+    assert UserStore().find(localauth.ISSUER, localauth.SUBJECT) is not None

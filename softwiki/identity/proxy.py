@@ -156,6 +156,22 @@ def identity_from_headers(headers, peer: Optional[str]) -> Optional[ExternalIden
     )
 
 
+def client_ip_for_audit(peer: Optional[str], forwarded_for: Optional[str]) -> Optional[str]:
+    """The address to record and rate-limit on.
+
+    Behind a reverse proxy the TCP peer is the proxy itself. The forwarded
+    address is trustworthy only when that peer is in ``SOFTWIKI_TRUSTED_PROXIES``
+    — the same boundary that guards identity headers. Never use this for
+    "is the caller local" decisions; those must stay on the TCP peer.
+    """
+    if not peer:
+        return None
+    if not forwarded_for or not peer_trusted(peer):
+        return peer
+    first = forwarded_for.split(",")[0].strip()
+    return first or peer
+
+
 def describe() -> dict:
     """Diagnostics: what we would trust, without revealing identities."""
     networks, literals, error = _parse_networks(trusted_spec())

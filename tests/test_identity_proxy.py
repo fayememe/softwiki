@@ -91,3 +91,27 @@ def test_describe_does_not_leak_secrets(monkeypatch):
     assert info["enabled"] is True
     assert info["trusted_proxies"] == ["172.18.0.0/16"]
     assert "sub" not in info
+
+
+# --------------------------------------------------------------------------- #
+# Client address for audit / rate limiting
+# --------------------------------------------------------------------------- #
+
+def test_client_ip_ignores_forwarded_for_from_untrusted_peer(monkeypatch):
+    monkeypatch.setenv("SOFTWIKI_TRUSTED_PROXIES", "172.18.0.0/16")
+    assert px.client_ip_for_audit("203.0.113.9", "1.2.3.4") == "203.0.113.9"
+
+
+def test_client_ip_uses_forwarded_for_from_trusted_peer(monkeypatch):
+    monkeypatch.setenv("SOFTWIKI_TRUSTED_PROXIES", "172.18.0.0/16")
+    assert px.client_ip_for_audit("172.18.0.5", "1.2.3.4") == "1.2.3.4"
+
+
+def test_client_ip_takes_the_first_hop(monkeypatch):
+    monkeypatch.setenv("SOFTWIKI_TRUSTED_PROXIES", "172.18.0.0/16")
+    assert px.client_ip_for_audit("172.18.0.5", "1.2.3.4, 172.18.0.5") == "1.2.3.4"
+
+
+def test_client_ip_without_forwarded_for(monkeypatch):
+    monkeypatch.setenv("SOFTWIKI_TRUSTED_PROXIES", "172.18.0.0/16")
+    assert px.client_ip_for_audit("172.18.0.5", None) == "172.18.0.5"
