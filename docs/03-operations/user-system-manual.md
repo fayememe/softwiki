@@ -231,3 +231,7 @@ docker compose restart authelia
 | 反代后所有人共用一个限速额度 | 反代没传 `X-Forwarded-For` | 反代加 `proxy_set_header X-Forwarded-For $remote_addr` |
 | 身份系统挂了进不去 | 反代没放行登录路径 | 放行 `/api/auth/password` |
 | `identity` 显示 `proxy:xxx:alice` 但角色不对 | 映射文件不是 `identity.yaml` | 确认没写到 `users.yaml` |
+
+> 审计里有两类记录：`auth.password` 记的是**真实客户端地址**（反代受信时取
+> `X-Forwarded-For` 第一跳）；通用的 `POST /api/...` 请求记录仍记 TCP 对端
+> （反代场景下是反代地址）。排障时以 `auth.*` 记录为准。
