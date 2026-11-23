@@ -392,3 +392,40 @@
 .ignoreBtn:hover {
   color: #b32424;
 }
+
+/* Pending proposals from the assistant: one decision per row. */
+.plans {
+  margin: 10px 20px;
+  border: 1px solid #ffe3b3;
+  background: #fffdf6;
+  border-radius: 2px;
+}
+.plansHead {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ac6600;
+  border-bottom: 1px solid #ffe3b3;
+}
+.planRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-top: 1px solid #f4e6cd;
+  font-size: 12px;
+}
+.planRow:first-of-type { border-top: none; }
+.planText { flex: 1; line-height: 1.5; }
+.planSubjects { color: #72777d; font-size: 11px; margin-top: 2px; }
+.planActions { display: flex; gap: 6px; flex-shrink: 0; }
+.btnGhost {
+  padding: 5px 12px;
+  border: 1px solid #c8ccd1;
+  border-radius: 2px;
+  background: #fff;
+  color: #54595d;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btnGhost:hover { background: #eaecf0; }

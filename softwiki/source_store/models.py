@@ -283,6 +283,30 @@ class WikiRebuildTask(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class WikiActionPlan(Base):
+    """A proposed but not yet approved change to the wiki.
+
+    The agent proposes (``wiki.submit``); a human approves (``wiki.apply``).
+    Approval executes the action, so nobody has to repeat the agent's work by
+    hand. The plan is the audit record of who proposed what and who allowed it.
+    """
+
+    __tablename__ = "wiki_action_plans"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kb = Column(String(120), nullable=True, index=True)
+    kind = Column(String(40), nullable=False)          # ignore_subjects | delete_pages | ...
+    payload = Column(Text, nullable=False)             # JSON
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    proposed_by = Column(String(200), nullable=True)
+    approved_by = Column(String(200), nullable=True)
+    reason = Column(Text, nullable=True)
+    result = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    decided_at = Column(DateTime, nullable=True)
+    applied_at = Column(DateTime, nullable=True)
+
+
 class User(Base):
     __tablename__ = "users"
 

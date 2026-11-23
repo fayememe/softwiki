@@ -76,6 +76,10 @@ export default function WikiPagesPanel() {
   const [reconciling, setReconciling] = useState(false);
   const [queuePending, setQueuePending] = useState<number | null>(null);
   const [rules, setRules] = useState<{ ignore: string[]; locked: string[] }>({ ignore: [], locked: [] });
+  const [plans, setPlans] = useState<Array<{
+    id: number; kind: string; status: string; proposed_by?: string;
+    reason?: string; subjects: string[];
+  }>>([]);
 
   const loadIndex = useCallback(async () => {
     setLoading(true);
@@ -91,6 +95,10 @@ export default function WikiPagesPanel() {
         .then((r) => r.json())
         .catch(() => null);
       if (rules) setRules({ ignore: rules.ignore || [], locked: rules.locked || [] });
+      const planList = await fetch('/api/wiki/plans?status=pending', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (planList) setPlans(planList.plans || []);
       const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
         .then((r) => r.json())
         .catch(() => null);
@@ -136,6 +144,10 @@ export default function WikiPagesPanel() {
         .then((r) => r.json())
         .catch(() => null);
       if (rules) setRules({ ignore: rules.ignore || [], locked: rules.locked || [] });
+      const planList = await fetch('/api/wiki/plans?status=pending', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (planList) setPlans(planList.plans || []);
       const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
           .then((r) => r.json())
           .catch(() => null);
@@ -152,6 +164,27 @@ export default function WikiPagesPanel() {
     } finally {
       setReconciling(false);
       setQueuePending(null);
+    }
+  }, [loadIndex]);
+
+  const decidePlan = useCallback(async (id: number, approve: boolean) => {
+    setError('');
+    try {
+      const res = await fetch(`/api/wiki/plans/${id}/${approve ? 'approve' : 'reject'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: '' }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+      setNotice(
+        approve
+          ? `Applied plan #${id}: ${body.removed ? `${body.removed.length} page(s) removed` : 'done'}.`
+          : `Rejected plan #${id}.`,
+      );
+      await loadIndex();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update the plan');
     }
   }, [loadIndex]);
 
@@ -388,6 +421,36 @@ export default function WikiPagesPanel() {
               >
                 Part {i + 1}
               </button>
+            ))}
+          </div>
+        )}
+
+        {plans.length > 0 && (
+          <div className={styles.plans}>
+            <div className={styles.plansHead}>
+              Proposed by the assistant — {plans.length} waiting for your decision
+            </div>
+            {plans.map((plan) => (
+              <div key={plan.id} className={styles.planRow}>
+                <div className={styles.planText}>
+                  <strong>#{plan.id} {plan.kind.replace('_', ' ')}</strong>
+                  {' · '}{plan.subjects.length} subject(s)
+                  {plan.reason ? ` · ${plan.reason}` : ''}
+                  {plan.subjects.length > 0 && (
+                    <div className={styles.planSubjects}>{plan.subjects.slice(0, 12).join(', ')}
+                      {plan.subjects.length > 12 ? ` …+${plan.subjects.length - 12}` : ''}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.planActions}>
+                  <button className={styles.buildBtn} onClick={() => void decidePlan(plan.id, true)}>
+                    Approve &amp; apply
+                  </button>
+                  <button className={styles.btnGhost} onClick={() => void decidePlan(plan.id, false)}>
+                    Reject
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -2419,6 +2419,110 @@ class SubjectRuleRequest(BaseModel):
     action: str = "ignore"  # ignore | unignore | lock | unlock
 
 
+class WikiPlanRequest(BaseModel):
+    kind: str
+    kb: Optional[str] = None
+    subjects: List[str] = []
+    reason: str = ""
+
+
+class WikiPlanDecision(BaseModel):
+    reason: str = ""
+
+
+@app.post("/api/wiki/plans")
+def create_wiki_plan(req: WikiPlanRequest):
+    """Propose a wiki change. The agent may do this; a human must approve it."""
+    require_capability("wiki.submit")
+    from softwiki.wiki.plans import ACTIONS, create_plan
+
+    if req.kind not in ACTIONS:
+        raise HTTPException(status_code=400, detail=f"unknown kind {req.kind!r}")
+    if not req.subjects:
+        raise HTTPException(status_code=400, detail="subjects must not be empty")
+    db = SessionLocal()
+    try:
+        plan = create_plan(
+            db, req.kind, {"subjects": req.subjects}, kb=req.kb,
+            proposed_by=current_role(), reason=req.reason,
+        )
+        audit.record("wiki.plan.create", result="ok", target=f"{req.kind}:{plan.id}",
+                     detail=f"{len(req.subjects)} subject(s)")
+        return {"id": plan.id, "kind": plan.kind, "status": plan.status,
+                "subjects": req.subjects, "reason": plan.reason}
+    finally:
+        db.close()
+
+
+@app.get("/api/wiki/plans")
+def list_wiki_plans(status: Optional[str] = "pending", limit: int = 50):
+    from softwiki.wiki.plans import list_plans
+
+    db = SessionLocal()
+    try:
+        rows = list_plans(db, status=status, limit=limit)
+        return {"plans": [
+            {
+                "id": p.id,
+                "kind": p.kind,
+                "kb": p.kb,
+                "status": p.status,
+                "proposed_by": p.proposed_by,
+                "approved_by": p.approved_by,
+                "reason": p.reason,
+                "result": p.result,
+                "subjects": (__import__("json").loads(p.payload or "{}") or {}).get("subjects", []),
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "applied_at": p.applied_at.isoformat() if p.applied_at else None,
+            }
+            for p in rows
+        ]}
+    finally:
+        db.close()
+
+
+@app.post("/api/wiki/plans/{plan_id}/approve")
+def approve_wiki_plan(plan_id: int, req: WikiPlanDecision):
+    """Approve and execute. Requires wiki.apply — the agent cannot do this."""
+    require_capability("wiki.apply")
+    from softwiki.wiki.plans import decide, get_plan
+
+    db = SessionLocal()
+    try:
+        plan = get_plan(db, plan_id)
+        if plan is None:
+            raise HTTPException(status_code=404, detail="plan not found")
+        try:
+            result = decide(db, plan, True, decided_by=current_role(), reason=req.reason)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        audit.record("wiki.plan.approve", result=result.get("status", "ok"),
+                     target=f"{plan.kind}:{plan.id}", detail=plan.kind)
+        return result
+    finally:
+        db.close()
+
+
+@app.post("/api/wiki/plans/{plan_id}/reject")
+def reject_wiki_plan(plan_id: int, req: WikiPlanDecision):
+    require_capability("wiki.apply")
+    from softwiki.wiki.plans import decide, get_plan
+
+    db = SessionLocal()
+    try:
+        plan = get_plan(db, plan_id)
+        if plan is None:
+            raise HTTPException(status_code=404, detail="plan not found")
+        try:
+            result = decide(db, plan, False, decided_by=current_role(), reason=req.reason)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        audit.record("wiki.plan.reject", result="ok", target=f"{plan.kind}:{plan.id}")
+        return result
+    finally:
+        db.close()
+
+
 @app.get("/api/wiki/subject-rules")
 def get_subject_rules():
     """Which subjects are excluded from generation, and which are hand-locked."""

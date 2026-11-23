@@ -850,6 +850,64 @@ softwiki_ask = ask
 # ── Knowledge base discovery ──
 
 @mcp.tool()
+def wiki_propose(kind: str, subjects: list[str], reason: str = "") -> str:
+    """Propose a wiki change for a human to approve.
+
+    Use this instead of doing destructive work yourself: you decide *what*
+    should change, a human approves, and the server executes. Your role can
+    propose (wiki.submit) but never approve (wiki.apply).
+
+    Args:
+        kind: one of ignore_subjects | delete_pages | regenerate_subjects
+        subjects: entity names the plan applies to
+        reason: one line explaining why, shown to the approver
+    """
+    if not can("wiki.submit"):
+        return f"Error: role '{current_role()}' cannot propose wiki changes."
+    from softwiki.wiki.plans import ACTIONS, create_plan
+
+    if kind not in ACTIONS:
+        return f"Error: unknown kind '{kind}'. Valid: {', '.join(sorted(ACTIONS))}"
+    if not subjects:
+        return "Error: subjects must not be empty."
+    db = SessionLocal()
+    try:
+        plan = create_plan(db, kind, {"subjects": subjects},
+                           proposed_by=current_role(), reason=reason)
+        _audit_mcp("mcp.wiki_propose", target={"kind": kind, "subjects": subjects})
+        return (
+            f"Plan #{plan.id} created ({kind}, {len(subjects)} subject(s)). "
+            f"A human with wiki.apply must approve it before anything changes."
+        )
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def wiki_plans(status: str = "pending") -> str:
+    """List wiki change plans, so you can report what is waiting for approval."""
+    if not can("wiki.submit"):
+        return f"Error: role '{current_role()}' cannot read plans."
+    from softwiki.wiki.plans import list_plans
+
+    db = SessionLocal()
+    try:
+        rows = list_plans(db, status=status, limit=50)
+        if not rows:
+            return f"No plans with status '{status}'."
+        lines = [f"Plans ({status}): {len(rows)}"]
+        for p in rows:
+            subjects = (__import__("json").loads(p.payload or "{}") or {}).get("subjects", [])
+            lines.append(
+                f"- #{p.id} {p.kind} by {p.proposed_by}: {len(subjects)} subject(s)"
+                + (f" — {p.reason[:60]}" if p.reason else "")
+            )
+        return "\n".join(lines)
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def kb_list() -> str:
     """List every knowledge base and the topics it covers.
 
