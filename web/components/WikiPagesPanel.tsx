@@ -73,6 +73,8 @@ export default function WikiPagesPanel() {
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [reconciling, setReconciling] = useState(false);
+  const [queuePending, setQueuePending] = useState<number | null>(null);
 
   const loadIndex = useCallback(async () => {
     setLoading(true);
@@ -99,6 +101,43 @@ export default function WikiPagesPanel() {
 
   useEffect(() => {
     void loadIndex();
+  }, [loadIndex]);
+
+  /** Ask the backend to queue the first batch (or the changed subjects). */
+  const startGeneration = useCallback(async () => {
+    setReconciling(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await fetch('/api/wiki/reconcile', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      const n = data.enqueued ?? 0;
+      setNotice(
+        n > 0
+          ? `Queued ${n} page(s). They appear here as they finish.`
+          : 'Nothing to queue — every subject is already up to date.',
+      );
+      // Poll the queue so the list fills in without the user reloading.
+      for (let i = 0; i < 60 && n > 0; i += 1) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
+          .then((r) => r.json())
+          .catch(() => null);
+        const pending = q?.counts?.pending;
+        if (typeof pending === 'number') {
+          setQueuePending(pending);
+          if (pending === 0) break;
+        }
+        await loadIndex();
+      }
+      await loadIndex();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not start generation');
+    } finally {
+      setReconciling(false);
+      setQueuePending(null);
+    }
   }, [loadIndex]);
 
   const openPage = useCallback(async (slug: string) => {
@@ -297,6 +336,23 @@ export default function WikiPagesPanel() {
           </div>
         )}
 
+        {!generated && !loading && (
+          <div className={styles.notice}>
+            <strong>This knowledge base has no generated pages yet.</strong>{' '}
+            {candidates.length > 0
+              ? `${candidates.length} subjects are ready. Start with the top 20 — you can generate more later.`
+              : 'Ingest documents first; subjects come from the claims.'}{' '}
+            {candidates.length > 0 && (
+              <button className={styles.buildBtn} disabled={reconciling} onClick={startGeneration}>
+                {reconciling
+                  ? queuePending !== null
+                    ? `Generating… ${queuePending} queued`
+                    : 'Starting…'
+                  : 'Start generation'}
+              </button>
+            )}
+          </div>
+        )}
         {notice && <div className={styles.notice}>{notice}</div>}
         {error && <div className={styles.error}>{error}</div>}
 

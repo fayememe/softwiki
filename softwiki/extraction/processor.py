@@ -172,6 +172,21 @@ def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime
             db.commit()
         _save_extraction_artifacts(db, doc_id)
 
+        # Page generation is deliberately NOT triggered per document: importing a
+        # corpus would rebuild pages on every file. The LLM Wiki panel asks the
+        # user to start it once ingestion is done (or a scheduler calls
+        # /api/wiki/reconcile). Opt in with WIKI_AUTO_ON_INGEST=1 if needed.
+        if os.getenv("WIKI_AUTO_ON_INGEST", "").lower() in ("1", "true", "yes"):
+            try:
+                from softwiki.wiki.auto_pages import reconcile
+
+                result = reconcile(db)
+                if result.get("enqueued"):
+                    print(f"[Worker] queued {result['enqueued']} subject page(s) "
+                          f"(initial={result.get('initial')})")
+            except Exception as exc:  # noqa: BLE001 - must not fail ingestion
+                logger.warning(f"Subject page reconcile skipped for doc {doc_id}: {exc}")
+
         print(f"[Worker] Background extraction completed successfully for Document ID {doc_id}.")
     except Exception as e:
         print(f"[Worker] Background extraction failed for Document ID {doc_id}: {e}")

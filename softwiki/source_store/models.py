@@ -270,6 +270,8 @@ class WikiRebuildTask(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     topic = Column(String(120), nullable=False, index=True)
+    # "topic" = the curated page generator, "subject" = one entity per page.
+    kind = Column(String(20), nullable=False, default="topic", server_default="topic")
     reason = Column(String(200), nullable=True)
     status = Column(String(20), nullable=False, default="pending", index=True)
     attempts = Column(Integer, default=0, nullable=False)

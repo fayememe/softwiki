@@ -2414,6 +2414,23 @@ def list_wiki_subject_pages(refresh: bool = False, limit: int = 0):
         db.close()
 
 
+@app.post("/api/wiki/reconcile")
+def reconcile_wiki_subjects(budget: int = 0):
+    """Queue entity pages that are missing or stale.
+
+    On a fresh kb this enqueues the first batch of subjects; afterwards it only
+    queues subjects whose claim count moved. `budget=0` uses the configured cap.
+    """
+    require_capability("wiki.apply")
+    from softwiki.wiki.auto_pages import reconcile
+
+    db = SessionLocal()
+    try:
+        return {"status": "success", **reconcile(db, budget=budget or None)}
+    finally:
+        db.close()
+
+
 @app.post("/api/wiki/pages/build")
 def build_wiki_subject_page(req: WikiPageBuildRequest):
     """Generate page(s) for one subject. Never truncates silently."""

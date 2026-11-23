@@ -132,6 +132,9 @@ def init_tables():
             ("valid_from", "TIMESTAMP"),
             ("valid_to", "TIMESTAMP"),
         ])
+        _ensure_columns(engine, "wiki_rebuild_tasks", [
+            ("kind", "VARCHAR(20) DEFAULT 'topic'"),
+        ])
         _ensure_columns(engine, "events", [
             ("canonical_claim_id", "VARCHAR(100)"),
             ("status", "VARCHAR(20) DEFAULT 'active'"),

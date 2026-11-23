@@ -42,6 +42,7 @@ def enqueue_wiki_rebuild(db: Session, topics: Iterable[str], reason: str = "") -
         # If running, queue one follow-up so a change during generation is not lost.
         task = WikiRebuildTask(
             topic=topic,
+            kind="topic",
             reason=reason or "claim_changed",
             status="pending",
         )
@@ -95,6 +96,19 @@ def run_once(db: Session, generator=None) -> Optional[dict]:
     task = claim_next(db)
     if task is None:
         return None
+    if getattr(task, "kind", "topic") == "subject":
+        from softwiki.wiki.subject_pages import generate_subject_pages
+
+        try:
+            generate_subject_pages(db, task.topic)
+            finish_task(db, task, None)
+            return {"topic": task.topic, "kind": "subject", "status": "done",
+                    "attempts": task.attempts}
+        except Exception as exc:  # noqa: BLE001 - one bad subject must not stop the queue
+            finish_task(db, task, str(exc))
+            return {"topic": task.topic, "kind": "subject", "status": task.status,
+                    "attempts": task.attempts, "error": str(exc)}
+
     if generator is None:
         from softwiki.wiki.page_generator import WikiPageGenerator
         generator = WikiPageGenerator()
