@@ -226,7 +226,12 @@
 - [x] 单机版不创建内置账号（`off` 模式下所有人已是本机管理员，多一行只会让 Users 面板困惑）
 - [x] 反代场景下限速/审计改用真实客户端地址（仅当来源是受信反代才采信 `X-Forwarded-For`）
 - [x] 三场景手册：`docs/03-operations/user-system-manual.md`
-- [ ] WebUI 登录页（目前只有 API，前端仍走外部 IdP / 反代）
+- [x] demo 栈补齐 WebUI（web 容器 + 网络别名 `api`，因为 Next rewrite 目标在构建时固定）
+- [x] **修复两个真 bug**（proxy 模式实测暴露）：
+      ① `auth_middleware` 早于 `role_middleware` 执行，非豁免路径全 401；
+      ② `auth_enabled()` 只认旧开关，`AUTH_MODE=proxy` 时匿名仍可访问 API；
+         且中间件里还留着旧 session-token 分支，会拒绝新身份层
+- [ ] WebUI 登录页（内置 admin 仍只有 API 入口）
 - [ ] 多进程下限速为每进程独立（单实例部署可接受）
 
 ### M8 — LLM-Wiki 粒度重构（2026-11-20）

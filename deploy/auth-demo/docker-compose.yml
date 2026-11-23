@@ -44,6 +44,20 @@ services:
     volumes:
       - ./workspaces:/data/workspaces
     networks:
+      authnet:
+        # The web image bakes its rewrite target at build time (http://api:6200).
+        # Aliasing keeps that target resolvable without rebuilding the image.
+        aliases:
+          - api
+    restart: unless-stopped
+
+  # The actual UI. nginx talks to this instead of the API so the demo shows
+  # the product, not raw JSON. Identity headers survive the Next.js rewrite.
+  web:
+    image: ${DEMO_WEB_IMAGE:-softwiki-web:latest}
+    environment:
+      API_INTERNAL_URL: http://softwiki:6200
+    networks:
       - authnet
     restart: unless-stopped
 
@@ -66,6 +80,7 @@ services:
     depends_on:
       - authelia
       - softwiki
+      - web
     restart: unless-stopped
 
 networks:

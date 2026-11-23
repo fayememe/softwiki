@@ -60,7 +60,7 @@ server {
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_http_version 1.1;
 
-    proxy_pass http://softwiki:6200;
+    proxy_pass http://web:6108;
   }
 
   # Escape hatch: the built-in admin password login must NOT go through
@@ -68,7 +68,7 @@ server {
   # down — which is the whole point of it. softwiki rate-limits and audits
   # these routes itself.
   location = /api/auth/password {
-    proxy_pass http://softwiki:6200;
+    proxy_pass http://web:6108;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_http_version 1.1;
@@ -77,14 +77,14 @@ server {
   # Read-only identity/diagnostics: same reasoning, and it lets the verification
   # tool report on a deployment whose provider is broken.
   location = /api/auth/me {
-    proxy_pass http://softwiki:6200;
+    proxy_pass http://web:6108;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_http_version 1.1;
   }
 
   location = /api/auth/providers {
-    proxy_pass http://softwiki:6200;
+    proxy_pass http://web:6108;
     proxy_set_header Host $http_host;
     proxy_http_version 1.1;
   }

@@ -163,22 +163,24 @@ DEMO_PUBLIC_HOST=<公网IP> DEMO_BIND_ADDR=0.0.0.0 ./setup.sh
 
 | 地址 | 用途 |
 |---|---|
-| `https://<host>:6190` | 应用（自签证书，浏览器会警告） |
-| `https://<host>:6191` | 登录页 |
+| `https://<host>:6190` | 完整 WebUI（经反代，已带身份） |
+| `https://<host>:6191` | Authelia 登录页 |
 
 | 账号 | 密码 | 组 | 角色 |
 |---|---|---|---|
 | `alice` | `demo123` | staff | `wiki-work` |
 | `bob` | `demo123` | student | `wiki-study` |
-| `admin` | 启动日志里的随机串 | — | `wiki-admin`（内置） |
+| `admin` | `demo123` | ops | `wiki-admin` |
 
 ### 3.3 想看的三种效果
 
 1. **组映射**：alice 能写 wiki 草稿，bob 只能看。
 2. **待放行**：新建一个 Authelia 用户，组填 `visitors`（未映射），登录后是 `pending`，
    在 Users 面板批准。
-3. **应急入口**：把 Authelia 停掉 `docker stop auth-demo-authelia-1`，
-   仍可用内置 `admin` 从 `/api/auth/password` 登录。
+3. **权限差异**：admin 侧栏有 ADMIN（New KB），alice 有 CONTRIBUTOR（Ingest/Conflicts），
+   bob 只有 KNOWLEDGE。刷新即按角色重算。
+4. **应急入口**：`docker stop auth-demo-authelia-1` 后，
+   仍可用内置账号 `POST /api/auth/password` 登录（admin / 启动日志里的随机串）。
 
 ### 3.4 改演示账号 / 角色
 

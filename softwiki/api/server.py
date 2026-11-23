@@ -288,7 +288,14 @@ async def auth_middleware(request: Request, call_next):
     """Identity gate. Only enforced when not in single-machine mode."""
     mode = auth_mode()
     if mode != "off" and request.url.path not in _AUTH_EXEMPT:
+        # Middleware order is not a contract we should rely on: this gate is
+        # registered after the role middleware, which makes it run *first*.
+        # Resolve the identity here if it has not been resolved yet, otherwise
+        # every non-exempt path would answer 401 in proxy/local/oidc mode.
         identity = getattr(request.state, "identity", None)
+        if identity is None:
+            identity = _identity_for_request(request)
+            request.state.identity = identity
         if identity is None or not identity.authenticated:
             return JSONResponse(
                 {"detail": "Authentication required", "mode": mode}, status_code=401
@@ -305,6 +312,13 @@ async def auth_middleware(request: Request, call_next):
     if not auth_enabled():
         return await call_next(request)
     if request.url.path in _AUTH_EXEMPT:
+        return await call_next(request)
+
+    # The identity layer above (proxy/local/oidc) has already authenticated the
+    # caller. What follows is the legacy session-token flow for deployments that
+    # still use it; it must not reject identities it does not know about.
+    identity = getattr(request.state, "identity", None)
+    if identity is not None and identity.authenticated:
         return await call_next(request)
 
     token = request.cookies.get("softwiki_session")

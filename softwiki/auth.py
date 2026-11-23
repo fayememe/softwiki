@@ -65,4 +65,15 @@ def verify_token(token: str) -> str | None:
 
 
 def auth_enabled() -> bool:
-    return os.getenv("SOFTWIKI_AUTH_ENABLED", "").lower() in ("1", "true", "yes")
+    """Whether the app itself must demand an identity.
+
+    True for every mode except ``off``. This used to read only the legacy
+    ``SOFTWIKI_AUTH_ENABLED`` flag, which meant a deployment configured with
+    ``SOFTWIKI_AUTH_MODE=proxy`` still let anonymous callers through — the
+    reverse proxy happened to block them, but the app was not enforcing
+    anything. Defence in depth: the gate belongs in the app too.
+    """
+    if os.getenv("SOFTWIKI_AUTH_ENABLED", "").lower() in ("1", "true", "yes"):
+        return True
+    mode = (os.getenv("SOFTWIKI_AUTH_MODE") or "").strip().lower()
+    return mode in ("local", "oidc", "proxy")

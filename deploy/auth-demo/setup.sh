@@ -146,6 +146,7 @@ DEMO_UID=${DEMO_UID}
 DEMO_GID=${DEMO_GID}
 DEMO_NGINX_IMAGE=${DEMO_NGINX_IMAGE:-nginx:1.27-alpine}
 SOFTWIKI_IMAGE=${SOFTWIKI_IMAGE:-softwiki-api:auth-demo}
+DEMO_WEB_IMAGE=${DEMO_WEB_IMAGE:-softwiki-web:latest}
 EOF
 
 say "starting stack..."
