@@ -231,6 +231,16 @@
       （`DEEPSEEK_API_KEY` 进 `.env`；`model_profiles.yaml` 的 wiki_compilation 不再带明文 key）
 - [ ] `model_profiles.yaml` 的 `cheap_extraction` / `high_quality_analysis` 仍是明文 key
 
+### M12 — LLM-Wiki 全量生成 + 人工干预（2026-11-23）
+- [x] `config/wiki_subjects.yaml`：subject 级 `ignore`（不建页/不进候选/不参与增量）与 `locked`（人工页不被覆盖）
+- [x] UI：候选列表每行 `✕` 一键忽略；API `GET/POST /api/wiki/subject-rules`
+- [x] 三态界面：尚未建立（Start generation）/ 正在建立（队列数，刷新不加速）/ 已建立（自动更新提示）
+- [x] 增量自动：worker 每 300s 跑一次 `reconcile(allow_initial=False)`，**不会自动 bootstrap**
+- [x] 批量脚本支持并发（`wiki_build_batch.py URL limit skip_over workers`）
+- [x] armkb 全量生成：409 ok / 2 timeout（服务端仍完成），**407 subjects / 957 pages**
+- [x] 忽略无意义实体：Arm / ARM / ARM Limited / All / Cambridge / England / RAM（共删约 150 页）
+- [!] 仍有超大概念页：ROM 726/30 页、SPE 686/28、AXI 437/18、AHB 416/17 —— 是否忽略由人工决定
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
