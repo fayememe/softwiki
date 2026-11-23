@@ -73,6 +73,9 @@ class LocalUser:
     groups: List[str] = field(default_factory=list)
     kb_scope: object = WILDCARD
     role_override: Optional[str] = None
+    # Which kb this user last opened. Remembered per user so switching is a
+    # preference, not a process-wide side effect.
+    active_kb: Optional[str] = None
     # Only for the built-in admin account (scrypt hash). External identities
     # never carry a password: the provider owns authentication.
     password_hash: Optional[str] = None
@@ -98,6 +101,7 @@ class LocalUser:
             "groups": list(self.groups),
             "kb_scope": self.kb_scope,
             "role_override": self.role_override,
+            "active_kb": self.active_kb,
             "password_hash": self.password_hash,
             "is_active": self.is_active,
             "created_at": self.created_at,
@@ -114,6 +118,7 @@ class LocalUser:
             groups=[str(g) for g in (data.get("groups") or [])],
             kb_scope=data.get("kb_scope", WILDCARD),
             role_override=data.get("role_override"),
+            active_kb=data.get("active_kb"),
             password_hash=data.get("password_hash"),
             is_active=bool(data.get("is_active", True)),
             created_at=data.get("created_at"),

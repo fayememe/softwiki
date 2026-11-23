@@ -166,11 +166,17 @@ DEMO_PUBLIC_HOST=<公网IP> DEMO_BIND_ADDR=0.0.0.0 ./setup.sh
 | `https://<host>:6190` | 完整 WebUI（经反代，已带身份） |
 | `https://<host>:6191` | Authelia 登录页 |
 
-| 账号 | 密码 | 组 | 角色 |
-|---|---|---|---|
-| `alice` | `demo123` | staff | `wiki-work` |
-| `bob` | `demo123` | student | `wiki-study` |
-| `admin` | `demo123` | ops | `wiki-admin` |
+| 账号 | 密码 | 组 | 角色 | 可见库 |
+|---|---|---|---|---|
+| `alice` | `demo123` | staff | `wiki-work` | `coffee`（185 篇） |
+| `bob` | `demo123` | student | `wiki-study` | `ai-history`（160 篇） |
+| `admin` | `demo123` | ops | `wiki-admin` | 两个都能看，可切换 |
+
+演示库是生产数据的**副本**（各自的 postgres + workspace 拷贝），改动不会影响 6108/6109。
+
+**一个实例服务多个库**：`WORKSPACES_ROOT` 下每个目录一个库，`DATABASE_URL_TEMPLATE`
+里 `{workspace}` 拼出各自的库。切换用 `POST /api/kb/switch {"kb": "..."}`，
+按用户记住（`LocalUser.active_kb`），超出 `kb_scope` 返回 403。
 
 ### 3.3 想看的三种效果
 

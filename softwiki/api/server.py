@@ -252,6 +252,28 @@ async def role_middleware(request: Request, call_next):
     request.state.granted_role = identity.role
     request.state.identity = identity
     request.state.source_ip = identity.source_ip
+    # Re-enter the kb this user last opened. Request-scoped: the ContextVar is
+    # restored in `finally`, so it can never leak into another caller.
+    kb_token = None
+    authz = getattr(identity, "authorization", None)
+    if authz is not None and authz.user is not None:
+        from softwiki.config import get_workspaces_root
+        from softwiki.identity.users import allowed_kbs
+        from softwiki.kb.context import enter_kb
+        from softwiki.kb.registry import list_kb_infos
+
+        names = [info.name for info in list_kb_infos(get_workspaces_root())]
+        visible = allowed_kbs(authz.kb_scope, names)
+        restricted = isinstance(authz.kb_scope, (list, tuple, set))
+        # A remembered kb wins; a restricted scope falls back to its first kb so
+        # the UI never shows one this user cannot open. An unrestricted scope
+        # keeps the instance default (do not surprise a `*` deployment).
+        target = authz.user.active_kb if authz.user.active_kb in visible else None
+        if target is None and restricted and visible:
+            target = visible[0]
+        if target:
+            kb_token = enter_kb(target)
+
     # Snapshot the caller now: the context vars are reset in `finally`, so
     # calling identity.actor() afterwards would report the env fallback role
     # instead of the role the request actually ran as.
@@ -268,6 +290,10 @@ async def role_middleware(request: Request, call_next):
         )
         raise
     finally:
+        if kb_token is not None:
+            from softwiki.kb.context import restore_kb
+
+            restore_kb(kb_token)
         reset_context(ctx_token)
         reset_downgrade(down_token)
         reset_role(role_token)
@@ -382,6 +408,10 @@ class PasswordLoginRequest(BaseModel):
 
     username: str = "admin"
     password: str
+
+
+class KbSwitchRequest(BaseModel):
+    kb: str
 
 
 class SuperuserOpenRequest(BaseModel):
@@ -3038,6 +3068,37 @@ def switch_workspace(req: WorkspaceSwitchRequest, request: Request):
         set_workspace_dir(ws_path)
 
     return {"status": "ok", "workspace": get_workspace_dir()}
+
+@app.post("/api/kb/switch")
+def switch_kb(req: KbSwitchRequest, request: Request):
+    """Remember which kb this user is looking at.
+
+    Per user, not per process: two people on the same instance can be in
+    different knowledge bases. The kb must be inside the caller's ``kb_scope``;
+    switching is a preference, never a privilege escalation.
+    """
+    from softwiki.config import get_workspaces_root
+    from softwiki.identity.users import UserStore, visible_kbs
+    from softwiki.kb.registry import list_kb_infos
+
+    identity = getattr(request.state, "identity", None)
+    if identity is None or not identity.authenticated or identity.authorization is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    authz = identity.authorization
+    names = [info.name for info in list_kb_infos(get_workspaces_root())]
+    if req.kb not in names:
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{req.kb}' not found")
+    if req.kb not in visible_kbs(authz.kb_scope, names):
+        raise HTTPException(status_code=403, detail="Knowledge base not in your scope")
+
+    user = authz.user
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    UserStore().update(user.issuer, user.subject, active_kb=req.kb)
+    audit.record("kb.switch", result="ok", target=req.kb, source_ip=identity.source_ip)
+    return {"status": "ok", "active": req.kb}
+
 
 # ── Standalone Wiki (no dashboard required) ──
 

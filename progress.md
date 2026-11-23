@@ -231,6 +231,10 @@
       ① `auth_middleware` 早于 `role_middleware` 执行，非豁免路径全 401；
       ② `auth_enabled()` 只认旧开关，`AUTH_MODE=proxy` 时匿名仍可访问 API；
          且中间件里还留着旧 session-token 分支，会拒绝新身份层
+- [x] demo 栈改成**一个实例服务两个真实库**（私有 postgres + 两个 workspace 拷贝），
+      按用户 `kb_scope` 分配：alice→coffee、bob→ai-history、admin→两个
+- [x] 新增 `POST /api/kb/switch` + `LocalUser.active_kb`（按用户记住当前库，请求级生效）
+- [x] 前端库选择器：可原地切换（auth 开启时），否则回退跨端口跳转
 - [ ] WebUI 登录页（内置 admin 仍只有 API 入口）
 - [ ] 多进程下限速为每进程独立（单实例部署可接受）
 

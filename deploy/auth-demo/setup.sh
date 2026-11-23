@@ -112,6 +112,17 @@ if [ ! -f certs/demo.crt ]; then
   chmod 600 certs/demo.key
 fi
 
+# --- LLM credentials (optional) ----------------------------------------------
+# Extraction needs an LLM. Copy just the relevant keys from the deployment's
+# .env so the demo can build a small knowledge base without inheriting
+# DATABASE_URL and friends.
+if [ ! -f .env.llm ] && [ -f ../.env ]; then
+  grep -E '^(OPENAI_API_KEY|OPENAI_API_BASE|DEEPSEEK_API_KEY|EXTRACTION_MODEL|ANALYSIS_MODEL|EMBEDDING_' \
+    ../.env > .env.llm 2>/dev/null || true
+  chmod 600 .env.llm 2>/dev/null || true
+  [ -s .env.llm ] && say "copied LLM keys from ../.env" || rm -f .env.llm
+fi
+
 # --- demo workspace (softwiki needs an initialised kb) -----------------------
 mkdir -p workspaces/demo/.softwiki workspaces/demo/config
 if [ ! -f workspaces/demo/config/meta.yaml ]; then

@@ -44,9 +44,27 @@ export default function KnowledgeBaseSelector() {
 
   const currentHost = typeof window === 'undefined' ? '' : window.location.hostname;
 
-  const change = (name: string) => {
+  const change = async (name: string) => {
     const kb = kbs.find((k) => k.name === name);
     if (!kb || kb.available === false) return;
+
+    // An instance that serves several kbs switches in place and remembers the
+    // choice per user. Only fall back to cross-port navigation when the kb is
+    // not served here (separate stacks).
+    try {
+      const res = await fetch('/api/kb/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kb: name }),
+      });
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+    } catch {
+      /* fall through to navigation */
+    }
+
     if (!kb.web_url) return;
     // Preserve the current host: web_url carries the port, not the hostname,
     // so the same config works whether reached by IP or by domain.

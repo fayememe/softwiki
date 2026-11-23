@@ -45,3 +45,4 @@ deploy/auth-demo/authelia/notifications.txt
 deploy/auth-demo/certs/
 deploy/auth-demo/workspaces/
 deploy/auth-demo/.env
+deploy/auth-demo/.env.llm
