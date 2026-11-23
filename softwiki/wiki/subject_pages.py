@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import re
+import time
 from datetime import datetime
 from typing import Iterable
 
@@ -98,13 +99,30 @@ def _pages_dir(db: Session) -> str:
 # Subject discovery
 # --------------------------------------------------------------------------- #
 
+# Candidate lists are a read-only projection of the graph; recomputing them on
+# every panel open is wasted work. Short TTL so new claims show up soon.
+_CANDIDATE_TTL = float(os.getenv("WIKI_CANDIDATE_TTL_SECONDS", "120"))
+_candidate_cache: dict[tuple, tuple[float, list[dict]]] = {}
+
+
+def invalidate_candidates() -> None:
+    _candidate_cache.clear()
+
+
 def subject_candidates(db: Session, min_relations: int = DEFAULT_MIN_RELATIONS,
-                       limit: int | None = None) -> list[dict]:
+                       limit: int | None = None, use_cache: bool = True) -> list[dict]:
     """Rank entities by how well connected they are.
 
     Relationship endpoints are stored by name (not id), so degree is counted by
     name. Entities below `min_relations` are treated as noise.
     """
+    key = (_workspace_key(), min_relations, limit, DEFAULT_MIN_CLAIMS)
+    now = time.monotonic()
+    if use_cache:
+        cached = _candidate_cache.get(key)
+        if cached and now - cached[0] < _CANDIDATE_TTL:
+            return cached[1]
+
     from sqlalchemy import union_all
 
     src = db.query(Relationship.source_name.label("name"))
@@ -131,31 +149,78 @@ def subject_candidates(db: Session, min_relations: int = DEFAULT_MIN_RELATIONS,
         .all()
     )
 
+    # One query for all counts. The old code issued one COUNT per entity (436
+    # round trips on armkb = ~33s per panel open); a VALUES join does it once.
+    names = [row[0] for row in rows]
+    counts = _claim_counts(db, names)
+    total_claims = (
+        db.query(func.count(CanonicalClaim.id))
+        .filter(CanonicalClaim.status.in_(("active", "disputed")))
+        .scalar()
+        or 0
+    )
+    theme_share = float(os.getenv("WIKI_SUBJECT_THEME_SHARE", "0.15"))
+
     out: list[dict] = []
     for name, degree, etype, desc in rows:
-        if _is_library_theme(db, name):
+        claim_count = counts.get(name, 0)
+        if claim_count == 0 or claim_count < DEFAULT_MIN_CLAIMS:
+            # No claims, or a single sentence's worth: noise, not knowledge.
             continue
-        claim_count = claim_count_for_subject(db, name)
-        if claim_count == 0:
+        if total_claims and claim_count / total_claims >= theme_share:
+            # The library's own theme, not a subject: splitting it would just
+            # restate the whole corpus page by page.
             continue
-        if claim_count < DEFAULT_MIN_CLAIMS:
-            # A one-claim subject makes a one-sentence page: noise, not knowledge.
-            continue
-        limit_hit = claim_count > SUBJECT_PAGE_CLAIM_LIMIT
         out.append({
             "subject": name,
             "slug": _slugify(name),
             "type": etype or "concept",
             "degree": int(degree),
             "claims_total": claim_count,
-            "page_count": (
-                1 + (claim_count - 1) // SUBJECT_PAGE_CLAIM_LIMIT
-                if claim_count else 0
-            ),
-            "needs_split": limit_hit,
+            "page_count": 1 + (claim_count - 1) // SUBJECT_PAGE_CLAIM_LIMIT,
+            "needs_split": claim_count > SUBJECT_PAGE_CLAIM_LIMIT,
             "description": (desc or "")[:300],
         })
+    if use_cache:
+        _candidate_cache[key] = (now, out)
     return out
+
+
+def _workspace_key() -> str:
+    from softwiki.config import get_workspace_dir
+
+    try:
+        return os.path.basename(get_workspace_dir())
+    except Exception:  # noqa: BLE001 - cache key must never break the request
+        return "unknown"
+
+
+def _claim_counts(db: Session, names: list[str]) -> dict[str, int]:
+    """Claims per subject in a single round trip.
+
+    `subject` is preferred but null for most rows, so the text match is the
+    fallback. LIKE works on both PostgreSQL and SQLite (the test suite uses the
+    latter); entity names do not normally contain wildcards.
+    """
+    if not names:
+        return {}
+    from sqlalchemy import text as sql_text
+
+    values = ", ".join(f"(:n{i})" for i in range(len(names)))
+    params = {f"n{i}": name for i, name in enumerate(names)}
+    sql = sql_text(
+        f"""
+        WITH names(name) AS (VALUES {values})
+        SELECT names.name, count(c.id)
+        FROM names
+        LEFT JOIN canonical_claims c
+          ON c.status IN ('active', 'disputed')
+         AND (c.subject = names.name
+              OR lower(c.text) LIKE '%' || lower(names.name) || '%')
+        GROUP BY names.name
+        """
+    )
+    return {row[0]: int(row[1] or 0) for row in db.execute(sql, params).fetchall()}
 
 
 def _is_library_theme(db: Session, name: str) -> bool:
