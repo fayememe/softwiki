@@ -214,7 +214,7 @@ export default function Sidebar({
                   <span className={styles.navIcon}>{item.icon}</span>
                   {!effectiveCollapsed && <span className={styles.navLabel}>{label}</span>}
                   {!effectiveCollapsed && b !== undefined && b > 0 && (
-                    <span className={styles.navBadge}>{b > 9999 ? '9999+' : b.toLocaleString()}</span>
+                    <span className={styles.navBadge}>{b.toLocaleString()}</span>
                   )}
                 </button>
               );

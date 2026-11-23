@@ -214,6 +214,15 @@
       未知组 pending、外部直连伪造 header 无效
 - [ ] 生产栈（6108/6109）实际启用认证（等 CIDR / 客户 IdP 参数）
 
+### M11 — javis 升级到最新版（单机版，2026-11-23）
+- [x] 旧 systemd `softwiki-api/mcp/web` 停用并 disable（它们占着 6200/6100/6108，
+      导致 CI 每次部署都因 `bind: address already in use` 失败）
+- [x] Docker Compose 接管三端口；`armkb` 迁到 `workspace/stacks/javis/armkb`
+- [x] deploy service 补 `SOFTWIKI_STACK_ROOT` / `SHARED_CONFIG` / `AUDIT_DIR` / `WIKIWEB_*`
+- [x] 单机版验证：`mode=off`、`superuser=true`、`role=wiki-admin`；
+      数据完好 73 docs / 39,870 chunks / 10,573 claims；新功能 `/api/wiki/pages` 可用（436 候选）
+- [x] 徽章不再截断为 `9999+`（10,573 显示完整数字）
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
