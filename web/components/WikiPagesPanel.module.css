@@ -380,3 +380,15 @@
   font-size: 11px;
   background: #fbfcfd;
 }
+
+/* Small "ignore this subject" affordance inside the list row. */
+.ignoreBtn {
+  margin-left: 6px;
+  padding: 0 4px;
+  color: #a2a9b1;
+  cursor: pointer;
+  font-size: 11px;
+}
+.ignoreBtn:hover {
+  color: #b32424;
+}

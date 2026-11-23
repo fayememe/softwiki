@@ -149,6 +149,10 @@ def subject_candidates(db: Session, min_relations: int = DEFAULT_MIN_RELATIONS,
         .all()
     )
 
+    from softwiki.wiki.subject_rules import ignored
+
+    skip = ignored()
+
     # One query for all counts. The old code issued one COUNT per entity (436
     # round trips on armkb = ~33s per panel open); a VALUES join does it once.
     names = [row[0] for row in rows]
@@ -163,6 +167,8 @@ def subject_candidates(db: Session, min_relations: int = DEFAULT_MIN_RELATIONS,
 
     out: list[dict] = []
     for name, degree, etype, desc in rows:
+        if name in skip:
+            continue
         claim_count = counts.get(name, 0)
         if claim_count == 0 or claim_count < DEFAULT_MIN_CLAIMS:
             # No claims, or a single sentence's worth: noise, not knowledge.
@@ -339,6 +345,16 @@ def generate_subject_pages(db: Session, subject: str, *,
     subject exceeds the cap — the caller must never fall back to truncation.
     """
     from softwiki.intelligence.llm_client import get_llm_client_and_params
+
+    from softwiki.wiki.subject_rules import ignored, locked
+
+    if subject in ignored():
+        raise ValueError(
+            f"subject '{subject}' is marked ignore in config/wiki_subjects.yaml"
+        )
+    if subject in locked() and not force:
+        # A hand-edited page: the generator must not overwrite it.
+        return {"subject": subject, "skipped": "locked", "pages": []}
 
     claims = claims_for_subject(db, subject)
     total = len(claims)

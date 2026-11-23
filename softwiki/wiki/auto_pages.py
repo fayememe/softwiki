@@ -68,6 +68,7 @@ def reconcile(db: Session, budget: Optional[int] = None, allow_initial: bool = T
     exist) always run, because the user should not have to babysit them.
     """
     from softwiki.wiki.subject_pages import list_generated_pages, subject_candidates
+    from softwiki.wiki.subject_rules import locked
 
     listing = list_generated_pages(db)
     generated = {s.get("subject"): s for s in listing.get("subjects", [])}
@@ -82,13 +83,14 @@ def reconcile(db: Session, budget: Optional[int] = None, allow_initial: bool = T
 
     candidates = subject_candidates(db, limit=600, use_cache=False)
     pending = _pending_subjects(db)
+    frozen = locked()
 
     enqueued: list[str] = []
     for cand in candidates:
         if len(enqueued) >= limit:
             break
         subject = cand["subject"]
-        if subject in pending:
+        if subject in pending or subject in frozen:
             continue
         if initial:
             enqueued.append(subject)

@@ -2414,6 +2414,38 @@ def list_wiki_subject_pages(refresh: bool = False, limit: int = 0):
         db.close()
 
 
+class SubjectRuleRequest(BaseModel):
+    subject: str
+    action: str = "ignore"  # ignore | unignore | lock | unlock
+
+
+@app.get("/api/wiki/subject-rules")
+def get_subject_rules():
+    """Which subjects are excluded from generation, and which are hand-locked."""
+    from softwiki.wiki.subject_rules import load
+
+    return load()
+
+
+@app.post("/api/wiki/subject-rules")
+def set_subject_rule(req: SubjectRuleRequest):
+    from softwiki.wiki import subject_rules as rules
+
+    subject = req.subject.strip()
+    if not subject:
+        raise HTTPException(status_code=400, detail="subject is required")
+    require_capability("wiki.apply")
+    if req.action == "ignore":
+        return rules.add_ignore(subject)
+    if req.action == "unignore":
+        return rules.remove_ignore(subject)
+    if req.action == "lock":
+        return rules.set_locked(subject, True)
+    if req.action == "unlock":
+        return rules.set_locked(subject, False)
+    raise HTTPException(status_code=400, detail=f"unknown action {req.action!r}")
+
+
 @app.post("/api/wiki/reconcile")
 def reconcile_wiki_subjects(budget: int = 0):
     """Queue entity pages that are missing or stale.

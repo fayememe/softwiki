@@ -75,6 +75,7 @@ export default function WikiPagesPanel() {
   const [notice, setNotice] = useState('');
   const [reconciling, setReconciling] = useState(false);
   const [queuePending, setQueuePending] = useState<number | null>(null);
+  const [rules, setRules] = useState<{ ignore: string[]; locked: string[] }>({ ignore: [], locked: [] });
 
   const loadIndex = useCallback(async () => {
     setLoading(true);
@@ -86,6 +87,10 @@ export default function WikiPagesPanel() {
       const list = data.subjects?.length ? data.subjects : (data.candidates || []);
       setSubjects(list);
       setCandidates(data.candidates || []);
+      const rules = await fetch('/api/wiki/subject-rules', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (rules) setRules({ ignore: rules.ignore || [], locked: rules.locked || [] });
       const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
         .then((r) => r.json())
         .catch(() => null);
@@ -127,7 +132,11 @@ export default function WikiPagesPanel() {
       // Poll the queue so the list fills in without the user reloading.
       for (let i = 0; i < 60 && n > 0; i += 1) {
         await new Promise((r) => setTimeout(r, 3000));
-        const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
+        const rules = await fetch('/api/wiki/subject-rules', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (rules) setRules({ ignore: rules.ignore || [], locked: rules.locked || [] });
+      const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
           .then((r) => r.json())
           .catch(() => null);
         const pending = q?.counts?.pending;
@@ -143,6 +152,25 @@ export default function WikiPagesPanel() {
     } finally {
       setReconciling(false);
       setQueuePending(null);
+    }
+  }, [loadIndex]);
+
+  const applyRule = useCallback(async (subject: string, action: string) => {
+    setError('');
+    try {
+      const res = await fetch('/api/wiki/subject-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, action }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      setRules(await res.json());
+      await loadIndex();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update the rule');
     }
   }, [loadIndex]);
 
@@ -299,6 +327,17 @@ export default function WikiPagesPanel() {
                 <span className={styles.itemMeta}>
                   {s.claims_total}
                   {s.needs_split && <span className={styles.splitTag}>split</span>}
+                  <span
+                    className={styles.ignoreBtn}
+                    role="button"
+                    title="Ignore this subject — no page will be generated for it"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      void applyRule(s.subject, 'ignore');
+                    }}
+                  >
+                    ✕
+                  </span>
                 </span>
               </div>
             </button>
