@@ -222,6 +222,12 @@
 - [x] 单机版验证：`mode=off`、`superuser=true`、`role=wiki-admin`；
       数据完好 73 docs / 39,870 chunks / 10,573 claims；新功能 `/api/wiki/pages` 可用（436 候选）
 - [x] 徽章不再截断为 `9999+`（10,573 显示完整数字）
+- [x] LLM-Wiki 候选接口性能：436 个实体逐个 COUNT（33s）→ 一条 VALUES join + 120s 缓存
+      （冷 11.9s / 命中 0.03s）
+- [x] armkb 首次生成实体页：12 个 subject → 87 页，6.6 分钟，0 失败
+      （把 `armkb/config/model_profiles.yaml` 的 wiki_compilation 从 deepseek-v4-pro
+      换成 deepseek-v4-flash，单页从 ~120s 降到 6–10s；原文件备份为 *.bak-20261123）
+- [!] `armkb/config/model_profiles.yaml` 里仍是**明文 DeepSeek key**，应改为环境变量
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
