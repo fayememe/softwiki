@@ -227,7 +227,9 @@
 - [x] armkb 首次生成实体页：12 个 subject → 87 页，6.6 分钟，0 失败
       （把 `armkb/config/model_profiles.yaml` 的 wiki_compilation 从 deepseek-v4-pro
       换成 deepseek-v4-flash，单页从 ~120s 降到 6–10s；原文件备份为 *.bak-20261123）
-- [!] `armkb/config/model_profiles.yaml` 里仍是**明文 DeepSeek key**，应改为环境变量
+- [x] javis 的 wiki 生成改走 trial 同一套网关：`oneroute` + `deepseek-v4.1-flash`
+      （`DEEPSEEK_API_KEY` 进 `.env`；`model_profiles.yaml` 的 wiki_compilation 不再带明文 key）
+- [ ] `model_profiles.yaml` 的 `cheap_extraction` / `high_quality_analysis` 仍是明文 key
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
