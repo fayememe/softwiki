@@ -130,3 +130,16 @@ def test_changed_subject_only_after_pages_exist(db, monkeypatch, tmp_path):
     result = reconcile(db)
     assert result["enqueued"] == 1
     assert [t.topic for t in _tasks(db)] == ["Alpha"]
+
+
+def test_incremental_pass_never_bootstraps(db, monkeypatch):
+    """The worker's periodic pass must not create the first pages by itself."""
+    _background(db)
+    _seed(db, "Alpha", 8)
+
+    from softwiki.wiki.auto_pages import reconcile
+
+    result = reconcile(db, allow_initial=False)
+    assert result["enqueued"] == 0
+    assert result.get("needs_start") is True
+    assert _tasks(db) == []

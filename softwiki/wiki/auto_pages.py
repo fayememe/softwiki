@@ -60,13 +60,21 @@ def enqueue_subject(db: Session, subject: str, reason: str = "auto") -> bool:
     return True
 
 
-def reconcile(db: Session, budget: Optional[int] = None) -> dict:
-    """Compare generated pages against the current graph and queue the deltas."""
+def reconcile(db: Session, budget: Optional[int] = None, allow_initial: bool = True) -> dict:
+    """Compare generated pages against the current graph and queue the deltas.
+
+    ``allow_initial=False`` never bootstraps: a kb with no pages waits for the
+    user to press the button in the UI. Incremental rebuilds (pages already
+    exist) always run, because the user should not have to babysit them.
+    """
     from softwiki.wiki.subject_pages import list_generated_pages, subject_candidates
 
     listing = list_generated_pages(db)
     generated = {s.get("subject"): s for s in listing.get("subjects", [])}
     initial = not generated
+
+    if initial and not allow_initial:
+        return {"enqueued": 0, "initial": True, "needs_start": True}
 
     limit = _budget(initial) if budget is None else max(0, budget)
     if limit == 0:

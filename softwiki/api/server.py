@@ -2426,7 +2426,8 @@ def reconcile_wiki_subjects(budget: int = 0):
 
     db = SessionLocal()
     try:
-        return {"status": "success", **reconcile(db, budget=budget or None)}
+        # Manual endpoint = the user pressing "start generation": bootstrapping allowed.
+        return {"status": "success", **reconcile(db, budget=budget or None, allow_initial=True)}
     finally:
         db.close()
 

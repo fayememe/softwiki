@@ -86,6 +86,12 @@ export default function WikiPagesPanel() {
       const list = data.subjects?.length ? data.subjects : (data.candidates || []);
       setSubjects(list);
       setCandidates(data.candidates || []);
+      const q = await fetch('/api/wiki/rebuild-tasks', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (q?.counts) {
+        setQueuePending((q.counts.pending ?? 0) + (q.counts.running ?? 0));
+      }
       if (!data.generated && (data.candidates?.length ?? 0) > 0) {
         setNotice(
           `No pages generated yet. ${data.candidate_count} subjects are ready — ` +
@@ -214,6 +220,17 @@ export default function WikiPagesPanel() {
     return visible.slice(start, start + pageSize);
   }, [visible, page, pageSize]);
 
+  // Three states, and only the first needs the user:
+  //   empty    -> no pages yet, nothing queued   => offer "start generation"
+  //   building -> work in the queue              => progress, do not spam refresh
+  //   ready    -> pages exist                    => browse; rebuilds happen on their own
+  const queueBusy = (queuePending ?? 0) > 0;
+  const state: 'empty' | 'building' | 'ready' = queueBusy
+    ? 'building'
+    : generated
+      ? 'ready'
+      : 'empty';
+
   const covered = meta.claims_covered ? Number(meta.claims_covered) : null;
   const total = meta.claims_total ? Number(meta.claims_total) : null;
   const isPartial = covered !== null && total !== null && covered < total;
@@ -336,23 +353,35 @@ export default function WikiPagesPanel() {
           </div>
         )}
 
-        {!generated && !loading && (
+        {!loading && state === 'empty' && (
           <div className={styles.notice}>
-            <strong>This knowledge base has no generated pages yet.</strong>{' '}
+            <strong>Pages have not been generated yet.</strong>{' '}
             {candidates.length > 0
-              ? `${candidates.length} subjects are ready. Start with the top 20 — you can generate more later.`
-              : 'Ingest documents first; subjects come from the claims.'}{' '}
+              ? `${candidates.length} subjects are ready. Start with the top 20; the rest can be generated later.`
+              : 'Ingest documents first — subjects come from the extracted claims.'}{' '}
             {candidates.length > 0 && (
               <button className={styles.buildBtn} disabled={reconciling} onClick={startGeneration}>
-                {reconciling
-                  ? queuePending !== null
-                    ? `Generating… ${queuePending} queued`
-                    : 'Starting…'
-                  : 'Start generation'}
+                {reconciling ? 'Starting…' : 'Start generation'}
               </button>
             )}
           </div>
         )}
+
+        {!loading && state === 'building' && (
+          <div className={styles.notice}>
+            <strong>Generating pages…</strong>{' '}
+            {queuePending !== null ? `${queuePending} queued.` : ''}{' '}
+            You can leave this tab open — pages appear as they finish.
+            Reloading does not speed it up or cancel anything.
+          </div>
+        )}
+
+        {!loading && state === 'ready' && (
+          <div className={styles.buildingHint}>
+            Pages stay up to date automatically when claims change; no action needed here.
+          </div>
+        )}
+
         {notice && <div className={styles.notice}>{notice}</div>}
         {error && <div className={styles.error}>{error}</div>}
 

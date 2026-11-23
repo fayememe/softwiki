@@ -130,8 +130,20 @@ def pending_count(db: Session) -> dict:
     }
 
 
+RECONCILE_INTERVAL_SECONDS = float(os.getenv("WIKI_RECONCILE_INTERVAL_SECONDS", "300"))
+
+
 def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
+    """Process page tasks, and periodically queue pages whose claims changed.
+
+    The periodic pass is incremental only: it never bootstraps a kb that has no
+    pages yet (that is the user's explicit "start generation" action). Running
+    it here rather than per document avoids churning while a corpus is still
+    being imported.
+    """
     from softwiki.source_store.db import SessionLocal
+
+    last_reconcile = 0.0
     while not (stop_event and stop_event.is_set()):
         db = SessionLocal()
         try:
@@ -141,4 +153,21 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
             result = None
         finally:
             db.close()
+
+        now = time.monotonic()
+        if now - last_reconcile >= RECONCILE_INTERVAL_SECONDS:
+            last_reconcile = now
+            db = SessionLocal()
+            try:
+                from softwiki.wiki.auto_pages import reconcile
+
+                queued = reconcile(db, allow_initial=False)
+                if queued.get("enqueued"):
+                    print(f"[wiki-worker] queued {queued['enqueued']} changed subject(s)",
+                          flush=True)
+            except Exception as exc:  # noqa: BLE001 - never kill the worker
+                print(f"[wiki-worker] reconcile skipped: {exc}", flush=True)
+            finally:
+                db.close()
+
         time.sleep(2 if result else 5)
