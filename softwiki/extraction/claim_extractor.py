@@ -90,19 +90,33 @@ Example Output:
             extracted = result_json.get("claims", [])
             
             claims = []
+            skipped = 0
             for i, c in enumerate(extracted):
-                base = f"{doc_id}|{c.get('actor', 'Unknown')}|{c.get('stance', 'unclear')}|{c.get('topic', 'general')}|{c.get('text', '')}"
+                # The model occasionally emits a claim object without text (or
+                # with a non-string). `claims.text` is NOT NULL, so inserting it
+                # would abort the whole document: drop the claim instead and
+                # report how many were dropped.
+                claim_text = c.get("text")
+                claim_text = claim_text.strip() if isinstance(claim_text, str) else ""
+                if not claim_text:
+                    skipped += 1
+                    continue
+                base = f"{doc_id}|{c.get('actor', 'Unknown')}|{c.get('stance', 'unclear')}|{c.get('topic', 'general')}|{claim_text}"
                 claim_id = f"claim_{year_str}_{doc_id}_{hashlib.sha1(base.encode()).hexdigest()[:12]}"
                 claims.append(Claim(
                     id=claim_id,
                     document_id=doc_id,
-                    text=c.get("text"),
+                    text=claim_text,
                     actor=c.get("actor", "Unknown"),
                     topic=c.get("topic", "general"),
                     stance=c.get("stance", "unclear"),
                     confidence=float(c.get("confidence", 0.5)),
                     published_at=published_at
                 ))
+            if skipped:
+                print(
+                    f"claim extraction: skipped {skipped} claim(s) without text (doc {doc_id})"
+                )
             return claims
             
         except Exception as e:
