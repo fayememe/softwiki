@@ -268,6 +268,21 @@
 - [ ] 新组件文案仍英文（trial i18n 未覆盖），与 zh 界面混排
 - [ ] `web/` 仍非 git 仓库，下次前端改动仍需手工同步
 
+### M15 — armkb Graph v2 重建（2026-11-24）
+> 设计/记录：`docs/02-design/graph-claim-wiki.md` §7；演示页：`docs/04-guides/graph-studio.md`
+- [x] schema v3：`entities.normalized_name/aliases/merged_into`、`entity_aliases`、`relationships.source/target_entity_id + weight/evidence_count`（幂等加列/索引）
+- [x] 抽取 prompt v2（ARM 领域：类型 taxonomy、aliases、受控关系词、confidence、证据短语、端点校验、同窗口去重）
+- [x] `scripts/graph_reextract.py`（多文档并行抽取 → 串行 canonicalize → 孤儿清理 → 归一）
+- [x] 504 治理：`create_chat_completion` 3 次退避重试、`LLM_TIMEOUT_SECONDS`、图抽取最终失败返回空（禁止启发式污染）、`scripts/graph_topup.py` 补图
+- [x] `scripts/graph_normalize.py`：同名合并、别名物化、端点回填、跨文档 weight
+- [x] 检索：实体链接走 alias/normalized，边优先 id，排序含 weight；`/api/graph/{search,entity,path}`；overview 按 id 聚合
+- [x] `/graph-studio` 演示页（力导向、路径高亮、实体卡、claim、wiki）+ 侧栏入口
+- [x] `scripts/graph_acceptance.py` + `graph_golden.yaml`（24 题；实体命中率/术语覆盖/p50/p95）
+- [~] armkb 全量重抽（73 篇，jobs=3，windows=6，走 trial oneroute）
+- [ ] 504 文档补图 + 归一结果核对
+- [ ] Graph/Timeline 投影（`knowledge_v2_projections.py`）+ wiki subject 页重建
+- [ ] 验收数字（entity_link_rate / coverage / p50-p95）与部署记录
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
