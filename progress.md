@@ -251,7 +251,9 @@
 - [x] 本机 `lsl-kb` 真实验证：`LSL 脚本怎么写` → 实体 LSL（度数 911）→ 80 条边（此前中文命中 0）
 - [ ] 评测集：20–30 条 golden questions（期望实体/路径/引用），graph on/off 对比
 - [ ] P1：`source_entity_id`/`target_entity_id` + 别名合并 + 边去重与置信度
-- [ ] 部署 trial-host / build-host 并观察真实问答
+- [x] 部署 trial-host（2026-11-24，镜像 `456f8d07e45e`；两栈 + swagent 已重启；projections backfill 6,850/8,179 与 10,042/12,067；`/api/ask` 17 sources 正常）
+- [ ] build-host 部署（本地 commit 未 push，避免 CI 自动部署）
+- [ ] 真实问答质量观察（评测集建好后对比 graph on/off）
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7

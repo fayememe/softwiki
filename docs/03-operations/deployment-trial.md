@@ -72,6 +72,27 @@ timeout 12 curl -s -N 'http://127.0.0.1:6109/api/agent/events?session_id=probe' 
 - `curl -i ... | head -8` 只会看到响应头（第 9 行才是 `data:`），别误判成没有事件。
 - 2026-11-10：`.env.ai` 的 `AGENT_WEB_URL` 原为 6111（coffee），已改为 6112。
 
+## 2026-11-24 部署：Graph × Claim × Wiki 联合检索（CGW）
+
+- **代码**：开发机 `8bec0a0`（feat(intelligence): Graph × Claim × Wiki 联合检索）。trial-host 无 git，用
+  `softwiki/` tar 同步到 `/opt/aitools/apps/softwiki`；源码备份 `softwiki.bak-20261124-181942`。
+- **镜像**：用 `Dockerfile.api-fast` 构建（绕开 trial-host `pip install -e .` 的 ResolutionImpossible），
+  `softwiki-api:latest` → `456f8d07e45e`；旧镜像保留为 `softwiki-api:pre-cgw-20261124`（`933d79eef3ac`）。
+- **重启**：`softwiki` / `softwiki-ai` 两栈 `up -d --no-build`；`swagent-coffee` / `swagent-ai` 已重启。
+- **数据补齐（additive，无 schema 变更）**：trial 两库此前 `relationships.canonical_claim_id` 全为 NULL、
+  `canonical_claims.subject/object` 为空，图挂 claim 会是 0。执行
+  `scripts/knowledge_v2_projections.py`：
+  - coffee：relationships linked **6,850 / 8,179**，events **2,004 / 2,297**
+  - ai-history：relationships linked **10,042 / 12,067**，events **2,841 / 3,279**
+- **验证**：
+  - `/api/health` 200；`/api/kb?verify=true` 两库 `available=true`；Web 6108/6109 = 200；agent status available。
+  - 容器内 CGW 冒烟（中文/英文问题）：coffee `How is espresso brewed?` → 种子 espresso（度 132）、
+    80 边、**16 条图挂 claim**；ai `What is the history of artificial intelligence?` → 80 边、16 claims。
+  - `/api/ask` 端到端（coffee）：3,701 字答案、17 sources、`citation_check` 无 unknown/unused。
+- **未做**：build-host 未部署（本地 commit 未 push，避免 CI 自动部署）；评测集未建。
+- **回滚**：`sudo docker tag softwiki-api:pre-cgw-20261124 softwiki-api:latest`，然后两栈 `up -d --no-build`，
+  并重启 swagent；源码回滚用 `softwiki.bak-20261124-181942`。
+
 ## 当前状态
 
 ```text
