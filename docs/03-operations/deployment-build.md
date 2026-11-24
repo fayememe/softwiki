@@ -78,6 +78,30 @@ journalctl -u softwiki-deploy -f
 - 状态：`~/softwiki-ci/.deploy/last-deployed-sha`、`last-good-sha`。
 - 强制重跑：`FORCE=1 ~/softwiki-ci/scripts/ci-deploy.sh`。
 
+### 坑：CI 静默失败一整天（2026-11-24）
+
+症状：`last-deployed-sha` 停在旧值，而 `journalctl -u softwiki-deploy` 每 3 分钟刷一条：
+
+```
+[ci] deploying <sha>
+open /home/faye/.docker/buildx/current: permission denied
+softwiki-deploy.service: Failed with result 'exit-code'
+```
+
+原因：手工排障时用过 `sudo docker build`，把 `~/.docker/buildx/current` 写成了 **root 所有**；
+CI 以 `User=faye` 运行，buildx 无法写状态文件，`docker compose build` 第一行就失败。
+镜像没换，所以**线上一直跑旧代码，看起来却「CI 正常轮询」**。
+
+```bash
+sudo chown -R faye:faye /home/faye/.docker/buildx
+sudo systemctl start softwiki-deploy.service   # 立即补一次
+```
+
+排查纪律：确认部署是否真的生效，要同时看三个东西 ——
+`journalctl -u softwiki-deploy`（有无 FAILURE）、`.deploy/last-deployed-sha`、
+`docker images softwiki-api --format '{{.Tag}}'`（tag 应等于当前 HEAD）。
+只看 timer 在跳是不够的。
+
 ## 回滚
 
 ```bash

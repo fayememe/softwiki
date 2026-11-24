@@ -252,7 +252,7 @@
 - [ ] 评测集：20–30 条 golden questions（期望实体/路径/引用），graph on/off 对比
 - [ ] P1：`source_entity_id`/`target_entity_id` + 别名合并 + 边去重与置信度
 - [x] 部署 trial-host（2026-11-24，镜像 `456f8d07e45e`；两栈 + swagent 已重启；projections backfill 6,850/8,179 与 10,042/12,067；`/api/ask` 17 sources 正常）
-- [ ] build-host 部署（本地 commit 未 push，避免 CI 自动部署）
+- [x] build-host 部署已收口到 CI（2026-11-24：push `a3124d4`，CI 部署通过，验收 24 题）
 - [ ] 真实问答质量观察（评测集建好后对比 graph on/off）
 
 ### M14 — 前端助手侧栏补齐（trial-host，2026-11-24）
@@ -283,7 +283,9 @@
 - [x] 投影 + 归一 + 别名治理：claims 15,465 / canonical 14,704 / entities 6,091（合并 381、别名 977）/ relationships 4,572（4,485 挂 claim）/ events 743
 - [x] wiki：旧 929 页归档，重建 233 页；重点实体已有 wiki
 - [x] 验收：24 题实体命中 100%，术语覆盖 77.8% vs 旧基线 37.5%，p50 502ms / p95 529ms
-- [x] 部署 javis：api `c8a673e` / web `fitv1`，project `softwiki`，手动同步（未 push）
+- [x] 部署 javis：2026-11-24 已 push 并走 CI，源码/镜像/仓库三方一致（tag `a3124d4`）
+- [x] 修复 CI 静默失败：`~/.docker/buildx/current` 被手工 `sudo docker build` 写成 root 所有，
+      `User=faye` 无法写 → 每 3 分钟 FAILURE 但线上跑旧镜像（详见 `deployment-build.md`）
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
@@ -419,11 +421,21 @@
 
 ## 本 session 状态记录（handoff）
 
+- **2026-11-24 收口到 CI（javis 正规部署）**：
+  - 本地 4 个未 push 提交（`d6fbe42`/`d0d3b62`/`1aa0568`/`a3124d4`）已推到 origin，CI 部署到 `a3124d4`。
+  - **CI 之前静默失败了一整天**：`~/.docker/buildx/current` 是手工 `sudo docker build` 留下的 root 文件，
+    `User=faye` 的 buildx 写不进去 → 每 3 分钟 `permission denied`，镜像没换、线上跑旧代码。
+    已 `chown -R faye:faye ~/.docker/buildx` 并手动触发补一次；判定部署真伪要看
+    `journalctl -u softwiki-deploy` + `.deploy/last-deployed-sha` + `docker images` tag 三者。
+  - **验收复跑**（容器内 `scripts/graph_acceptance.py --runs 5`）：实体命中 **100%**，
+    术语覆盖 **79.2%**（基线 37.5%），p50 **497ms** / p95 **530ms**，`/graph-studio` 200。
+  - 源码/镜像/仓库现三方一致：javis HEAD `a3124d4`、api/web tag `a3124d4652d8`。
+
 - **2026-11-24 armkb Graph v2 全量重建（javis）**：
-  - **范围**：schema v3 + 新 ARM 抽取 prompt + 73 篇全量重抽 + 实体归一/别名 + 边权重 + CGW v2 + `/graph-studio` + 24 题验收。**未 push origin**（用户要求手动部署；CI 仍以 origin/master 为准，下次 origin 更新会 `git reset --hard`，手动同步的改动会被覆盖）。
+  - **范围**：schema v3 + 新 ARM 抽取 prompt + 73 篇全量重抽 + 实体归一/别名 + 边权重 + CGW v2 + `/graph-studio` + 24 题验收。
   - **数据**：claims 15,465 / canonical 14,704 / evidence 15,465；entities 6,091（合并 381、别名 977）；relationships 4,572（4,485 挂 claim，平均 weight 1.06）；events 743；wiki 重建 233 页（旧 929 页归档到 `exports/wiki/pages.pre-graphv2-20261124-052035`）。
   - **验收**（`scripts/graph_acceptance.py --runs 5`）：实体命中 100%，术语覆盖 **77.8% vs 37.5%**（旧 LIKE），p50 **502ms** / p95 **529ms**。
-  - **部署**：javis `/home/faye/softwiki-ci`，api `c8a673e` / web `fitv1`，project 必须 `--project-name softwiki`（否则起出 `softwiki-ci-*` 第二套栈）；LLM 走 trial oneroute `deepseek-v4.1-flash`，key 在 `/opt/aitools/apps/softwiki/.env`。
+  - **部署**：最初是手动同步（api `c8a673e` / web `fitv1`）；2026-11-24 起已 **push `a3124d4` 并走 CI**，project 必须 `--project-name softwiki`（否则起出 `softwiki-ci-*` 第二套栈）；LLM 走 trial oneroute `deepseek-v4.1-flash`，key 在 `/opt/aitools/apps/softwiki/.env`。
   - **备份**：`backup-armkb-20261124-033106.sql.gz` / `backup-armkb-ws-20261124-033106.tgz` / 镜像 `softwiki-api:pre-graphv2-20261124-033106`。
   - **已知缺口**：约 16% 窗口被网关 504 丢弃（不写启发式假图），关系数低于旧库；`scripts/graph_topup.py --from-log` 可补。wiki 只重建了 60 个候选 + 重点实体，其余 240 个候选未生成。别名治理目前是人工 `armkb/config/entity_aliases.yaml`。
   - **易踩坑**：批量重抽必须“并行抽取 → 串行 canonicalize”（canonical id 全局唯一）；`read_subject_page` 才能读拆页；`SOFTWIKI_DISABLE_LIGHTRAG` 仍只拦查询不拦入库。
