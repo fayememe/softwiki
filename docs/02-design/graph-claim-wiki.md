@@ -141,10 +141,10 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 |---|---|
 | golden questions | 24 |
 | 实体链接命中率 | **100%** |
-| 术语覆盖（CGW） | **75.0%** |
-| 术语覆盖（旧 LIKE 基线） | 41.7% |
+| 术语覆盖（CGW） | **77.8%** |
+| 术语覆盖（旧 LIKE 基线） | 37.5% |
 | 平均图上下文 | 80 条边 / 16 条 canonical claim |
-| 检索延迟 | **p50 498 ms / p95 523 ms**（索引缓存后） |
+| 检索延迟 | **p50 502 ms / p95 529 ms**（索引缓存后） |
 
 数据规模变化（重抽前后）：
 
@@ -152,7 +152,7 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 |---|---|---|
 | claims | 10,573 | **15,465** |
 | canonical claims | 9,766 | **14,704** |
-| entities | 4,165 | **6,091**（合并 356、别名 954） |
+| entities | 4,165 | **6,091**（合并 381、别名 977） |
 | relationships | 7,211 | **4,572**（4,485 已挂 claim；平均 weight 1.06） |
 | events | 639 | 743 |
 
