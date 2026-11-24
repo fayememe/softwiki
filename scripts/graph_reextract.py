@@ -101,7 +101,12 @@ def main() -> None:
     parser.add_argument("--windows", type=int, default=6)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--doc-id", type=int, default=None)
+    parser.add_argument("--docs", default="", help="comma separated document ids")
     parser.add_argument("--normalize", action="store_true")
+    parser.add_argument("--extract-only", action="store_true",
+                        help="stop after phase 1 (canonicalize in a separate pass)")
+    parser.add_argument("--canonical-only", action="store_true",
+                        help="skip extraction; canonicalize + prune + normalize")
     args = parser.parse_args()
 
     init_tables()
@@ -110,25 +115,34 @@ def main() -> None:
         query = db.query(Document.id).order_by(Document.id)
         if args.doc_id:
             query = query.filter(Document.id == args.doc_id)
+        if args.docs:
+            wanted = [int(v) for v in args.docs.split(",") if v.strip()]
+            query = query.filter(Document.id.in_(wanted))
         if args.limit:
             query = query.limit(args.limit)
         doc_ids = [row[0] for row in query.all()]
     finally:
         db.close()
 
+    if args.canonical_only:
+        doc_ids = doc_ids  # selected by the same filters
     print(json.dumps({"phase": "extract", "documents": len(doc_ids),
                       "workers": args.workers, "windows": args.windows}), flush=True)
     failures = []
     started = time.time()
-    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
-        futures = [pool.submit(_extract_one, doc_id, args.windows) for doc_id in doc_ids]
-        for index, future in enumerate(as_completed(futures), 1):
-            result = future.result()
-            if result.get("error"):
-                failures.append(result)
-            print(f"[{index}/{len(doc_ids)}] {json.dumps(result, ensure_ascii=False)}", flush=True)
-    print(json.dumps({"phase": "extract_done", "seconds": round(time.time() - started, 1),
-                      "failures": len(failures)}), flush=True)
+    if not args.canonical_only:
+        with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+            futures = [pool.submit(_extract_one, doc_id, args.windows) for doc_id in doc_ids]
+            for index, future in enumerate(as_completed(futures), 1):
+                result = future.result()
+                if result.get("error"):
+                    failures.append(result)
+                print(f"[{index}/{len(doc_ids)}] {json.dumps(result, ensure_ascii=False)}", flush=True)
+        print(json.dumps({"phase": "extract_done", "seconds": round(time.time() - started, 1),
+                          "failures": len(failures)}), flush=True)
+        if args.extract_only:
+            print(json.dumps({"phase": "extract_only_done"}), flush=True)
+            return
 
     print(json.dumps({"phase": "canonicalize", "documents": len(doc_ids)}), flush=True)
     canonical_failures = []

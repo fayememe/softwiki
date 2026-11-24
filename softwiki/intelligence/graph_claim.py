@@ -105,6 +105,41 @@ def _degrees(db: Session) -> dict[str, int]:
     return degrees
 
 
+# Entity table + aliases + degrees are small and change only when a rebuild
+# runs. Caching them for a minute keeps graph retrieval at a few ms instead of
+# re-scanning thousands of rows on every question.
+_INDEX_CACHE: dict[str, tuple[float, list, dict, dict]] = {}
+_INDEX_TTL = float(os.getenv("CGW_INDEX_TTL_SECONDS", "60"))
+
+
+def _entity_index(db: Session):
+    import time
+
+    url = str(db.get_bind().url)
+    now = time.time()
+    cached = _INDEX_CACHE.get(url)
+    if cached and now - cached[0] < _INDEX_TTL:
+        return cached[1], cached[2], cached[3]
+
+    from softwiki.source_store.models import EntityAlias
+
+    entities = [
+        {
+            "id": ent.id,
+            "name": ent.name,
+            "type": ent.type,
+            "normalized_name": ent.normalized_name,
+        }
+        for ent in db.query(Entity).filter(Entity.merged_into.is_(None)).all()
+    ]
+    aliases: dict[int, list[str]] = {}
+    for row in db.query(EntityAlias).all():
+        aliases.setdefault(row.entity_id, []).append(row.alias)
+    degrees = _degrees(db)
+    _INDEX_CACHE[url] = (now, entities, aliases, degrees)
+    return entities, aliases, degrees
+
+
 def _boundary_match(haystack: str, needle: str) -> bool:
     """Whole-token match for ASCII (so 'rm' does not match inside 'arm')."""
     if not needle:
@@ -125,15 +160,7 @@ def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[di
     if not qnorm:
         return []
 
-    degrees = _degrees(db)
-    entities = (
-        db.query(Entity)
-        .filter(Entity.merged_into.is_(None))
-        .all()
-    )
-    aliases_by_entity: dict[int, list[str]] = {}
-    for row in db.query(EntityAlias).all():
-        aliases_by_entity.setdefault(row.entity_id, []).append(row.alias)
+    entities, aliases_by_entity, degrees = _entity_index(db)
 
     def match_score(text_key: str) -> float:
         if len(text_key) < 2:
@@ -153,10 +180,10 @@ def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[di
     seeds: list[dict[str, Any]] = []
     seen_ids: set[int] = set()
     for entity in entities:
-        key = entity.normalized_name or normalize_entity_name(entity.name)
+        key = entity["normalized_name"] or normalize_entity_name(entity["name"])
         score = match_score(key)
         matched_alias = None
-        for alias in aliases_by_entity.get(entity.id, []):
+        for alias in aliases_by_entity.get(entity["id"], []):
             alias_key = normalize_entity_name(alias)
             alias_score = match_score(alias_key)
             # An explicit alias is a strong signal, but never outranks the
@@ -164,15 +191,15 @@ def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[di
             if alias_score > score:
                 score = alias_score - 0.5
                 matched_alias = alias
-        if score <= 0 or entity.id in seen_ids:
+        if score <= 0 or entity["id"] in seen_ids:
             continue
         degree = degrees.get(key, 0)
         score += min(degree, 20) * 0.15
-        seen_ids.add(entity.id)
+        seen_ids.add(entity["id"])
         seeds.append({
-            "entity_id": entity.id,
-            "name": entity.name,
-            "type": entity.type,
+            "entity_id": entity["id"],
+            "name": entity["name"],
+            "type": entity["type"],
             "alias": matched_alias,
             "degree": degree,
             "score": round(score, 3),
