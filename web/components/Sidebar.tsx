@@ -226,7 +226,7 @@ export default function Sidebar({
         <button
           className={`${styles.navItem} ${assistantOpen ? styles.navActive : ''}`}
           onClick={onToggleAssistant}
-          title="Assistant"
+          title={t('assistant.title')}
         >
           <span className={styles.navIcon}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -235,7 +235,7 @@ export default function Sidebar({
               <circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>
             </svg>
           </span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>Assistant</span>}
+          {!effectiveCollapsed && <span className={styles.navLabel}>{t('assistant.title')}</span>}
         </button>
         <a
           className={`${styles.navItem} ${styles.navLink}`}

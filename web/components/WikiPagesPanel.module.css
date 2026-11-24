@@ -430,14 +430,3 @@
 }
 .btnGhost:hover { background: #eaecf0; }
 
-/* Opens the right-hand assistant with this subject as context. */
-.agentBtn {
-  padding: 5px 12px;
-  border: 1px solid #c8ccd1;
-  border-radius: 2px;
-  background: #fff;
-  color: #3366cc;
-  font-size: 12px;
-  cursor: pointer;
-}
-.agentBtn:hover { background: #eaf3ff; border-color: #3366cc; }

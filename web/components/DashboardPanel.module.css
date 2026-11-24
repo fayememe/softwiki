@@ -138,15 +138,3 @@
   z-index: 1;
 }
 
-/* Opens the right-hand assistant with this view as context. */
-.agentBtn {
-  margin-left: 8px;
-  padding: 4px 10px;
-  border: 1px solid #c8ccd1;
-  border-radius: 2px;
-  background: #fff;
-  color: #3366cc;
-  font-size: 11px;
-  cursor: pointer;
-}
-.agentBtn:hover { background: #eaf3ff; border-color: #3366cc; }

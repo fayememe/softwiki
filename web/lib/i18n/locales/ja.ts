@@ -419,6 +419,44 @@ export const ja: Dict = {
     work: '作業 · 閲覧 + Wiki',
     manage: '管理 · 取り込み',
     admin: '管理者 · すべて',
+    workingAs: '（この権限で作業中）',
+  },
+
+  assistant: {
+    title: 'アシスタント',
+    notConfigured: 'このインスタンスではアシスタントが設定されていません。',
+    tabAbout: '概要',
+    tabSessions: 'セッション',
+    tabChat: 'チャット',
+    newSession: '+ 新しいセッション',
+    noSessions: 'セッションはまだありません。',
+    newSessionTitle: '新しいセッション',
+    emptyChat:
+      '「{project}」アシスタントと話す。権限の範囲で動作し、変更は提案のみ行います。',
+    placeholder: '「{project}」アシスタントにメッセージ…',
+    send: '送信',
+    stop: '停止',
+    aboutAgent: 'エージェント',
+    aboutCan: 'できること',
+    aboutCannot: 'できないこと',
+    aboutCanText: 'このインスタンスの KB を権限範囲で読み、変更を提案する。',
+    aboutCannotText: '権限範囲を越えること、自分の提案を承認すること。',
+    projects: {
+      work: {
+        title: '作業',
+        description:
+          'Wiki ページの起草・編集、KB 検索、変更提案。公開・取り込み・削除はできない。',
+      },
+      manage: {
+        title: '管理',
+        description:
+          '「作業」の全機能に加え、取り込み・再インデックス・競合裁定・提案の承認。',
+      },
+      admin: {
+        title: '管理者',
+        description: 'すべての権限（ユーザー、監査、KB レジストリ、システム保守）。',
+      },
+    },
   },
 
   workspace: {

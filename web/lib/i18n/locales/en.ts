@@ -423,6 +423,46 @@ export const en = {
     work: 'Work · read + wiki',
     manage: 'Manage · ingest',
     admin: 'Admin · all',
+    workingAs: '(working as)',
+  },
+
+  assistant: {
+    title: 'Assistant',
+    notConfigured: 'Assistant is not configured on this instance.',
+    tabAbout: 'About',
+    tabSessions: 'Sessions',
+    tabChat: 'Chat',
+    newSession: '+ New session',
+    noSessions: 'No sessions yet.',
+    newSessionTitle: 'New session',
+    emptyChat:
+      'Talk to the {project} assistant. It works with your permissions and proposes changes instead of applying them.',
+    placeholder: 'Message the {project} assistant…',
+    send: 'Send',
+    stop: 'Stop',
+    aboutAgent: 'Agent',
+    aboutCan: 'Can',
+    aboutCannot: 'Cannot',
+    aboutCanText:
+      "Read this instance's knowledge bases within your scope; propose changes.",
+    aboutCannotText: 'Leave your scope, or approve its own proposals.',
+    projects: {
+      work: {
+        title: 'Work',
+        description:
+          'Draft and edit wiki pages, search the kb, and propose changes. Cannot publish, ingest or delete.',
+      },
+      manage: {
+        title: 'Manage',
+        description:
+          'Everything Work can do, plus ingest, reindex, adjudicate conflicts and apply proposed changes.',
+      },
+      admin: {
+        title: 'Admin',
+        description:
+          'Full access, including users, audit, knowledge-base registry and system maintenance.',
+      },
+    },
   },
 
   workspace: {

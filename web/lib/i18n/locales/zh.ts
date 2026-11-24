@@ -415,6 +415,41 @@ export const zh: Dict = {
     work: '工作 · 读取 + Wiki',
     manage: '管理 · 导入',
     admin: '管理员 · 全部权限',
+    workingAs: '（以该身份工作）',
+  },
+
+  assistant: {
+    title: '助手',
+    notConfigured: '本实例未配置助手。',
+    tabAbout: '说明',
+    tabSessions: '会话',
+    tabChat: '对话',
+    newSession: '+ 新建会话',
+    noSessions: '还没有会话。',
+    newSessionTitle: '新会话',
+    emptyChat: '和「{project}」助手对话。它按你的权限工作，只提方案、不直接改库。',
+    placeholder: '给「{project}」助手发消息…',
+    send: '发送',
+    stop: '停止',
+    aboutAgent: 'Agent',
+    aboutCan: '可以',
+    aboutCannot: '不可以',
+    aboutCanText: '在本实例、你的权限范围内读取知识库，并提出改动方案。',
+    aboutCannotText: '越出权限范围，或自行批准自己的提案。',
+    projects: {
+      work: {
+        title: '工作',
+        description: '起草、编辑 Wiki 页面，检索知识库，提出改动方案。不能发布、入库或删除。',
+      },
+      manage: {
+        title: '管理',
+        description: '包含「工作」的全部能力，另可入库、重建索引、裁定冲突、批准提案。',
+      },
+      admin: {
+        title: '管理员',
+        description: '全部权限，含用户、审计、知识库注册表与系统维护。',
+      },
+    },
   },
 
   workspace: {

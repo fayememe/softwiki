@@ -96,7 +96,7 @@ export default function RoleSelector() {
       >
         {options.map((r) => (
           <option key={r.id} value={r.id}>
-            {t(r.label)}{r.id !== granted ? ' (working as)' : ''}
+            {t(r.label)}{r.id !== granted ? ` ${t('role.workingAs')}` : ''}
           </option>
         ))}
       </select>
