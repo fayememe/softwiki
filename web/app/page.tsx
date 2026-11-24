@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Sidebar, { ActivePanel } from '@/components/Sidebar';
 import ChatPanel from '@/components/ChatPanel';
+import AgentDrawer from '@/components/AgentDrawer';
+import { AgentDrawerContext } from '@/components/AgentDrawerContext';
+import type { AgentContextPayload } from '@/components/AgentDrawerContext';
 import IngestPanel from '@/components/IngestPanel';
 import DocumentsPanel from '@/components/DocumentsPanel';
 import ClaimsPanel from '@/components/ClaimsPanel';
@@ -155,6 +158,7 @@ function HomeInner() {
   const [docCount, setDocCount] = useState(0);
   const [claimCount, setClaimCount] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>('auto');
+  const [agentContext, setAgentContext] = useState<AgentContextPayload | null>(null);
   const [workspaces, setWorkspaces] = useState<string[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<string>('default');
@@ -289,7 +293,13 @@ function HomeInner() {
     setTheme(next);
   }
 
+  const agentDrawer = {
+    openAgent: (context: AgentContextPayload) => setAgentContext(context),
+    closeAgent: () => setAgentContext(null),
+  };
+
   return (
+    <AgentDrawerContext.Provider value={agentDrawer}>
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         activePanel={activePanel}
@@ -342,8 +352,12 @@ function HomeInner() {
         {activePanel === 'kbwizard' && <KbWizardPanel />}
         {activePanel === 'users' && <AdminPanel />}
       </main>
+      {agentContext && activePanel !== 'chat' && (
+        <AgentDrawer context={agentContext} onClose={() => setAgentContext(null)} />
+      )}
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
+    </AgentDrawerContext.Provider>
   );
 }

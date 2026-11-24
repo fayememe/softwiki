@@ -21,6 +21,7 @@ import {
 } from '@/lib/api';
 import type { SubjectPageEntry } from '@/lib/api';
 import Pagination from './Pagination';
+import { useAgentDrawer } from './AgentDrawerContext';
 import styles from './WikiPagesPanel.module.css';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -54,6 +55,7 @@ function stripMeta(raw: string): { body: string; meta: Record<string, string> } 
 }
 
 export default function WikiPagesPanel() {
+  const { openAgent } = useAgentDrawer();
   const [subjects, setSubjects] = useState<SubjectPageEntry[]>([]);
   const [candidates, setCandidates] = useState<SubjectPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,7 @@ export default function WikiPagesPanel() {
   const [reconciling, setReconciling] = useState(false);
   const [queuePending, setQueuePending] = useState<number | null>(null);
   const [rules, setRules] = useState<{ ignore: string[]; locked: string[] }>({ ignore: [], locked: [] });
+  const [activeKb, setActiveKb] = useState<string | null>(null);
   const [plans, setPlans] = useState<Array<{
     id: number; kind: string; status: string; proposed_by?: string;
     reason?: string; subjects: string[];
@@ -91,6 +94,10 @@ export default function WikiPagesPanel() {
       const list = data.subjects?.length ? data.subjects : (data.candidates || []);
       setSubjects(list);
       setCandidates(data.candidates || []);
+      const kbInfo = await fetch('/api/kb', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (kbInfo?.active) setActiveKb(kbInfo.active);
       const rules = await fetch('/api/wiki/subject-rules', { cache: 'no-store' })
         .then((r) => r.json())
         .catch(() => null);
@@ -140,7 +147,11 @@ export default function WikiPagesPanel() {
       // Poll the queue so the list fills in without the user reloading.
       for (let i = 0; i < 60 && n > 0; i += 1) {
         await new Promise((r) => setTimeout(r, 3000));
-        const rules = await fetch('/api/wiki/subject-rules', { cache: 'no-store' })
+        const kbInfo = await fetch('/api/kb', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+      if (kbInfo?.active) setActiveKb(kbInfo.active);
+      const rules = await fetch('/api/wiki/subject-rules', { cache: 'no-store' })
         .then((r) => r.json())
         .catch(() => null);
       if (rules) setRules({ ignore: rules.ignore || [], locked: rules.locked || [] });
@@ -404,6 +415,20 @@ export default function WikiPagesPanel() {
               disabled={building || pageLoading}
             >
               {building ? 'Generating…' : selected.pages?.length ? 'Regenerate' : 'Generate'}
+            </button>
+            <button
+              className={styles.agentBtn}
+              title="Ask the assistant about this subject"
+              onClick={() =>
+                openAgent({
+                  kb: activeKb,
+                  panel: 'LLM Wiki',
+                  subject: selected.subject,
+                  detail: selected.needs_split ? 'split pages' : null,
+                })
+              }
+            >
+              Ask agent
             </button>
           </div>
         )}
