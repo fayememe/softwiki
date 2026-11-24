@@ -134,6 +134,7 @@ export default function GraphStudioPage() {
   const viewRef = useRef({ scale: 1, tx: 0, ty: 0 });
   const animRef = useRef<number | null>(null);
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const fittedRef = useRef(false);
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -349,6 +350,21 @@ export default function GraphStudioPage() {
         n.vy *= 0.85;
         n.x += n.vx;
         n.y += n.vy;
+      }
+      // Fit the initial cloud to the viewport once the layout has settled.
+      if (!fittedRef.current && ticks === 90) {
+        const wrap = wrapRef.current;
+        if (wrap) {
+          const xs = arr.map((n) => n.x);
+          const ys = arr.map((n) => n.y);
+          const spanX = Math.max(80, Math.max(...xs) - Math.min(...xs));
+          const spanY = Math.max(80, Math.max(...ys) - Math.min(...ys));
+          const scale = Math.max(0.35, Math.min(1.6, Math.min(wrap.clientWidth / (spanX + 220), wrap.clientHeight / (spanY + 180))));
+          viewRef.current.scale = scale;
+          viewRef.current.tx = -((Math.max(...xs) + Math.min(...xs)) / 2) * scale;
+          viewRef.current.ty = -((Math.max(...ys) + Math.min(...ys)) / 2) * scale;
+          fittedRef.current = true;
+        }
       }
       draw();
       if (ticks < 320) {
