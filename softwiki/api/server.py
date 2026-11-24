@@ -924,10 +924,14 @@ def health():
 
 
 @app.get("/api/permissions")
-def get_permissions():
+def get_permissions(request: Request):
     role = current_role()
+    identity = getattr(request.state, "identity", None)
+    granted = identity.role if identity is not None else role
     return {
         "role": role,
+        "granted_role": granted,
+        "downgraded": role != granted,
         "capabilities": role_capabilities(role),
         "roles": ["wiki-study", "wiki-work", "wiki-manage", "wiki-admin"],
     }
