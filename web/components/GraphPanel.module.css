@@ -277,3 +277,16 @@
   color: var(--accent-blue);
   flex-shrink: 0;
 }
+
+/* Opens the right-hand assistant with this view as context. */
+.agentBtn {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid #c8ccd1;
+  border-radius: 2px;
+  background: #fff;
+  color: #3366cc;
+  font-size: 10px;
+  cursor: pointer;
+}
+.agentBtn:hover { background: #eaf3ff; border-color: #3366cc; }

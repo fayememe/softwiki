@@ -1353,6 +1353,56 @@ def _agent_answer_text(message: dict) -> str:
 
 
 @app.get("/api/swa/status")
+@app.get("/api/agent/projects")
+def agent_projects():
+    """The assistant projects the current role may use.
+
+    A "project" is one working scope (work / manage / admin). They share one
+    opencode process but differ in the agent profile, which is where the
+    permission set lives.
+    """
+    from softwiki.permissions import current_role, role_rank
+
+    catalog = [
+        {
+            "id": "work",
+            "title": "Work",
+            "agent": "wiki-work",
+            "min_role": "wiki-work",
+            "color": "#3366cc",
+            "description": (
+                "Draft and edit wiki pages, search the kb, and propose changes. "
+                "Cannot publish, ingest or delete."
+            ),
+        },
+        {
+            "id": "manage",
+            "title": "Manage",
+            "agent": "wiki-manage",
+            "min_role": "wiki-manage",
+            "color": "#ac6600",
+            "description": (
+                "Everything Work can do, plus ingest, reindex, adjudicate "
+                "conflicts and apply proposed changes."
+            ),
+        },
+        {
+            "id": "admin",
+            "title": "Admin",
+            "agent": "wiki-admin",
+            "min_role": "wiki-admin",
+            "color": "#b32424",
+            "description": (
+                "Full access, including users, audit, knowledge-base registry "
+                "and system maintenance."
+            ),
+        },
+    ]
+    rank = role_rank(current_role())
+    visible = [p for p in catalog if rank >= role_rank(p["min_role"])]
+    return {"role": current_role(), "projects": visible}
+
+
 @app.get("/api/agent/status")
 def agent_status():
     """Health and agent inventory for the opencode browser agent."""

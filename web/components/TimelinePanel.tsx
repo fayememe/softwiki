@@ -14,19 +14,16 @@ export default function TimelinePanel() {
     apiListTimeline().then(setEvents).catch(() => {});
   }, []);
 
-  if (events.length === 0) {
-    return (
-      <div className={styles.panel}>
-        <div className={styles.empty}>{t('timeline.empty')}</div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
         <h1 className={styles.title}>{t('timeline.title')}</h1>
       </div>
+
+      {events.length === 0 ? (
+        <div className={styles.empty}>{t('timeline.empty')}</div>
+      ) : (
+        <>
       <div className={styles.list}>
         {events.map(ev => (
           <div key={ev.id} className={styles.event}>
@@ -40,6 +37,8 @@ export default function TimelinePanel() {
           </div>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -38,6 +38,8 @@ interface SidebarProps {
   onWorkspaceChange: (name: string) => void;
   theme?: ThemeMode;
   onCycleTheme?: () => void;
+  onToggleAssistant?: () => void;
+  assistantOpen?: boolean;
 }
 
 function ChatIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>; }
@@ -121,7 +123,7 @@ export default function Sidebar({
   activePanel, onPanelChange, docCount, claimCount,
   sessions, activeSessionId, onNewSession, onSelectSession, onDeleteSession, onRenameSession,
   workspaces, activeWorkspace, onWorkspaceChange,
-  theme, onCycleTheme,
+  theme, onCycleTheme, onToggleAssistant, assistantOpen,
 }: SidebarProps) {
   const { t, locale } = useI18n();
   const htmlLocale = locale === 'zh' ? 'zh-CN' : locale;
@@ -221,6 +223,20 @@ export default function Sidebar({
             })}
           </div>
         ))}
+        <button
+          className={`${styles.navItem} ${assistantOpen ? styles.navActive : ''}`}
+          onClick={onToggleAssistant}
+          title="Assistant"
+        >
+          <span className={styles.navIcon}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>
+            </svg>
+          </span>
+          {!effectiveCollapsed && <span className={styles.navLabel}>Assistant</span>}
+        </button>
         <a
           className={`${styles.navItem} ${styles.navLink}`}
           href="/wikiweb"

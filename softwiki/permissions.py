@@ -37,6 +37,15 @@ ROLE_ORDER = ("wiki-study", "wiki-work", "wiki-manage", "wiki-admin")
 #: Least privileged role. Every unknown input collapses to this one.
 FALLBACK_ROLE = "wiki-study"
 
+
+def role_rank(role: str | None) -> int:
+    """Numeric level of a role; unknown roles rank lowest (fail-closed)."""
+    name = normalize_role(role)
+    try:
+        return ROLE_ORDER.index(name)
+    except ValueError:
+        return 0
+
 ALIASES = {
     "study": "wiki-study",
     "work": "wiki-work",

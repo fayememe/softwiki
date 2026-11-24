@@ -21,7 +21,6 @@ import {
 } from '@/lib/api';
 import type { SubjectPageEntry } from '@/lib/api';
 import Pagination from './Pagination';
-import { useAgentDrawer } from './AgentDrawerContext';
 import styles from './WikiPagesPanel.module.css';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -55,7 +54,6 @@ function stripMeta(raw: string): { body: string; meta: Record<string, string> } 
 }
 
 export default function WikiPagesPanel() {
-  const { openAgent } = useAgentDrawer();
   const [subjects, setSubjects] = useState<SubjectPageEntry[]>([]);
   const [candidates, setCandidates] = useState<SubjectPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,20 +413,6 @@ export default function WikiPagesPanel() {
               disabled={building || pageLoading}
             >
               {building ? 'Generating…' : selected.pages?.length ? 'Regenerate' : 'Generate'}
-            </button>
-            <button
-              className={styles.agentBtn}
-              title="Ask the assistant about this subject"
-              onClick={() =>
-                openAgent({
-                  kb: activeKb,
-                  panel: 'LLM Wiki',
-                  subject: selected.subject,
-                  detail: selected.needs_split ? 'split pages' : null,
-                })
-              }
-            >
-              Ask agent
             </button>
           </div>
         )}
