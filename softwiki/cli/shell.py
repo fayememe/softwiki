@@ -307,6 +307,57 @@ def _build_mcp_config(softwiki_mcp: dict, include_global: bool = True) -> dict:
 
 
 
+#: Tools that write to the knowledge base, grouped by the capability they need.
+_WRITE_TOOLS = {
+    "ingest": "softwiki_ingest",
+    "index": "softwiki_index",
+    "rebuild_index": "softwiki_rebuild_index",
+    "wiki_build": "softwiki_wiki_build",
+    "wiki_propose": "softwiki_wiki_propose",
+    "workspace_set": "softwiki_workspace_set",
+    "modules_set": "softwiki_modules_set",
+}
+
+#: Extra shells/editors are never needed by a knowledge-base agent: it works
+#: through MCP tools, and giving it a shell would bypass every other guard.
+_AGENT_BASE_DENY = ("bash", "edit", "write")
+
+
+def _agent_permissions(mode: str) -> dict[str, str]:
+    """Tool-level permission table for one agent profile.
+
+    ``wiki-study`` is read-only; ``wiki-work`` may propose changes;
+    ``wiki-manage`` may ingest/index/apply; ``wiki-admin`` gets everything.
+    ``wiki-research`` (web) is the read-only browser agent and additionally
+    caps its step budget.
+    """
+    denied = list(_AGENT_BASE_DENY)
+    if mode in ("wiki-study", "wiki-research"):
+        denied += [
+            _WRITE_TOOLS["ingest"],
+            _WRITE_TOOLS["index"],
+            _WRITE_TOOLS["rebuild_index"],
+            _WRITE_TOOLS["wiki_build"],
+            _WRITE_TOOLS["wiki_propose"],
+            _WRITE_TOOLS["workspace_set"],
+            _WRITE_TOOLS["modules_set"],
+        ]
+    elif mode == "wiki-work":
+        denied += [
+            _WRITE_TOOLS["ingest"],
+            _WRITE_TOOLS["index"],
+            _WRITE_TOOLS["rebuild_index"],
+            _WRITE_TOOLS["workspace_set"],
+            _WRITE_TOOLS["modules_set"],
+        ]
+    elif mode == "wiki-manage":
+        denied += [
+            _WRITE_TOOLS["workspace_set"],
+            _WRITE_TOOLS["modules_set"],
+        ]
+    return {name: "deny" for name in denied}
+
+
 def prepare_agent_runtime(
     model_override: str = None,
     session_suffix: str = None,
@@ -546,23 +597,15 @@ Depending on the mode, certain operations are restricted:
         agents_config[m] = {
             "description": f"Softwiki {m.upper()} Agent",
             "mode": "primary",
-            "prompt": f"{{file:{agents_paths[m]}}}"
+            "prompt": f"{{file:{agents_paths[m]}}}",
+            # Defense in depth. The MCP layer already gates every write behind a
+            # capability, but an agent that cannot even see the tool cannot be
+            # talked into trying. Keep this table in sync with
+            # softwiki/permissions.py DEFAULT_ROLES.
+            "permission": _agent_permissions(m),
         }
         if m == "wiki-research":
-            # Defense in depth: the prompt is read-only, and the tool layer
-            # denies every known write path. This matters because the web
-            # agent talks to the shared SoftWiki MCP service.
             agents_config[m]["steps"] = 20
-            agents_config[m]["permission"] = {
-                "bash": "deny",
-                "edit": "deny",
-                "softwiki_ingest": "deny",
-                "softwiki_index": "deny",
-                "softwiki_rebuild_index": "deny",
-                "softwiki_wiki_build": "deny",
-                "softwiki_modules_set": "deny",
-                "softwiki_workspace_set": "deny",
-            }
 
     is_openai_compat = "openai" in api_base.lower()
     provider_label = "OpenAI-compatible" if is_openai_compat else "Gemini (OpenAI-compat)"
