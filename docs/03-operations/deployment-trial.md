@@ -702,3 +702,78 @@ agent `wiki-work`；降级到 wiki-work 后助手只剩 Work；真实对话（co
 
 **仍欠**：新组件文案是英文（trial 分支的中文 i18n 未覆盖），与 zh 界面混排；
 `web/` 仍不是 git 仓库，下次改前端还要再走一遍手工同步。
+---
+
+## Graph v2 + 助手 i18n 全量部署（2026-11-25）
+
+**范围**：trial 两栈的代码与数据同时升级 —— Graph v2（schema v3 / 新抽取 prompt / 实体归一 /
+边权重 / CGW 检索 / `/graph-studio`）、助手侧栏中文化、三个 agent 的工具级权限、两库全量重抽。
+
+### 部署方式（不走外网，20 分钟内完成）
+
+```bash
+# 1) 源码：整棵 web/ + softwiki/ + scripts/ + kb-templates/ 从开发机同步
+#    （trial 不是 git 仓库，这是既定事实，见上一节）
+tar czf - --exclude=node_modules --exclude=.next softwiki scripts kb-templates web pyproject.toml \
+  | ssh 118.193.105.3 'cd /opt/aitools/apps/softwiki && tar xzf -'
+
+# 2) api 镜像：FROM 现有镜像，只覆盖源码（依赖没变，不需要 pip）
+cd /tmp/apictx && printf 'FROM softwiki-api:latest\nCOPY softwiki /app/softwiki\nCOPY scripts /app/scripts\nCOPY kb-templates /app/kb-templates\nCOPY pyproject.toml /app/pyproject.toml\n' > Dockerfile
+sudo docker build -t softwiki-api:latest .
+
+# 3) web 镜像：容器内离线 next build + FROM 旧镜像打补丁（见上一节命令）
+
+# 4) 重建容器（两栈都要）
+sudo docker-compose -p softwiki    up -d --no-build --force-recreate api mcp web
+sudo docker-compose -p softwiki-ai --env-file .env.ai up -d --no-build --force-recreate api mcp web
+
+# 5) swagent（不在 compose 里，是手工 docker run 的 host 网络容器）：
+#    只需把新代码拷进去再 restart，先确认它的挂载/环境不要动
+sudo docker cp softwiki/. swagent-coffee:/app/softwiki/
+sudo docker restart swagent-coffee swagent-ai
+```
+
+**坑**：swagent 容器没有任何 compose 服务，`docker-compose up` 不会重建它；不 `docker cp` + restart
+的话，agent 的 permission 配置仍是旧的（`/agent` 接口里能看到 permission 列表，可用来核对）。
+
+### 数据全量重抽
+
+```bash
+# 备份（必须先做）
+docker exec <pg> pg_dump -U softwiki <db> | gzip > backup-20261125/<db>-<ts>.sql.gz
+sudo tar czf backup-20261125/workspace-<ts>.tgz workspace
+
+# 在 api 容器里跑（每栈各自一个库）
+docker exec -d softwiki-api-1    sh -c "cd /app && nohup python scripts/graph_reextract.py --workers 6 --windows 8 --normalize > /tmp/reextract_coffee.log 2>&1"
+docker exec -d softwiki-ai-api-1 sh -c "cd /app && nohup python scripts/graph_reextract.py --workers 6 --windows 8 --normalize > /tmp/reextract_ai.log 2>&1"
+```
+
+耗时（12 核 / 15GB）：coffee 185 篇抽取 ~15 分钟 + canonicalize ~13 分钟；
+ai-history 160 篇抽取 ~40 分钟 + canonicalize ~15 分钟。canonicalize 是串行的（canonical id 全局唯一），
+别以为卡住了 —— 日志里 `[n/185] canonicalized` 每篇 2–4 秒。
+
+**wiki 不用手工重建**：claim 变化会自动进 `wiki_rebuild_tasks`，api 进程里的 worker 串行重建
+（coffee 119 个任务、ai 146 个，约 1 分钟 1 页）。
+
+### 结果（2026-11-25）
+
+| | coffee | ai-history |
+|---|---|---|
+| 文档 | 185 | 160 |
+| claims / canonical | 7,144 / 7,086 | 10,055 / 10,033 |
+| entities（含别名） | 8,508（1,167 别名） | 12,238（1,029 别名） |
+| relationships | 8,496 | 12,145 |
+| events | 2,179 | 3,137 |
+| wiki 重建任务 | 119 done | 166 done（含补跑 doc 142） |
+
+**踩到的真 bug**：ai-history doc 142 抽取时模型返回了缺 `text` 的 claim，`claims.text` NOT NULL
+→ 整篇事务回滚，该文档一条 claim 都没留下。已修（跳过缺 text 的 claim 并打印条数）并用
+`--doc-id 142` 补跑：14 claims / 35 entities / 38 rel / 8 events。
+
+**镜像**：api `471e4af3f03c`（含 claim 兜底）、web `1f629f897dba`（助手 i18n + Graph Studio）；
+回滚点 `softwiki-api:pre-codev2-20261125`（`456f8d07e45e`）、`softwiki-web:pre-codev2-20261125`（`f45b23bf01ef`）。
+
+**验收**：两栈 `/api/agent/projects` 200；`/graph-studio` 200；助手中文界面（工作/管理/管理员、
+说明/会话/对话、`给「工作」助手发消息…`）；`/agent` 接口确认 wiki-work 已 deny
+ingest/index/rebuild、wiki-manage 已 deny workspace_set/modules_set；
+`/api/ask` coffee 2 sources、ai-history 9 sources（scope guard 正常拒绝越界问题）。

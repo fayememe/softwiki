@@ -287,6 +287,21 @@
 - [x] 修复 CI 静默失败：`~/.docker/buildx/current` 被手工 `sudo docker build` 写成 root 所有，
       `User=faye` 无法写 → 每 3 分钟 FAILURE 但线上跑旧镜像（详见 `deployment-build.md`）
 
+### M16 — trial 两库 Graph v2 + 助手中文化 + agent 权限（2026-11-25）
+> 记录：`docs/03-operations/deployment-trial.md`「Graph v2 + 助手 i18n 全量部署」
+- [x] 代码：api/web 全部同步到 trial（补丁镜像，离线构建；api `471e4af3f03c` / web `1f629f897dba`）
+- [x] 助手侧栏 i18n（en/zh/ja）：项目名与说明、About 三项、会话、输入框、`role.workingAs`
+- [x] 三个 agent 的工具级权限：所有 profile deny bash/edit/write；study/research 只读；
+      work 可 propose；manage 可 ingest/index/build；admin 只保留基础 deny（`tests/test_agent_permissions.py` 7 项）
+- [x] 清掉上一版抽屉遗留的 `.agentBtn` 死 CSS（9 个 module.css）
+- [x] 备份：`backup-20261125/`（coffee 5.9M / ai 8.6M / workspace 70M）+ 镜像回滚 tag
+- [x] coffee 全量重抽：185 篇，0 失败；7,144 claims / 7,086 canonical / 8,508 entities / 8,496 rel / 2,179 events
+- [x] ai-history 全量重抽：160 篇，1 篇失败后修复补跑；10,055 claims / 10,033 canonical / 12,238 entities /
+      12,145 rel / 3,137 events
+- [x] wiki 自动重建：coffee 119 done / ai 166 done（claim 变化自动入队，worker 串行）
+- [x] 修复 `claim_extractor` 的 NOT NULL 崩整篇 bug（缺 text 的 claim 丢弃并计数）+ 回归测试
+- [ ] trial 无 CI，本轮是手工同步；后续仍要手工
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
@@ -420,6 +435,26 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-25 trial 两库 Graph v2 + 助手中文化 + agent 权限（全量重做）**：
+  - **代码**：trial 不是 git 仓库 → 整棵 `web/`、`softwiki/`、`scripts/`、`kb-templates/` 手工同步；
+    api 用 `FROM 旧镜像` 只覆盖源码（依赖未变，无需 pip），web 容器内离线 `next build` 后打补丁镜像；
+    swagent **不在 compose 里**，要 `docker cp` + restart 才会拿到新的 agent permission。
+  - **前端**：助手侧栏接入 i18n（三语），删掉上一版上下文抽屉的 `.agentBtn` 死 CSS；Graph Studio 入口同步到位。
+  - **agent 权限**：`softwiki/cli/shell.py::_agent_permissions()`，所有 profile deny bash/edit/write，
+    study/research 只读，work 可 propose，manage 可 ingest/index/build，admin 只保留基础 deny。
+    实测 `/agent` 接口返回的 deny 列表符合预期（两栈）。
+  - **数据**：coffee 185 篇 / ai 160 篇全量重抽 + normalize，0 未解析边；claims 7,144 与 10,055，
+    canonical 7,086 与 10,033，entities 8,508 与 12,238，relationships 8,496 与 12,145。
+    wiki 自动重建 119 / 166 个任务全 done。
+  - **修的 bug**：`claim_extractor` 把模型返回的 `text=None` 直接插库 → 整篇事务回滚。
+    现在跳过缺 text 的 claim 并打印条数；ai doc 142 已补跑（14 claims / 35 entities / 38 rel / 8 events）。
+  - **验收**：两栈 `/api/agent/projects` 200、`/graph-studio` 200、助手中文界面正常（工作/管理/管理员）、
+    `/api/ask` coffee 2 sources、ai 9 sources，scope guard 仍能拒绝越界问题。
+  - **回滚**：`backup-20261125/*.sql.gz` + `workspace-*.tgz`；镜像 `softwiki-api:pre-codev2-20261125` /
+    `softwiki-web:pre-codev2-20261125`。
+  - **仍欠**：trial 无 CI（手工同步）；trial 没跑 24 题 golden（那是 ARM 语料专用），
+    咖啡/历史库的评测集仍未建。
 
 - **2026-11-24 收口到 CI（javis 正规部署）**：
   - 本地 4 个未 push 提交（`d6fbe42`/`d0d3b62`/`1aa0568`/`a3124d4`）已推到 origin，CI 部署到 `a3124d4`。
