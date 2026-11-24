@@ -265,7 +265,7 @@ sudo -E env TAG=<sha> \
 - 数据：claims **15,465**、canonical **14,704**、entities **6,091**（合并 381 / 别名 977）、
   relationships **4,572**（4,485 挂 claim）、events **743**。
 - 投影：`knowledge_v2_projections.py` + `graph_normalize.py` 重跑。
-- 演示：`/graph-studio`（6108）；API `/api/graph/{search,entity,path}`。
+- 演示：`/graph-studio`（6108）；API `/api/graph/{search,entity,path}`。镜像：api `c8a673e`、web `fitv1`。
 - 别名治理：`armkb/config/entity_aliases.yaml`（Helium↔MVE、AMBA AXI↔AXI 等），
   `scripts/graph_normalize.py` 合并并把边端点改写为 canonical 名称。
 - wiki：旧 929 页归档到 `exports/wiki/pages.pre-graphv2-20261124-052035`；

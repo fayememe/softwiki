@@ -283,7 +283,7 @@
 - [x] 投影 + 归一 + 别名治理：claims 15,465 / canonical 14,704 / entities 6,091（合并 381、别名 977）/ relationships 4,572（4,485 挂 claim）/ events 743
 - [x] wiki：旧 929 页归档，重建 233 页；重点实体已有 wiki
 - [x] 验收：24 题实体命中 100%，术语覆盖 77.8% vs 旧基线 37.5%，p50 502ms / p95 529ms
-- [x] 部署 javis：TAG `c8a673e`，project `softwiki`，手动同步（未 push）
+- [x] 部署 javis：api `c8a673e` / web `fitv1`，project `softwiki`，手动同步（未 push）
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
@@ -423,7 +423,7 @@
   - **范围**：schema v3 + 新 ARM 抽取 prompt + 73 篇全量重抽 + 实体归一/别名 + 边权重 + CGW v2 + `/graph-studio` + 24 题验收。**未 push origin**（用户要求手动部署；CI 仍以 origin/master 为准，下次 origin 更新会 `git reset --hard`，手动同步的改动会被覆盖）。
   - **数据**：claims 15,465 / canonical 14,704 / evidence 15,465；entities 6,091（合并 381、别名 977）；relationships 4,572（4,485 挂 claim，平均 weight 1.06）；events 743；wiki 重建 233 页（旧 929 页归档到 `exports/wiki/pages.pre-graphv2-20261124-052035`）。
   - **验收**（`scripts/graph_acceptance.py --runs 5`）：实体命中 100%，术语覆盖 **77.8% vs 37.5%**（旧 LIKE），p50 **502ms** / p95 **529ms**。
-  - **部署**：javis `/home/faye/softwiki-ci`，`TAG=c8a673e`，project 必须 `--project-name softwiki`（否则起出 `softwiki-ci-*` 第二套栈）；LLM 走 trial oneroute `deepseek-v4.1-flash`，key 在 `/opt/aitools/apps/softwiki/.env`。
+  - **部署**：javis `/home/faye/softwiki-ci`，api `c8a673e` / web `fitv1`，project 必须 `--project-name softwiki`（否则起出 `softwiki-ci-*` 第二套栈）；LLM 走 trial oneroute `deepseek-v4.1-flash`，key 在 `/opt/aitools/apps/softwiki/.env`。
   - **备份**：`backup-armkb-20261124-033106.sql.gz` / `backup-armkb-ws-20261124-033106.tgz` / 镜像 `softwiki-api:pre-graphv2-20261124-033106`。
   - **已知缺口**：约 16% 窗口被网关 504 丢弃（不写启发式假图），关系数低于旧库；`scripts/graph_topup.py --from-log` 可补。wiki 只重建了 60 个候选 + 重点实体，其余 240 个候选未生成。别名治理目前是人工 `armkb/config/entity_aliases.yaml`。
   - **易踩坑**：批量重抽必须“并行抽取 → 串行 canonicalize”（canonical id 全局唯一）；`read_subject_page` 才能读拆页；`SOFTWIKI_DISABLE_LIGHTRAG` 仍只拦查询不拦入库。
