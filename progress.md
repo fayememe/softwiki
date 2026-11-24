@@ -241,6 +241,18 @@
 - [x] 忽略无意义实体：Arm / ARM / ARM Limited / All / Cambridge / England / RAM（共删约 150 页）
 - [!] 仍有超大概念页：ROM 726/30 页、SPE 686/28、AXI 437/18、AHB 416/17 —— 是否忽略由人工决定
 
+### M13 — Graph × Claim × Wiki 联合检索（2026-11-24）
+> 设计：`docs/02-design/graph-claim-wiki.md`
+- [x] 设计文档：Graph=路由 / Claim=事实 / Wiki=叙事 / RAG=原文的分工与验收
+- [x] `softwiki/intelligence/graph_claim.py`：实体链接（NFKC 归一化 + ASCII 边界 + 中文 n-gram + 度数）、1–2 跳扩展、canonical claim 挂载（active/disputed）、非 stale wiki 匹配、可解释加权排序、降级为空
+- [x] AnswerEngine 接入：图上下文优先 CGW（LightRAG → LIKE 仅兜底）；图挂 claim 合并进 claims 上下文（去重、带页码）；wiki 用 subject 页
+- [x] 中文检索修复：`query_terms()`（4/3/2 字 n-gram）替换 `question.split()`，claim / graph / timeline 三处共用
+- [x] `tests/test_graph_claim.py` 10 项；相关回归 31 passed
+- [x] 本机 `lsl-kb` 真实验证：`LSL 脚本怎么写` → 实体 LSL（度数 911）→ 80 条边（此前中文命中 0）
+- [ ] 评测集：20–30 条 golden questions（期望实体/路径/引用），graph on/off 对比
+- [ ] P1：`source_entity_id`/`target_entity_id` + 别名合并 + 边去重与置信度
+- [ ] 部署 trial-host / build-host 并观察真实问答
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
@@ -374,6 +386,15 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-24 Graph × Claim × Wiki 联合检索（P0）**：
+  - **背景**：此前 graph 在问答里只是 `LIKE` + `limit 10`，中文问题命中 0；claim 也是 `question.split()` 的前缀匹配。
+  - **新增** `softwiki/intelligence/graph_claim.py`：实体链接（NFKC 归一化、ASCII 边界匹配避免 `rm` 命中 `arm`、中文 2–4 字 n-gram、按关系度数加权）→ 1–2 跳 BFS → 挂 canonical claim（edge 的 `canonical_claim_id` + `subject/object` 是种子实体）→ 非 stale subject wiki 页 → 可解释加权排序；任何异常降级为空。
+  - **AnswerEngine 接入**：graph 上下文优先 CGW，其次 LightRAG，最后旧 LIKE；图挂 claim 合并进 claims（去重、带页码、disputed 保留）；wiki 使用 subject 页；claim/graph/timeline 统一用 `query_terms()` 修中文。
+  - **验证**：`tests/test_graph_claim.py` 10 项；graph/knowledge/citations 回归 31 passed；本机 `lsl-kb` 中文问题 `LSL 脚本怎么写` 命中 LSL（度数 911）并展开 80 条边。
+  - **未做**：评测集、实体 ID 化/别名合并、trial-host 部署。
+  - **注意**：`SOFTWIKI_DISABLE_LIGHTRAG` 仍只拦查询不拦入库（`processor._get_lightrag_adapter()` 无检查），待单独修。
+
 
 - **2026-11-20 多 KB 可用性 + 导航/列表重构**：
   - **多 KB 现状澄清**：第一版两栈共用 workspace 根，`/api/kb` 两边都列出 2 个库，但各自 PostgreSQL 独立 → 切过去 500（`database "softwiki_ai_history" does not exist`）。

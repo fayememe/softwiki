@@ -1,5 +1,11 @@
 # Graph-RAG Design
 
+> **2026-11-24 更新**：本文描述的是两套图存储（SQL 表 + LightRAG）。实际运行时
+> LightRAG 默认 inert（`tests/conftest.py` 与多个部署设 `SOFTWIKI_DISABLE_LIGHTRAG=1`，
+> 且该开关目前只拦查询、不拦入库），产品依赖的是 SQL 图。图的**检索用法**已改为
+> 实体链接 + 1–2 跳 + claim 挂载，见
+> [`graph-claim-wiki.md`](./graph-claim-wiki.md)。
+
 ## Dual-Track Architecture
 
 softwiki maintains two parallel graph storage tracks serving different query depths:

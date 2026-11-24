@@ -398,12 +398,25 @@ class AnswerEngine:
                     context_parts.append(entry)
                 context_str = "\n\n".join(context_parts)
 
-        # 2. Claim DB Retrieve — canonical claims when available; raw fallback.
+        # 2. Joint Graph x Claim x Wiki retrieval (see docs/02-design/graph-claim-wiki.md).
+        # Graph is the routing layer: link the question to entities, walk 1-2 hops,
+        # then pull the canonical claims attached to those edges/entities. The wiki
+        # layer contributes a compiled narrative for the matched subjects.
+        cgw = {"seeds": [], "edges": [], "claims": [], "raw_claims": [], "wiki": []}
+        if is_module_enabled("graph") or is_module_enabled("claimdb") or is_module_enabled("llmwiki"):
+            try:
+                from softwiki.intelligence.graph_claim import retrieve as cgw_retrieve
+                cgw = cgw_retrieve(db, search_query)
+            except Exception as exc:  # noqa: BLE001 - must not break answering
+                logger.warning("CGW retrieval failed, falling back: %s", exc)
+
+        # 3. Claim DB Retrieve — canonical claims when available; raw fallback.
         claims_context = []
         conflict_context = []
         canonical_claims = []
         if is_module_enabled("claimdb"):
-            words = [w for w in question.lower().split() if len(w) > 3]
+            from softwiki.intelligence.graph_claim import query_terms
+            words = query_terms(question)[:8]
             has_canonical = db.query(CanonicalClaim.id).limit(1).first() is not None
             if has_canonical:
                 query = db.query(CanonicalClaim).filter(
@@ -413,13 +426,31 @@ class AnswerEngine:
                     filters = [CanonicalClaim.text.like(f"%{w}%") for w in words]
                     query = query.filter(or_(*filters))
                 canonical_claims = query.limit(12).all()
+
+                # Graph-linked claims come first: they are anchored to entities
+                # the question actually mentions, which text LIKE cannot do.
+                seen_ids = {c.id for c in canonical_claims}
+                for item in cgw.get("claims", []):
+                    claim = item["claim"]
+                    if claim.id in seen_ids:
+                        continue
+                    canonical_claims.append(claim)
+                    seen_ids.add(claim.id)
+                canonical_claims = canonical_claims[:18]
+
                 for c in canonical_claims:
                     date_str = c.valid_from.strftime('%Y-%m-%d') if c.valid_from else 'unknown'
                     doc_cit = cite_doc(c.primary_document_id)
                     prefix = f"[{doc_cit}] " if doc_cit else ""
+                    pages = ""
+                    if c.primary_page_start:
+                        pages = f", pp.{c.primary_page_start}"
+                        if c.primary_page_end and c.primary_page_end != c.primary_page_start:
+                            pages += f"-{c.primary_page_end}"
                     claims_context.append(
                         f"- {prefix}Actor: {c.actor} | Topic: {c.topic} | Status: {c.status} | "
-                        f"Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f}, Evidence: {c.evidence_count})"
+                        f"Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f}, "
+                        f"Evidence: {c.evidence_count}{pages})"
                     )
                 for c in canonical_claims:
                     rows = (
@@ -445,35 +476,47 @@ class AnswerEngine:
                     filters = [Claim.text.like(f"%{w}%") for w in words]
                     query = query.filter(or_(*filters))
                 claims = query.limit(10).all()
-                for c in claims:
+                seen_raw = {c.id for c in claims}
+                for item in cgw.get("raw_claims", []):
+                    claim = item["claim"]
+                    if claim.id in seen_raw:
+                        continue
+                    claims.append(claim)
+                    seen_raw.add(claim.id)
+                for c in claims[:16]:
                     date_str = c.published_at.strftime('%Y-%m-%d') if c.published_at else 'unknown'
                     doc_cit = cite_doc(c.document_id)
                     prefix = f"[{doc_cit}] " if doc_cit else ""
                     claims_context.append(f"- {prefix}Actor: {c.actor} | Stance: {c.stance} | Claim: {c.text} (Date: {date_str}, Conf: {c.confidence:.2f})")
 
-        # 3. Graph Retrieve — try LightRAG first, fallback to SQL LIKE
+        # 4. Graph Retrieve — entity-linked neighbourhood first, then optional
+        # LightRAG, then a keyword LIKE fallback for corpora with no graph.
         graph_context = []
         if is_module_enabled("graph"):
-            lr_context = _try_lightrag_query(question, mode="local")
-            if lr_context:
-                graph_context = lr_context
-            else:
-                # Fallback: SQL LIKE on existing Entity/Relationship tables
-                words = [w for w in question.lower().split() if len(w) > 3]
-                query = db.query(Relationship).filter(Relationship.status == "active")
-                if words:
-                    filters = [Relationship.description.like(f"%{w}%") | Relationship.source_name.like(f"%{w}%") | Relationship.target_name.like(f"%{w}%") for w in words]
-                    query = query.filter(or_(*filters))
-                rels = query.limit(10).all()
-                for r in rels:
-                    doc_cit = cite_doc(r.document_id)
-                    prefix = f"[{doc_cit}] " if doc_cit else ""
-                    graph_context.append(f"- {prefix}Relationship: {r.source_name} --({r.relation_type})--> {r.target_name} ({r.description or ''})")
+            from softwiki.intelligence.graph_claim import format_graph_context
+            graph_context = format_graph_context(cgw, cite=cite_doc)
+            if not graph_context:
+                lr_context = _try_lightrag_query(question, mode="local")
+                if lr_context:
+                    graph_context = lr_context
+                else:
+                    from softwiki.intelligence.graph_claim import query_terms
+                    words = query_terms(question)[:8]
+                    query = db.query(Relationship).filter(Relationship.status == "active")
+                    if words:
+                        filters = [Relationship.description.like(f"%{w}%") | Relationship.source_name.like(f"%{w}%") | Relationship.target_name.like(f"%{w}%") for w in words]
+                        query = query.filter(or_(*filters))
+                    rels = query.limit(10).all()
+                    for r in rels:
+                        doc_cit = cite_doc(r.document_id)
+                        prefix = f"[{doc_cit}] " if doc_cit else ""
+                        graph_context.append(f"- {prefix}Relationship: {r.source_name} --({r.relation_type})--> {r.target_name} ({r.description or ''})")
 
-        # 4. Timeline Retrieve
+        # 5. Timeline Retrieve
         timeline_context = []
         if is_module_enabled("timeline"):
-            words = [w for w in question.lower().split() if len(w) > 3]
+            from softwiki.intelligence.graph_claim import query_terms
+            words = query_terms(question)[:8]
             query = db.query(Event).filter(Event.status == "active")
             if words:
                 filters = [Event.title.like(f"%{w}%") | Event.description.like(f"%{w}%") for w in words]
@@ -485,9 +528,11 @@ class AnswerEngine:
                 prefix = f"[{doc_cit}] " if doc_cit else ""
                 timeline_context.append(f"- {prefix}Event [{date_str}]: {ev.title} - {ev.description or ''}")
 
-        # 5. LLM Wiki Retrieve
+        # 6. LLM Wiki Retrieve — graph-matched subject pages first, then topic pages.
         wiki_context = []
         if is_module_enabled("llmwiki"):
+            from softwiki.intelligence.graph_claim import format_wiki_context
+            wiki_context.extend(format_wiki_context(cgw))
             wiki_dir = get_export_dir("wiki/topics")
             if os.path.exists(wiki_dir):
                 for filename in os.listdir(wiki_dir):
