@@ -72,22 +72,27 @@ def _extract_document(db, doc_id: int, cleaned_text: str, published_at: datetime
     graph_extractor = GraphExtractor() if is_module_enabled("graph") else None
     timeline_extractor = TimelineExtractor() if is_module_enabled("timeline") else None
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        for index, window in enumerate(windows):
-            claim_future = graph_future = timeline_future = None
-            if claim_extractor:
-                claim_future = pool.submit(
-                    claim_extractor.extract_claims, doc_id, window, published_at
-                )
-            if graph_extractor:
-                graph_future = pool.submit(
-                    graph_extractor.extract_graph, doc_id, window, published_at
-                )
-            if timeline_extractor:
-                timeline_future = pool.submit(
-                    timeline_extractor.extract_events, doc_id, window, published_at
-                )
+    # Windows are independent LLM calls; running them one after another made a
+    # 73-document rebuild take half a day. Submit every window up front and only
+    # serialize the DB writes on this thread (sessions are not thread-safe).
+    window_concurrency = max(1, int(os.getenv("EXTRACTION_WINDOW_CONCURRENCY", "4")))
+    max_workers = max(3, min(16, window_concurrency * 3))
 
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = []
+        for index, window in enumerate(windows):
+            futures.append((
+                index,
+                window,
+                pool.submit(claim_extractor.extract_claims, doc_id, window, published_at)
+                if claim_extractor else None,
+                pool.submit(graph_extractor.extract_graph, doc_id, window, published_at)
+                if graph_extractor else None,
+                pool.submit(timeline_extractor.extract_events, doc_id, window, published_at)
+                if timeline_extractor else None,
+            ))
+
+        for index, window, claim_future, graph_future, timeline_future in futures:
             claims = claim_future.result() if claim_future else []
             graph_data = graph_future.result() if graph_future else {
                 "entities": [], "relationships": []
@@ -236,11 +241,14 @@ def run_extraction_pipeline(db: Session, doc_id: int, cleaned_text: str, publish
         db.commit()
         
     results = _extract_document(db, doc_id, cleaned_text, published_at)
-    try:
-        from softwiki.knowledge.canonical import canonicalize_document
-        canonicalize_document(db, doc_id)
-    except Exception as exc:
-        logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
+    # Bulk rebuilds run extraction in parallel and canonicalize in a second,
+    # serial pass (canonical claim ids are global; concurrent writers collide).
+    if os.getenv("EXTRACTION_SKIP_CANONICALIZE", "").lower() not in ("1", "true", "yes"):
+        try:
+            from softwiki.knowledge.canonical import canonicalize_document
+            canonicalize_document(db, doc_id)
+        except Exception as exc:
+            logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
 
     doc = DocumentRepository.get_document(db, doc_id)
     if doc:
