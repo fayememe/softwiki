@@ -155,6 +155,7 @@ def init_tables():
             "CREATE INDEX IF NOT EXISTS ix_entity_aliases_normalized ON entity_aliases (normalized)",
             "CREATE INDEX IF NOT EXISTS ix_relationships_source_entity_id ON relationships (source_entity_id)",
             "CREATE INDEX IF NOT EXISTS ix_relationships_target_entity_id ON relationships (target_entity_id)",
+            "CREATE INDEX IF NOT EXISTS ix_relationships_status_weight ON relationships (status, weight)",
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_id ON claims (canonical_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_key ON claims (canonical_key)",
             "CREATE INDEX IF NOT EXISTS ix_claims_status ON claims (status)",

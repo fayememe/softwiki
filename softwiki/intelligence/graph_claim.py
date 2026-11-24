@@ -140,14 +140,21 @@ def _entity_index(db: Session):
     return entities, aliases, degrees
 
 
+from functools import lru_cache
+
+
+@lru_cache(maxsize=20000)
+def _boundary_pattern(needle: str) -> "re.Pattern[str]":
+    return re.compile(r"(?<![a-z0-9])" + re.escape(needle) + r"(?![a-z0-9])")
+
+
 def _boundary_match(haystack: str, needle: str) -> bool:
     """Whole-token match for ASCII (so 'rm' does not match inside 'arm')."""
     if not needle:
         return False
     if not re.search(r"[a-z0-9]", needle):
         return needle in haystack
-    pattern = r"(?<![a-z0-9])" + re.escape(needle) + r"(?![a-z0-9])"
-    return re.search(pattern, haystack) is not None
+    return _boundary_pattern(needle).search(haystack) is not None
 
 
 def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[dict[str, Any]]:
@@ -164,6 +171,10 @@ def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[di
 
     def match_score(text_key: str) -> float:
         if len(text_key) < 2:
+            return 0.0
+        # C-speed substring gate first: only candidates that actually occur in
+        # the question need the (much slower) boundary regex.
+        if text_key not in qnorm and text_key not in terms:
             return 0.0
         if _boundary_match(qnorm, text_key):
             return 10.0 + min(len(text_key), 40) / 10.0

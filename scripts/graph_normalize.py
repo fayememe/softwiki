@@ -151,11 +151,28 @@ def normalize(db, dry_run: bool = False) -> dict:
             alias_rows[(norm, entity.id)] = EntityAlias(
                 entity_id=entity.id, alias=alias[:200], normalized=norm[:200]
             )
-    for row in alias_rows.values():
-        db.add(row)
-        alias_added += 1
-    if not dry_run:
+    new_aliases = [
+        {"entity_id": row.entity_id, "alias": row.alias, "normalized": row.normalized}
+        for row in alias_rows.values()
+    ]
+    if new_aliases and not dry_run:
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            db.execute(
+                pg_insert(EntityAlias)
+                .values(new_aliases)
+                .on_conflict_do_nothing(index_elements=["normalized", "entity_id"])
+            )
+        else:
+            current = {(row.normalized, row.entity_id) for row in db.query(EntityAlias).all()}
+            for values in new_aliases:
+                if (values["normalized"], values["entity_id"]) in current:
+                    continue
+                current.add((values["normalized"], values["entity_id"]))
+                db.add(EntityAlias(**values))
         db.flush()
+    alias_added += len(new_aliases)
 
     # 4. resolve relationship endpoints
     alias_map: dict[str, int] = {}
