@@ -262,3 +262,20 @@ def test_retrieve_skips_stale_wiki_page(db):
 
     result = retrieve(db, "Cortex-M55 是什么？")
     assert result["wiki"] == []
+
+
+def test_degree_uses_canonical_key_not_raw_name(db):
+    """Entity keys come from graph.resolution (strips ', Inc.'); degrees must too."""
+    from softwiki.intelligence.graph_claim import link_entities
+
+    doc = _doc(db, "AeroPress manual")
+    ent = _entity(db, "AeroPress, Inc.", type_="organization")
+    ent.normalized_name = "aeropress"
+    db.commit()
+    for _ in range(3):
+        _rel(db, doc, "AeroPress, Inc.", "Espresso", rtype="related-to")
+
+    seeds = link_entities(db, "AeroPress")
+    assert seeds, "entity should link from the plain name"
+    assert seeds[0]["entity_id"] == ent.id
+    assert seeds[0]["degree"] == 3

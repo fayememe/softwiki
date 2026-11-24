@@ -84,7 +84,15 @@ def query_terms(question: str) -> list[str]:
 
 
 def _degrees(db: Session) -> dict[str, int]:
-    """Relationship degree per normalized entity name (active edges only)."""
+    """Relationship degree per canonical entity key (active edges only).
+
+    The key must be the same one ``entities.normalized_name`` uses, i.e.
+    ``graph.resolution.normalize_entity_name`` — that one also strips corporate
+    suffixes. Using the looser separator-only key here silently zeroed the
+    degree of every entity whose name ends in ", Inc." (coffee KB), which
+    flattened the ranking signal.
+    """
+    from softwiki.graph.resolution import normalize_entity_name
     rows = (
         db.query(Relationship.source_name, func.count(Relationship.id))
         .filter(Relationship.status == "active")
@@ -99,7 +107,7 @@ def _degrees(db: Session) -> dict[str, int]:
     )
     degrees: dict[str, int] = {}
     for name, count in rows:
-        key = normalize_name(name)
+        key = normalize_entity_name(name)
         if key:
             degrees[key] = degrees.get(key, 0) + int(count)
     return degrees
