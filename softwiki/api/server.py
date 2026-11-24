@@ -2887,47 +2887,66 @@ def graph_overview(limit: int = 60):
     edges), so the panel starts from a handful of the best-connected entities
     and expands on demand through ``/api/graph/subgraph``.
     """
-    from sqlalchemy import func
+    from sqlalchemy import func, or_
 
     db = SessionLocal()
     try:
         limit = max(5, min(limit, 300))
-        degree = (
-            db.query(Relationship.source_name.label("name"), func.count().label("n"))
-            .filter(Relationship.status == "active")
-            .group_by(Relationship.source_name)
-            .all()
-        )
-        degree += (
-            db.query(Relationship.target_name.label("name"), func.count().label("n"))
-            .filter(Relationship.status == "active")
-            .group_by(Relationship.target_name)
-            .all()
-        )
-        totals: Dict[str, int] = {}
-        for name, count in degree:
-            totals[name] = totals.get(name, 0) + count
+        totals: Dict[int, int] = {}
+        name_totals: Dict[str, int] = {}
 
-        top = sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
-        seed_names = {name for name, _ in top}
-
-        entities = (
-            db.query(Entity).filter(Entity.name.in_(seed_names)).all() if seed_names else []
-        )
-        by_name = {ent.name: ent for ent in entities}
-
-        relationships = []
-        if seed_names:
-            relationships = (
-                db.query(Relationship)
+        # Prefer resolved entity ids (schema v3); fall back to names for rows
+        # that normalization could not resolve.
+        for column in (Relationship.source_entity_id, Relationship.target_entity_id):
+            rows = (
+                db.query(column, func.count())
                 .filter(Relationship.status == "active")
-                .filter(
-                    Relationship.source_name.in_(seed_names)
-                    | Relationship.target_name.in_(seed_names)
-                )
-                .limit(limit * 20)
+                .filter(column.isnot(None))
+                .group_by(column)
                 .all()
             )
+            for entity_id, count in rows:
+                totals[entity_id] = totals.get(entity_id, 0) + count
+
+        for column in (Relationship.source_name, Relationship.target_name):
+            rows = (
+                db.query(column, func.count())
+                .filter(Relationship.status == "active")
+                .filter(Relationship.source_entity_id.is_(None))
+                .group_by(column)
+                .all()
+            )
+            for name, count in rows:
+                name_totals[name] = name_totals.get(name, 0) + count
+
+        top_ids = [entity_id for entity_id, _ in sorted(totals.items(), key=lambda kv: -kv[1])[:limit]]
+        top_names = {name for name, _ in sorted(name_totals.items(), key=lambda kv: -kv[1])[:limit]}
+
+        entities = db.query(Entity).filter(Entity.id.in_(top_ids)).all() if top_ids else []
+        if top_names:
+            extra = db.query(Entity).filter(Entity.name.in_(top_names)).all()
+            seen = {ent.id for ent in entities}
+            entities.extend(ent for ent in extra if ent.id not in seen)
+
+        selected_ids = {ent.id for ent in entities}
+        selected_names = {ent.name for ent in entities}
+
+        conditions = []
+        if selected_ids:
+            conditions.append(Relationship.source_entity_id.in_(selected_ids))
+            conditions.append(Relationship.target_entity_id.in_(selected_ids))
+        if selected_names:
+            conditions.append(Relationship.source_name.in_(selected_names))
+            conditions.append(Relationship.target_name.in_(selected_names))
+        relationships = (
+            db.query(Relationship)
+            .filter(Relationship.status == "active")
+            .filter(or_(*conditions))
+            .order_by(Relationship.weight.desc(), Relationship.confidence.desc())
+            .limit(limit * 20)
+            .all()
+        ) if conditions else []
+
         return {
             "entities": [
                 {
@@ -2935,12 +2954,12 @@ def graph_overview(limit: int = 60):
                     "name": ent.name,
                     "type": ent.type,
                     "description": ent.description,
-                    "degree": totals.get(ent.name, 0),
+                    "degree": totals.get(ent.id, name_totals.get(ent.name, 0)),
                 }
                 for ent in entities
             ],
             "relationships": [_rel_payload(rel) for rel in relationships],
-            "total_entities": db.query(Entity).count(),
+            "total_entities": db.query(Entity).filter(Entity.merged_into.is_(None)).count(),
             "total_relationships": db.query(Relationship)
             .filter(Relationship.status == "active")
             .count(),

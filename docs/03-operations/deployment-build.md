@@ -210,3 +210,46 @@ sudo systemctl enable --now softwiki-agent-web
 - L1 调用**系统 opencode**（build-host 当前 `1.18.35`），不是产品化容器；升级/打包见 `docs/05-roadmap/agent-web-plan.md`。
 - Agent 通过 remote MCP `http://127.0.0.1:6100/mcp` 访问 Docker 里的 SoftWiki MCP，不需要宿主 psycopg2/数据库连通性。
 - `wiki-research` 权限在 opencode 层 deny `bash`/`edit` 和 `softwiki_ingest`/`index`/`rebuild_index`/`wiki_build`；remote MCP 本身仍暴露写工具，产品化需只读 sidecar。
+
+---
+
+## 手动部署（不 push，2026-11-24）
+
+CI 定时器只认 `origin/master`；本地分支未 push 时，需要手动同步到 build-host。
+注意 **build-host 的 CI 目录是 `/home/faye/softwiki-ci`**（不是 `/opt/aitools/apps/softwiki`，
+后者只是 workspace + 备份存放处）。CI 每 3 分钟 `fetch` 一次，`origin/master` 变化时
+会执行 `git reset --hard`——**手动同步的改动会在下次 CI 部署时被覆盖**，要么尽快收敛
+回 origin，要么临时 `sudo systemctl stop softwiki-deploy.timer`。
+
+```bash
+# 1. 开发机：只同步代码，不动 workspace / .env
+rsync -az --exclude '__pycache__' --exclude '*.pyc' \
+  softwiki scripts web Dockerfile pyproject.toml kb-templates \
+  faye@10.3.9.29:/home/faye/softwiki-ci/
+
+# 2. build-host：按 CI 的 env 构建 + 起栈（project 必须叫 softwiki）
+cd /home/faye/softwiki-ci
+TAG=<本地 commit 短 sha> sudo -E docker compose build api web
+sudo -E env TAG=<sha> \
+  SOFTWIKI_ENV_FILE=/opt/aitools/apps/softwiki/.env \
+  SOFTWIKI_WORKSPACE=/opt/aitools/apps/softwiki/workspace \
+  SOFTWIKI_ACTIVE_WORKSPACE=armkb \
+  API_HOST_PORT=6200 MCP_HOST_PORT=6100 WEB_HOST_PORT=6108 \
+  SOFTWIKI_STACK_ROOT=/opt/aitools/apps/softwiki/workspace/stacks/javis \
+  SOFTWIKI_SHARED_CONFIG=/opt/aitools/apps/softwiki/workspace/config \
+  SOFTWIKI_AUDIT_DIR=/opt/aitools/apps/softwiki/workspace/.softwiki-audit \
+  WIKIWEB_DIR=/opt/aitools/apps/softwiki/workspace/stacks/javis/armkb/exports/wikiweb \
+  WIKIWEB_ENTRY=armkb/index.html \
+  docker compose -f docker-compose.yml --project-name softwiki up -d --no-build
+```
+
+**踩坑**
+
+- 直接 `docker compose up` 会用目录名当 project（`softwiki-ci`），起出**第二套栈**并占用
+  6300/6301/6308；必须显式 `--project-name softwiki` 并传上面那组 env，否则挂载和库都错。
+- 只重建 api 时 web 镜像不会跟着打新 tag；用 `docker tag softwiki-web:<旧> softwiki-web:<新>`。
+- LLM 走 trial 网关：`armkb/config/model_profiles.yaml` 指向 `oneroute` + `deepseek-v4.1-flash`，
+  key 由 `/opt/aitools/apps/softwiki/.env` 的 `DEEPSEEK_API_KEY` 提供（不落 yaml）。
+
+**回滚**：`sudo docker tag softwiki-api:<旧sha> softwiki-api:latest` 相当于回退 TAG；
+数据库备份 `backup-armkb-<ts>.sql.gz`，workspace 备份 `backup-armkb-ws-<ts>.tgz`。

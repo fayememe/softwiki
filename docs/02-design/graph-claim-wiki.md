@@ -98,3 +98,39 @@ question
 4. stale wiki 不参与；
 5. 无命中时行为与现状一致（降级不回归）；
 6. `tests/test_graph_claim.py` 覆盖以上各点。
+
+---
+
+## 7. v2 实施记录（2026-11-24）
+
+P0 只证明链路能跑；v2 解决数据质量与可演示性：
+
+| 项 | v2 做法 | 代码 |
+|---|---|---|
+| 抽取 prompt | ARM 领域：实体类型 taxonomy、canonical 名称、aliases、受控关系词、confidence、证据短语；端点必须是本窗口抽到的实体 | `extraction/graph_extractor.py` |
+| 实体归一 | `entities.normalized_name` + `entity_aliases` + `merged_into`；同名（大小写/标点/公司后缀）确定性合并，不删行 | `graph/resolution.py`、`scripts/graph_normalize.py` |
+| 边端点 | `relationships.source_entity_id` / `target_entity_id`，遍历优先用 id，名称仅兜底 | 同上 |
+| 边权重 | 按 (source, target, relation_type) 统计 distinct 文档数 → `weight`；`evidence_count` 为行数 | `scripts/graph_normalize.py` |
+| 检索 | 实体链接走 normalized + alias；排序 hop + confidence + `log(1+weight)` | `intelligence/graph_claim.py` |
+| API | `/api/graph/search`、`/api/graph/entity`、`/api/graph/path`；subgraph 支持 id | `api/server.py` |
+| 演示 | `/graph-studio`：力导向图、搜索、路径高亮、实体卡、claim 徽章、wiki 摘要 | `web/app/graph-studio/` |
+| 验收 | `scripts/graph_acceptance.py` + `scripts/graph_golden.yaml`：实体命中率、术语覆盖（CGW vs 旧 LIKE）、p50/p95 | 同上 |
+| 批量重抽 | `scripts/graph_reextract.py`：多文档并行抽取 → 串行 canonicalize → 孤儿清理 → 归一 | 同上 |
+| 抽取并发 | 所有窗口的 3 个抽取器一次性提交（`EXTRACTION_WINDOW_CONCURRENCY`），DB 写入仍串行 | `extraction/processor.py` |
+
+**新增决策**
+
+| 编号 | 决策 | 理由 |
+|---|---|---|
+| D7 | 先重抽再归一，不在旧数据上打补丁 | 旧 prompt 抽出的实体类型/关系词不可用；重抽后用新别名重建别名表 |
+| D8 | 归一只做确定性合并（normalized 相同或显式 alias） | 模糊合并会不可逆地毁掉实体；宁可少合并 |
+| D9 | 保留每个文档的边行，用 `weight` 表达跨文档强度 | 删行会丢引用；权重让检索排序表达“多文档佐证” |
+| D10 | 演示页独立路由 `/graph-studio` | 不干扰日常 WebUI；可全屏投屏 |
+
+**验收基线（armkb，重抽后重跑）**
+
+```
+python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
+```
+
+看四个数：entity_link_rate、avg_term_coverage（CGW vs baseline）、avg_claims/edges、latency p50/p95。
