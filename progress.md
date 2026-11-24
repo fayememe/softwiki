@@ -279,10 +279,10 @@
 - [x] `/graph-studio` 演示页（力导向、路径高亮、实体卡、claim、wiki）+ 侧栏入口
 - [x] `scripts/graph_acceptance.py` + `graph_golden.yaml`（24 题；实体命中率/术语覆盖/p50/p95）
 - [x] armkb 全量重抽（73 篇；分 1–38 / 39–47 / 48–73 三段并行；trial oneroute）
-- [x] 504 文档补图脚本就绪（`graph_topup.py`；本轮约 16% 窗口 504 按设计跳过，关系数 4,572）
-- [x] 投影 + 归一 + 别名治理：claims 15,465 / canonical 14,704 / entities 6,091（合并 381、别名 977）/ relationships 4,572（4,485 挂 claim）/ events 743
+- [x] `graph_topup.py --all` 全量补图：73 篇只重跑图抽取，relationships 4,572 → **9,491**（8,957 挂 claim）
+- [x] 投影 + 归一 + 别名治理：claims 15,465 / canonical 14,704 / entities **9,256**（合并 634、别名 2,244）/ relationships **9,491**（8,957 挂 claim，avg weight 1.12）/ events 743
 - [x] wiki：旧 929 页归档，重建 233 页；重点实体已有 wiki
-- [x] 验收：24 题实体命中 100%，术语覆盖 77.8% vs 旧基线 37.5%，p50 502ms / p95 529ms
+- [x] 验收：24 题实体命中 100%，术语覆盖 **82.0% vs 40.3%**，p50 **62ms** / p95 **79ms**（补图 + 正则缓存后）
 - [x] 部署 javis：2026-11-24 已 push 并走 CI，源码/镜像/仓库三方一致（tag `a3124d4`）
 - [x] 修复 CI 静默失败：`~/.docker/buildx/current` 被手工 `sudo docker build` 写成 root 所有，
       `User=faye` 无法写 → 每 3 分钟 FAILURE 但线上跑旧镜像（详见 `deployment-build.md`）
@@ -433,11 +433,12 @@
 
 - **2026-11-24 armkb Graph v2 全量重建（javis）**：
   - **范围**：schema v3 + 新 ARM 抽取 prompt + 73 篇全量重抽 + 实体归一/别名 + 边权重 + CGW v2 + `/graph-studio` + 24 题验收。
-  - **数据**：claims 15,465 / canonical 14,704 / evidence 15,465；entities 6,091（合并 381、别名 977）；relationships 4,572（4,485 挂 claim，平均 weight 1.06）；events 743；wiki 重建 233 页（旧 929 页归档到 `exports/wiki/pages.pre-graphv2-20261124-052035`）。
-  - **验收**（`scripts/graph_acceptance.py --runs 5`）：实体命中 100%，术语覆盖 **77.8% vs 37.5%**（旧 LIKE），p50 **502ms** / p95 **529ms**。
+  - **数据**：claims 15,465 / canonical 14,704 / evidence 15,465；entities 9,256（合并 634、别名 2,244）；relationships **9,491**（8,957 挂 claim，平均 weight 1.12）；events 743；wiki 重建 233 页（旧 929 页归档到 `exports/wiki/pages.pre-graphv2-20261124-052035`）。
+  - **验收**（`scripts/graph_acceptance.py --runs 5`）：实体命中 100%，术语覆盖 **82.0% vs 40.3%**（旧 LIKE），p50 **62ms** / p95 **79ms**。
   - **部署**：最初是手动同步（api `c8a673e` / web `fitv1`）；2026-11-24 起已 **push `a3124d4` 并走 CI**，project 必须 `--project-name softwiki`（否则起出 `softwiki-ci-*` 第二套栈）；LLM 走 trial oneroute `deepseek-v4.1-flash`，key 在 `/opt/aitools/apps/softwiki/.env`。
   - **备份**：`backup-armkb-20261124-033106.sql.gz` / `backup-armkb-ws-20261124-033106.tgz` / 镜像 `softwiki-api:pre-graphv2-20261124-033106`。
-  - **已知缺口**：约 16% 窗口被网关 504 丢弃（不写启发式假图），关系数低于旧库；`scripts/graph_topup.py --from-log` 可补。wiki 只重建了 60 个候选 + 重点实体，其余 240 个候选未生成。别名治理目前是人工 `armkb/config/entity_aliases.yaml`。
+  - **504 补图**：`graph_topup.py --all` 已跑完（73 篇只重跑图），关系 4,572 → 9,491；normalize/projections 重跑。
+  - **已知缺口**：wiki 只重建了 233 页（60 候选 + 重点实体），其余候选未生成；别名治理目前是人工 `armkb/config/entity_aliases.yaml`。
   - **易踩坑**：批量重抽必须“并行抽取 → 串行 canonicalize”（canonical id 全局唯一）；`read_subject_page` 才能读拆页；`SOFTWIKI_DISABLE_LIGHTRAG` 仍只拦查询不拦入库。
 
 - **2026-11-24 trial-host 助手侧栏补齐**：

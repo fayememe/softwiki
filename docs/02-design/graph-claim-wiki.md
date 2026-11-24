@@ -141,10 +141,10 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 |---|---|
 | golden questions | 24 |
 | 实体链接命中率 | **100%** |
-| 术语覆盖（CGW） | **77.8%** |
-| 术语覆盖（旧 LIKE 基线） | 37.5% |
+| 术语覆盖（CGW） | **82.0%** |
+| 术语覆盖（旧 LIKE 基线） | 40.3% |
 | 平均图上下文 | 80 条边 / 16 条 canonical claim |
-| 检索延迟 | **p50 502 ms / p95 529 ms**（索引缓存后） |
+| 检索延迟 | **p50 62 ms / p95 79 ms**（正则缓存 + 子串前置） |
 
 数据规模变化（重抽前后）：
 
@@ -152,9 +152,10 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 |---|---|---|
 | claims | 10,573 | **15,465** |
 | canonical claims | 9,766 | **14,704** |
-| entities | 4,165 | **6,091**（合并 381、别名 977） |
-| relationships | 7,211 | **4,572**（4,485 已挂 claim；平均 weight 1.06） |
+| entities | 4,165 | **9,256**（合并 634、别名 2,244） |
+| relationships | 7,211 | **9,491**（8,957 已挂 claim；平均 weight 1.12） |
 | events | 639 | 743 |
 
-**已知缺口**：重抽期间 trial 网关约 16% 的窗口返回 504，图抽取按设计放弃该窗口
-（不写启发式假数据），所以关系数低于旧库；`scripts/graph_topup.py` 可按日志补图。
+**504 补图（2026-11-24）**：首轮重抽约 16% 窗口 504 被跳过（关系 4,572）；
+随后用 `scripts/graph_topup.py --all` 只重跑图抽取，关系数升到 **9,491**，
+术语覆盖 77.8% → **82.0%**，检索延迟经正则缓存优化后 p50 从 502ms 降到 **62ms**。
