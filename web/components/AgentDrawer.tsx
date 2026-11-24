@@ -49,6 +49,8 @@ export default function AgentDrawer({ context, onClose }: AgentDrawerProps) {
   const [plans, setPlans] = useState<PendingPlan[]>([]);
   const [contextDropped, setContextDropped] = useState(false);
   const [acting, setActing] = useState(false);
+  const [me, setMe] = useState<{ role?: string; capabilities?: string[] } | null>(null);
+  const [showAbout, setShowAbout] = useState(false);
   const [actionError, setActionError] = useState('');
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -66,6 +68,15 @@ export default function AgentDrawer({ context, onClose }: AgentDrawerProps) {
     setContextDropped(false);
     setPlans([]);
   }, [context?.kb, context?.panel, context?.subject]);
+
+  useEffect(() => {
+    fetch('/api/permissions', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setMe({ role: d.role, capabilities: d.capabilities || [] }))
+      .catch(() => setMe(null));
+  }, []);
+
+  const canApprove = (me?.capabilities || []).some((c) => c === '*' || c.startsWith('wiki.apply'));
 
   const loadPlans = useCallback(async () => {
     const data = await fetch('/api/wiki/plans?status=pending', { cache: 'no-store' })
@@ -150,6 +161,12 @@ export default function AgentDrawer({ context, onClose }: AgentDrawerProps) {
         <span className={styles.title}>Assistant</span>
         {context?.kb && <span className={styles.chip}>{context.kb}</span>}
         {context?.panel && <span className={styles.chip}>{context.panel}</span>}
+        {me?.role && <span className={styles.role}>{me.role.replace('wiki-', '')}</span>}
+        <button
+          className={styles.help}
+          onClick={() => setShowAbout((v) => !v)}
+          title="What this assistant can and cannot do"
+        >?</button>
         <button className={styles.close} onClick={onClose} aria-label="Close">✕</button>
       </header>
 
@@ -179,12 +196,56 @@ export default function AgentDrawer({ context, onClose }: AgentDrawerProps) {
         </div>
       )}
 
+      {showAbout && (
+        <div className={styles.about}>
+          <div className={styles.aboutRow}>
+            <strong>What this is</strong>
+            An assistant bound to the view you have open — not the global Chat.
+            Switching subject starts a fresh conversation.
+          </div>
+          <div className={styles.aboutRow}>
+            <strong>You are</strong>
+            {me?.role ? `${me.role}` : 'unknown role'}
+            {context?.kb ? ` on ${context.kb}` : ''}. It answers with your
+            permissions and cannot see knowledge bases outside your scope.
+          </div>
+          <div className={styles.aboutRow}>
+            <strong>It can</strong>
+            read claims, pages, graph and timeline of this kb; search; explain
+            what is wrong; <em>propose</em> deletions or rewrites.
+          </div>
+          <div className={styles.aboutRow}>
+            <strong>It cannot</strong>
+            approve its own proposals, change claim facts, or touch another kb.
+          </div>
+          <div className={styles.aboutRow}>
+            <strong>Approval</strong>
+            {canApprove
+              ? 'You can approve plans here — approving executes them immediately.'
+              : 'Your role cannot approve; a Manage/Admin user must do it.'}
+          </div>
+        </div>
+      )}
+
       <div className={styles.body}>
         {messages.length === 0 && (
           <div className={styles.empty}>
-            Ask about what you are looking at
-            {context?.subject ? ` — ${context.subject}` : ''}. The assistant can
-            propose changes; you approve them here.
+            <div className={styles.emptyTitle}>
+              Looking at {context?.kb || 'this kb'}
+              {context?.subject ? ` › ${context.subject}` : ''}
+            </div>
+            <div>
+              Ask what is wrong with it, or tell it what should change. It reads
+              this kb only, proposes changes as a plan, and you approve them.
+            </div>
+            <div className={styles.suggestions}>
+              <button onClick={() => setInput('Is this page worth keeping? Check its claims.')}>
+                Is this page worth keeping?
+              </button>
+              <button onClick={() => setInput('Which pages in this kb look too generic or redundant?')}>
+                Find low-value pages
+              </button>
+            </div>
           </div>
         )}
         {messages.map((message) => (
