@@ -33,6 +33,29 @@ from softwiki.source_store.db import SessionLocal, init_tables
 from softwiki.source_store.models import Entity, EntityAlias, Relationship
 
 
+def _load_alias_config() -> dict[str, list[str]]:
+    """Optional curated aliases: <workspace>/config/entity_aliases.yaml.
+
+    Format:
+        "Cortex-M55": ["M55", "Cortex M55"]
+    """
+    try:
+        import yaml
+        from softwiki.config import get_config_path
+        path = get_config_path("entity_aliases.yaml")
+        if not os.path.exists(path):
+            return {}
+        with open(path, encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+        return {
+            str(key): [str(v) for v in (values or [])]
+            for key, values in data.items()
+        }
+    except Exception as exc:  # noqa: BLE001 - config must never break normalize
+        print(f"[normalize] alias config skipped: {exc}")
+        return {}
+
+
 def _degrees(db) -> dict[str, int]:
     degrees: dict[str, int] = defaultdict(int)
     for source, target in db.query(Relationship.source_name, Relationship.target_name).filter(
@@ -65,6 +88,9 @@ def normalize(db, dry_run: bool = False) -> dict:
 
     merged = 0
     alias_rows: dict[tuple[str, int], EntityAlias] = {}
+    existing = {
+        (row.normalized, row.entity_id) for row in db.query(EntityAlias).all()
+    }
     for key, rows in groups.items():
         if len(rows) == 1:
             continue
@@ -85,11 +111,35 @@ def normalize(db, dry_run: bool = False) -> dict:
     if not dry_run:
         db.flush()
 
+    # 2b. curated aliases (cross-spelling merges that extraction missed)
+    curated = _load_alias_config()
+    if curated:
+        by_norm = {
+            entity.normalized_name or normalize_entity_name(entity.name): entity
+            for entity in entities
+            if not entity.merged_into
+        }
+        for canonical_name, aliases in curated.items():
+            canonical = by_norm.get(normalize_entity_name(canonical_name))
+            if canonical is None:
+                continue
+            for alias in aliases:
+                target = by_norm.get(normalize_entity_name(alias))
+                if target is None or target.id == canonical.id:
+                    continue
+                target.merged_into = canonical.id
+                norm = normalize_entity_name(alias)
+                if norm and norm != canonical.normalized_name and (norm, canonical.id) not in existing:
+                    existing.add((norm, canonical.id))
+                    alias_rows[(norm, canonical.id)] = EntityAlias(
+                        entity_id=canonical.id, alias=alias[:200], normalized=norm[:200]
+                    )
+                merged += 1
+        if not dry_run:
+            db.flush()
+
     # 3. explicit extraction aliases
     alias_added = 0
-    existing = {
-        (row.normalized, row.entity_id) for row in db.query(EntityAlias).all()
-    }
     for entity in entities:
         if entity.merged_into:
             continue
@@ -116,6 +166,7 @@ def normalize(db, dry_run: bool = False) -> dict:
     for row in db.query(EntityAlias).all():
         alias_map.setdefault(row.normalized, row.entity_id)
 
+    id_to_name = {entity.id: entity.name for entity in entities}
     unresolved = 0
     resolved = 0
     for rel in db.query(Relationship).all():
@@ -126,6 +177,12 @@ def normalize(db, dry_run: bool = False) -> dict:
             continue
         rel.source_entity_id = src
         rel.target_entity_id = tgt
+        # Rewrite endpoint spellings to the canonical entity names so the graph
+        # panel, wiki subject candidates and claims all agree on one label.
+        if id_to_name.get(src):
+            rel.source_name = id_to_name[src]
+        if id_to_name.get(tgt):
+            rel.target_name = id_to_name[tgt]
         resolved += 1
     if not dry_run:
         db.flush()
