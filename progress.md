@@ -255,6 +255,19 @@
 - [ ] build-host 部署（本地 commit 未 push，避免 CI 自动部署）
 - [ ] 真实问答质量观察（评测集建好后对比 graph on/off）
 
+### M14 — 前端助手侧栏补齐（trial-host，2026-11-24）
+- [x] 定位：trial 的 `web/` 是手工拷贝的非 git 分支（带 i18n），停在 11-20；后端一直新 →
+      界面没有助手，API `/api/agent/projects` 却 200
+- [x] 同步 6 个前端文件（`app/page.tsx`、`Sidebar`、`RoleSelector`、`TimelinePanel`、
+      `WikiPagesPanel` + 新增 `AgentSidePane`），备份 `backup-20261124/web-src-1833.tgz`
+- [x] 离线就地构建流程（trial 出口 ~130kbps、npmjs 不可达、node 基础镜像拉不动）：
+      容器内 `next build`（复用镜像 node_modules + npmmirror）→ `FROM 旧镜像` 打补丁 → 两栈 force-recreate
+      步骤与坑写入 `docs/03-operations/deployment-trial.md`「前端同步与离线构建」
+- [x] 验收（coffee 6108 / ai 6109）：Assistant 开关 → Work|Manage|Admin → About|Sessions|Chat；
+      降级 wiki-work 后只剩 Work；真实对话返回中文答案；无 pageerror
+- [ ] 新组件文案仍英文（trial i18n 未覆盖），与 zh 界面混排
+- [ ] `web/` 仍非 git 仓库，下次前端改动仍需手工同步
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
@@ -388,6 +401,17 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-24 trial-host 助手侧栏补齐**：
+  - **现象**：trial 两栈界面没有 Assistant，但 `6200/6202 /api/agent/projects` 返回 200、
+    `6111/6112` swagent 在线、4 个 agent 齐全 → 纯前端问题。
+  - **根因**：trial 的 `web/` 是手工拷贝的 i18n 分支（非 git），停在 11-20；M13 之后只重建了后端镜像。
+  - **修复**：同步 6 个文件 → 容器内离线 `next build`（复用镜像 node_modules，npm 走 npmmirror）
+    → `FROM softwiki-web:latest` 打补丁镜像 `f45b23bf01ef` → 两栈 `--no-build --force-recreate web`。
+  - **验收**：Assistant 开关、三项目 tab、About/Sessions/Chat、降级后 tab 收窄、真实对话中文回答，均通过。
+  - **易踩坑**：`node_modules` 不能用符号链接（turbopack 拒绝跨 root）；最终镜像缺 typescript，
+    build 会自动装，必须给 npmmirror；`.dockerignore` 排除 `.next`，补丁镜像要独立上下文。
+  - **仍欠**：新组件英文文案；`web/` 非 git。
 
 - **2026-11-24 Graph × Claim × Wiki 联合检索（P0）**：
   - **背景**：此前 graph 在问答里只是 `LIKE` + `limit 10`，中文问题命中 0；claim 也是 `question.split()` 的前缀匹配。

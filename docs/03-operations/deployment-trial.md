@@ -640,3 +640,65 @@ en「Claims/Timeline」，ja「ホーム/チャット/取り込み/論点/競合
 **仍未做**：`lib/api.ts` 与后端返回的错误串未国际化（会原样显示英文）。
 
 
+---
+
+## 前端同步与离线构建（2026-11-24）
+
+**问题**：trial-host 上的 `web/` 是 **手工拷贝的非 git 分支**（带 i18n），最后同步停在 11-20。
+后端一直是 git 部署的，所以出现「API 有 `/api/agent/projects` 和 4 个 agent，界面却没有助手」的错位。
+排查时先分清两侧：
+
+```bash
+curl -s -m 10 http://127.0.0.1:6200/api/agent/projects   # 200 说明后端已就绪
+ls /opt/aitools/apps/softwiki/web/components/AgentSidePane.tsx  # 不存在说明前端没同步
+```
+
+**出口带宽实测（决定构建策略）**：到 trial-host RTT ≈176ms、丢包 ≈13%、有效带宽 ≈130kbps；
+`registry.npmjs.org` 超时不可达（`registry.npmmirror.com` 可用）；trial 上 `docker build`
+拉 `node:22-bookworm-slim` 会卡在 12.58/28.25MB 数分钟。因此**不要**在 trial 上常规构建，
+也**不要**想着从外网传 1GB 镜像（1 小时传不完）。
+
+**可用做法：用现成镜像离线就地构建**（不需要外网，2 分钟内完成）
+
+```bash
+cd /opt/aitools/apps/softwiki
+# 1) 在容器内构建：node_modules 用镜像里的，源码用宿主 web/
+sudo docker run --rm -v "$PWD/web:/out" \
+  -e NEXT_TELEMETRY_DISABLED=1 -e npm_config_registry=https://registry.npmmirror.com \
+  softwiki-web:latest sh -lc '
+    rm -rf /work && mkdir -p /work && cp -a /out/. /work/ &&
+    rm -rf /work/node_modules /work/.next &&
+    cp -a /app/node_modules /work/node_modules &&
+    cd /work && API_INTERNAL_URL=http://api:6200 npx next build &&
+    rm -rf /out/.next && cp -a /work/.next /out/.next'
+# 2) 打补丁镜像（FROM 旧镜像，只覆盖 .next/public/next.config.ts，零网络）
+rm -rf /tmp/webpatch && mkdir -p /tmp/webpatch/web
+cp -a web/.next /tmp/webpatch/web/.next && cp -a web/public /tmp/webpatch/web/public
+cp web/next.config.ts /tmp/webpatch/web/
+printf 'FROM softwiki-web:latest\nCOPY web/.next /app/.next\nCOPY web/public /app/public\nCOPY web/next.config.ts /app/next.config.ts\n' > /tmp/webpatch/Dockerfile
+sudo docker build -t softwiki-web:latest /tmp/webpatch
+# 3) 两栈重建 web（只重建 web，不碰 api/mcp）
+sudo /usr/local/bin/docker-compose -p softwiki up -d --no-build --force-recreate web
+sudo /usr/local/bin/docker-compose -p softwiki-ai --env-file .env.ai up -d --no-build --force-recreate web
+```
+
+**坑**：
+
+- `web/node_modules` 不能用符号链接指向 `/app/node_modules`，turbopack 会报
+  `Symlink ... points out of the filesystem root`，必须**复制**进容器工作目录；
+- 最终 `web` 阶段是 `NODE_ENV=production` 下 `npm ci`，镜像里**没有 typescript / @types/node**，
+  `next build` 会自动去装；必须显式给 `npm_config_registry=https://registry.npmmirror.com`，否则卡住；
+- 仓库 `.dockerignore` 排除 `web/.next`，所以补丁镜像要在 `/tmp/webpatch` 单独建上下文；
+- 两栈共用同一个 `softwiki-web:latest` 镜像，重建完必须**两个 project 都 force-recreate**。
+
+**本轮同步的 6 个前端文件**（其余 `lib/`、`chat/`、i18n 两侧完全一致）：
+`app/page.tsx`、`components/{Sidebar,RoleSelector,TimelinePanel,WikiPagesPanel}.tsx`、
+新增 `AgentSidePane.tsx` + `.module.css`。备份：`backup-20261124/web-src-1833.tgz`。
+
+**验收（2026-11-24）**：6108 / 6109 两栈 `/api/agent/projects` 200；
+浏览器点 Assistant 出现 `Work|Manage|Admin` + `About|Sessions|Chat`；About 正确显示
+agent `wiki-work`；降级到 wiki-work 后助手只剩 Work；真实对话（cookie=coffee）返回中文答案。
+镜像 `f45b23bf01ef`。
+
+**仍欠**：新组件文案是英文（trial 分支的中文 i18n 未覆盖），与 zh 界面混排；
+`web/` 仍不是 git 仓库，下次改前端还要再走一遍手工同步。
