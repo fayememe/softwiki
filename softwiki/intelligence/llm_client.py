@@ -64,7 +64,8 @@ def get_llm_client_and_params(profile_name: str):
     if not is_valid_key:
         return None, model_name, temperature, max_tokens
 
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", "120"))
+    client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
     _disable_thinking(client)
     return client, model_name, temperature, max_tokens
 
@@ -87,3 +88,25 @@ def _disable_thinking(client) -> None:
         return original(*args, **kwargs)
 
     client.chat.completions.create = create
+
+
+def create_chat_completion(client, attempts: int = 3, **kwargs):
+    """Chat completion with retry/backoff for transient gateway errors (504/502).
+
+    Bulk re-extraction fans out many concurrent calls; gateways answer some of
+    them with 5xx. Retrying is much cheaper than a silent quality loss, and it
+    keeps the caller's fallback path for genuine failures.
+    """
+    import random
+    import time
+
+    last_error = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            return client.chat.completions.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - retried below
+            last_error = exc
+            if attempt >= attempts:
+                break
+            time.sleep(min(8, 2 ** attempt) + random.random())
+    raise last_error  # type: ignore[misc]

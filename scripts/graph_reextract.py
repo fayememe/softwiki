@@ -97,7 +97,7 @@ def _prune_canonical(db) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--workers", type=int, default=3)
     parser.add_argument("--windows", type=int, default=6)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--doc-id", type=int, default=None)

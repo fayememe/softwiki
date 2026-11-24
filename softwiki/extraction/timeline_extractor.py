@@ -24,7 +24,7 @@ class TimelineExtractor:
     def extract_events(self, doc_id: int, text: str, published_at: datetime) -> List[Event]:
         self.load_configs()
         
-        from softwiki.intelligence.llm_client import get_llm_client_and_params
+        from softwiki.intelligence.llm_client import create_chat_completion, get_llm_client_and_params
         client, model_name, temperature, max_tokens = get_llm_client_and_params("cheap_extraction")
         
         if not client:
@@ -73,7 +73,8 @@ Example Output:
             extra_params = {}
             if max_tokens is not None:
                 extra_params["max_tokens"] = max_tokens
-            response = client.chat.completions.create(
+            response = create_chat_completion(
+                client,
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},

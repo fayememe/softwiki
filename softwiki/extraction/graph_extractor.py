@@ -24,7 +24,7 @@ class GraphExtractor:
     def extract_graph(self, doc_id: int, text: str, published_at: datetime) -> Dict[str, Any]:
         self.load_configs()
         
-        from softwiki.intelligence.llm_client import get_llm_client_and_params
+        from softwiki.intelligence.llm_client import create_chat_completion, get_llm_client_and_params
         client, model_name, temperature, max_tokens = get_llm_client_and_params("cheap_extraction")
         
         if not client:
@@ -77,7 +77,8 @@ Example:
             extra_params = {}
             if max_tokens is not None:
                 extra_params["max_tokens"] = max_tokens
-            response = client.chat.completions.create(
+            response = create_chat_completion(
+                client,
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -142,8 +143,14 @@ Example:
             return {"entities": entities, "relationships": relationships}
 
         except Exception as e:
-            print(f"API graph extraction failed: {e}. Falling back to local heuristics.")
-            return self._fallback_extract_graph(doc_id, text, published_at)
+            if os.getenv("GRAPH_ALLOW_HEURISTIC_FALLBACK", "").lower() in ("1", "true", "yes"):
+                print(f"API graph extraction failed: {e}. Falling back to local heuristics.")
+                return self._fallback_extract_graph(doc_id, text, published_at)
+            # A heuristic graph is noise: capitalized words with made-up
+            # relations. Better to leave this window without graph data and let
+            # the retry/normalization pass report it than to poison the graph.
+            print(f"API graph extraction failed for doc {doc_id}: {e}. Skipping graph for this window.")
+            return {"entities": [], "relationships": []}
 
     def _fallback_extract_graph(self, doc_id: int, text: str, published_at: datetime) -> Dict[str, Any]:
         entities = []

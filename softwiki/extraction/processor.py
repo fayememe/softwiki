@@ -75,7 +75,7 @@ def _extract_document(db, doc_id: int, cleaned_text: str, published_at: datetime
     # Windows are independent LLM calls; running them one after another made a
     # 73-document rebuild take half a day. Submit every window up front and only
     # serialize the DB writes on this thread (sessions are not thread-safe).
-    window_concurrency = max(1, int(os.getenv("EXTRACTION_WINDOW_CONCURRENCY", "4")))
+    window_concurrency = max(1, int(os.getenv("EXTRACTION_WINDOW_CONCURRENCY", "2")))
     max_workers = max(3, min(16, window_concurrency * 3))
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
