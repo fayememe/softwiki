@@ -300,6 +300,9 @@
       12,145 rel / 3,137 events
 - [x] wiki 自动重建：coffee 119 done / ai 166 done（claim 变化自动入队，worker 串行）
 - [x] 修复 `claim_extractor` 的 NOT NULL 崩整篇 bug（缺 text 的 claim 丢弃并计数）+ 回归测试
+- [x] 修复度数 key 不一致（`graph_claim._degrees` 用 separator-only key，实体用剥后缀的 canonical key
+      → "AeroPress, Inc." 度数恒 0；trial coffee 实测 0 → 38）+ 回归测试；push `ad60d95`
+- [x] javis CI 同步到 `ad60d95`，验收复跑 100% / 82.0% / p50 61ms / p95 82ms
 - [ ] trial 无 CI，本轮是手工同步；后续仍要手工
 
 ### M10 — 内置 admin 账号（2026-11-22）
