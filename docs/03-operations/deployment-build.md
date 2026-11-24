@@ -253,3 +253,19 @@ sudo -E env TAG=<sha> \
 
 **回滚**：`sudo docker tag softwiki-api:<旧sha> softwiki-api:latest` 相当于回退 TAG；
 数据库备份 `backup-armkb-<ts>.sql.gz`，workspace 备份 `backup-armkb-ws-<ts>.tgz`。
+
+### armkb Graph v2 重建记录（2026-11-24）
+
+- 备份：`backup-armkb-20261124-033106.sql.gz`（25MB）、`backup-armkb-ws-20261124-033106.tgz`（330MB）、
+  镜像 `softwiki-api:pre-graphv2-20261124-033106`。
+- LLM：armkb `config/model_profiles.yaml` 切到 trial 的 oneroute `deepseek-v4.1-flash`；
+  key 放在 build-host `/opt/aitools/apps/softwiki/.env` 的 `DEEPSEEK_API_KEY`。
+- 重抽：`scripts/graph_reextract.py --workers 3 --windows 6`；实际按 1–38 / 39–47 / 48–73
+  分三段并行完成，随后 `--canonical-only --normalize`。
+- 数据：claims **15,465**、canonical **14,704**、entities **6,091**（合并 356 / 别名 954）、
+  relationships **4,572**（4,485 挂 claim）、events **743**。
+- 投影：`knowledge_v2_projections.py` + `graph_normalize.py` 重跑。
+- 演示：`/graph-studio`（6108）；API `/api/graph/{search,entity,path}`。
+- 验收：24 题实体命中 100%，术语覆盖 75% vs 41.7%，p50 498ms / p95 523ms
+  （`scripts/graph_acceptance.py --runs 5`）。
+- 缺口：约 16% 窗口 504 被跳过；`scripts/graph_topup.py` 可补。

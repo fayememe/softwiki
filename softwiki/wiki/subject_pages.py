@@ -518,3 +518,38 @@ def read_page(db: Session, slug: str) -> dict | None:
                     meta[k] = v
 
     return {"slug": safe, "content": raw, "meta": meta}
+
+
+def read_subject_page(db: Session, subject: str, max_parts: int = 2) -> dict | None:
+    """Read a subject page even when it was split into part pages.
+
+    Split subjects have an index entry whose ``slug`` has no .md file; the
+    content lives in ``<slug>-p1.md`` ... Readers used to miss those entirely.
+    """
+    listing = list_generated_pages(db)
+    target = _slugify(subject)
+    entry = next(
+        (e for e in listing.get("subjects", []) if e.get("subject") == subject),
+        None,
+    )
+    if entry is None:
+        entry = next(
+            (e for e in listing.get("subjects", []) if e.get("slug") == target),
+            None,
+        )
+    if entry is None:
+        return read_page(db, target)
+
+    parts = entry.get("pages") or [entry.get("slug")]
+    contents = []
+    for slug in parts[:max_parts]:
+        page = read_page(db, slug)
+        if page:
+            contents.append(page.get("content") or "")
+    if not contents:
+        return None
+    return {
+        "slug": entry.get("slug") or target,
+        "content": "\n\n".join(contents),
+        "meta": {"parts": len(parts), "read": len(contents)},
+    }

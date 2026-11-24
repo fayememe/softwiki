@@ -3225,8 +3225,8 @@ def graph_entity(name: str = "", id: int | None = None):
 
         wiki = None
         try:
-            from softwiki.wiki.subject_pages import _slugify, read_page
-            page = read_page(db, _slugify(canonical.name))
+            from softwiki.wiki.subject_pages import read_subject_page
+            page = read_subject_page(db, canonical.name)
             if page:
                 wiki = {"slug": page["slug"], "content": page["content"][:1500]}
         except Exception:

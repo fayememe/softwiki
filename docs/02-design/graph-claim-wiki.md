@@ -134,3 +134,27 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 ```
 
 看四个数：entity_link_rate、avg_term_coverage（CGW vs baseline）、avg_claims/edges、latency p50/p95。
+
+**armkb 实测（2026-11-24，73 篇重抽后）**
+
+| 指标 | 结果 |
+|---|---|
+| golden questions | 24 |
+| 实体链接命中率 | **100%** |
+| 术语覆盖（CGW） | **75.0%** |
+| 术语覆盖（旧 LIKE 基线） | 41.7% |
+| 平均图上下文 | 80 条边 / 16 条 canonical claim |
+| 检索延迟 | **p50 498 ms / p95 523 ms**（索引缓存后） |
+
+数据规模变化（重抽前后）：
+
+| | 重抽前 | 重抽后 |
+|---|---|---|
+| claims | 10,573 | **15,465** |
+| canonical claims | 9,766 | **14,704** |
+| entities | 4,165 | **6,091**（合并 356、别名 954） |
+| relationships | 7,211 | **4,572**（4,485 已挂 claim；平均 weight 1.06） |
+| events | 639 | 743 |
+
+**已知缺口**：重抽期间 trial 网关约 16% 的窗口返回 504，图抽取按设计放弃该窗口
+（不写启发式假数据），所以关系数低于旧库；`scripts/graph_topup.py` 可按日志补图。

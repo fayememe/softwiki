@@ -425,7 +425,7 @@ def _match_wiki(db: Session, seeds: list[dict[str, Any]],
                 question: str) -> list[dict[str, Any]]:
     """Compiled subject pages for linked seeds (never stale pages)."""
     try:
-        from softwiki.wiki.subject_pages import list_generated_pages, read_page
+        from softwiki.wiki.subject_pages import list_generated_pages, read_subject_page
     except Exception as exc:  # pragma: no cover - import guard
         logger.debug("wiki subject pages unavailable: %s", exc)
         return []
@@ -451,7 +451,7 @@ def _match_wiki(db: Session, seeds: list[dict[str, Any]],
         )
         if state is not None and getattr(state, "stale_at", None) is not None:
             continue
-        page = read_page(db, entry.get("slug") or "")
+        page = read_subject_page(db, entry.get("subject") or "")
         if not page:
             continue
         content = page.get("content") or ""
