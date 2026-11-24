@@ -48,15 +48,22 @@ def _extract_graph_only(doc_id: int) -> dict:
 
         extractor = GraphExtractor()
         windows = _extraction_windows(doc.cleaned_text)
+        concurrency = max(1, int(os.getenv("GRAPH_TOPUP_WINDOW_CONCURRENCY", "3")))
         entities = relationships = 0
-        for window in windows:
-            data = extractor.extract_graph(doc_id, window, doc.published_at)
-            for entity in data.get("entities", []):
-                DocumentRepository.create_entity(db, entity)
-            for rel in data.get("relationships", []):
-                DocumentRepository.create_relationship(db, rel)
-            entities += len(data.get("entities", []))
-            relationships += len(data.get("relationships", []))
+        with ThreadPoolExecutor(max_workers=min(concurrency, len(windows) or 1)) as pool:
+            futures = [
+                pool.submit(extractor.extract_graph, doc_id, window, doc.published_at)
+                for window in windows
+            ]
+            # DB writes stay on this thread; sessions are not thread-safe.
+            for future in futures:
+                data = future.result()
+                for entity in data.get("entities", []):
+                    DocumentRepository.create_entity(db, entity)
+                for rel in data.get("relationships", []):
+                    DocumentRepository.create_relationship(db, rel)
+                entities += len(data.get("entities", []))
+                relationships += len(data.get("relationships", []))
         db.commit()
         return {
             "doc": doc_id,
@@ -77,9 +84,16 @@ def main() -> None:
     parser.add_argument("--docs", default="")
     parser.add_argument("--from-log", default="")
     parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--all", action="store_true", help="top up every document")
     args = parser.parse_args()
 
     doc_ids: list[int] = []
+    if args.all:
+        db = SessionLocal()
+        try:
+            doc_ids += [row[0] for row in db.query(Document.id).order_by(Document.id).all()]
+        finally:
+            db.close()
     if args.docs:
         doc_ids = [int(value) for value in args.docs.split(",") if value.strip()]
     if args.from_log:
