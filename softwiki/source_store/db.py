@@ -126,11 +126,20 @@ def init_tables():
             ("qualifiers", "TEXT"),
             ("structure_hash", "VARCHAR(64)"),
         ])
+        _ensure_columns(engine, "entities", [
+            ("normalized_name", "VARCHAR(200)"),
+            ("aliases", "TEXT"),
+            ("merged_into", "INTEGER"),
+        ])
         _ensure_columns(engine, "relationships", [
             ("canonical_claim_id", "VARCHAR(100)"),
             ("status", "VARCHAR(20) DEFAULT 'active'"),
             ("valid_from", "TIMESTAMP"),
             ("valid_to", "TIMESTAMP"),
+            ("source_entity_id", "INTEGER"),
+            ("target_entity_id", "INTEGER"),
+            ("weight", "FLOAT DEFAULT 1.0"),
+            ("evidence_count", "INTEGER DEFAULT 1"),
         ])
         _ensure_columns(engine, "wiki_rebuild_tasks", [
             ("kind", "VARCHAR(20) DEFAULT 'topic'"),
@@ -141,6 +150,11 @@ def init_tables():
         ])
         _ensure_indexes(engine, [
             "CREATE INDEX IF NOT EXISTS ix_documents_family_id ON documents (family_id)",
+            "CREATE INDEX IF NOT EXISTS ix_entities_normalized_name ON entities (normalized_name)",
+            "CREATE INDEX IF NOT EXISTS ix_entities_merged_into ON entities (merged_into)",
+            "CREATE INDEX IF NOT EXISTS ix_entity_aliases_normalized ON entity_aliases (normalized)",
+            "CREATE INDEX IF NOT EXISTS ix_relationships_source_entity_id ON relationships (source_entity_id)",
+            "CREATE INDEX IF NOT EXISTS ix_relationships_target_entity_id ON relationships (target_entity_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_id ON claims (canonical_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_canonical_key ON claims (canonical_key)",
             "CREATE INDEX IF NOT EXISTS ix_claims_status ON claims (status)",

@@ -91,6 +91,27 @@ class Entity(Base):
     name = Column(String(150), unique=True, nullable=False)
     type = Column(String(100), nullable=True)  # person, organization, place, topic, concept, etc.
     description = Column(Text, nullable=True)
+    # Entity resolution (schema v3): normalized matching key, explicit aliases
+    # from extraction, and the canonical row this one was merged into.
+    normalized_name = Column(String(200), nullable=True, index=True)
+    aliases = Column(Text, nullable=True)  # JSON list of alias strings
+    merged_into = Column(Integer, nullable=True)
+
+
+class EntityAlias(Base):
+    """Alias -> canonical entity mapping used by graph retrieval."""
+
+    __tablename__ = "entity_aliases"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
+    alias = Column(String(200), nullable=False)
+    normalized = Column(String(200), nullable=False, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("normalized", "entity_id", name="uq_entity_alias_normalized"),
+    )
+
 
 class Relationship(Base):
     __tablename__ = "relationships"
@@ -107,6 +128,11 @@ class Relationship(Base):
     status = Column(String(20), default="active", nullable=False, index=True)
     valid_from = Column(DateTime, nullable=True)
     valid_to = Column(DateTime, nullable=True)
+    # Entity resolution + edge aggregation (schema v3).
+    source_entity_id = Column(Integer, nullable=True, index=True)
+    target_entity_id = Column(Integer, nullable=True, index=True)
+    weight = Column(Float, default=1.0, nullable=False)
+    evidence_count = Column(Integer, default=1, nullable=False)
 
     document = relationship("Document", back_populates="relationships")
 

@@ -248,6 +248,17 @@ export default function Sidebar({
           {!effectiveCollapsed && <span className={styles.navLabel}>{t("sidebar.wikiPortal")}</span>}
           {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
         </a>
+        <a
+          className={`${styles.navItem} ${styles.navLink}`}
+          href="/graph-studio"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Knowledge Graph Studio"
+        >
+          <span className={styles.navIcon}><GraphIcon /></span>
+          {!effectiveCollapsed && <span className={styles.navLabel}>Graph Studio</span>}
+          {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
+        </a>
       </nav>
 
       {/* ── Bottom: Session List (only for Chat) ── */}

@@ -2956,10 +2956,15 @@ def _rel_payload(rel) -> dict:
         "id": rel.id,
         "source_name": rel.source_name,
         "target_name": rel.target_name,
+        "source_entity_id": getattr(rel, "source_entity_id", None),
+        "target_entity_id": getattr(rel, "target_entity_id", None),
         "relation_type": rel.relation_type,
         "description": rel.description,
         "document_id": rel.document_id,
         "confidence": rel.confidence,
+        "weight": getattr(rel, "weight", None),
+        "evidence_count": getattr(rel, "evidence_count", None),
+        "canonical_claim_id": getattr(rel, "canonical_claim_id", None),
         "published_at": rel.published_at.strftime("%Y-%m-%d") if rel.published_at else "Unknown",
     }
 
@@ -2967,6 +2972,10 @@ def _rel_payload(rel) -> dict:
 @app.get("/api/graph/subgraph")
 def graph_subgraph(entity: str, depth: int = 1, limit: int = 80):
     """Neighbourhood of one entity, for click-to-expand."""
+    from softwiki.source_store.models import EntityAlias
+    from softwiki.graph.resolution import normalize_entity_name
+    from sqlalchemy import or_
+
     db = SessionLocal()
     try:
         if not entity.strip():
@@ -2974,37 +2983,73 @@ def graph_subgraph(entity: str, depth: int = 1, limit: int = 80):
         depth = max(1, min(depth, 2))
         limit = max(5, min(limit, 400))
 
-        selected = {entity}
-        frontier = {entity}
+        key = normalize_entity_name(entity)
+        root_entity = db.query(Entity).filter(Entity.name == entity.strip()).first()
+        if root_entity is None:
+            root_entity = (
+                db.query(Entity)
+                .filter(Entity.merged_into.is_(None))
+                .filter(Entity.normalized_name == key)
+                .first()
+            )
+        if root_entity is None:
+            alias = db.query(EntityAlias).filter(EntityAlias.normalized == key).first()
+            if alias:
+                root_entity = db.query(Entity).filter(Entity.id == alias.entity_id).first()
+        if root_entity is not None and root_entity.merged_into:
+            root_entity = db.query(Entity).filter(Entity.id == root_entity.merged_into).first() or root_entity
+
+        selected_ids = {root_entity.id} if root_entity is not None else set()
+        selected_names = {root_entity.name} if root_entity is not None else {entity}
+        frontier_ids = set(selected_ids)
+        frontier_names = set(selected_names)
         relationships: Dict[int, object] = {}
 
         for _ in range(depth):
-            if not frontier:
+            if not frontier_ids and not frontier_names:
                 break
+            conditions = []
+            if frontier_ids:
+                ids = list(frontier_ids)
+                conditions.append(Relationship.source_entity_id.in_(ids))
+                conditions.append(Relationship.target_entity_id.in_(ids))
+            if frontier_names:
+                names = list(frontier_names)
+                conditions.append(Relationship.source_name.in_(names))
+                conditions.append(Relationship.target_name.in_(names))
             rows = (
                 db.query(Relationship)
                 .filter(Relationship.status == "active")
-                .filter(
-                    Relationship.source_name.in_(frontier)
-                    | Relationship.target_name.in_(frontier)
-                )
+                .filter(or_(*conditions))
+                .order_by(Relationship.weight.desc(), Relationship.confidence.desc())
                 .limit(limit * 4)
                 .all()
             )
-            next_frontier = set()
+            next_ids = set()
+            next_names = set()
             for rel in rows:
                 if len(relationships) >= limit * 2:
                     break
                 relationships[rel.id] = rel
-                for side in (rel.source_name, rel.target_name):
-                    if side not in selected:
-                        next_frontier.add(side)
-            selected |= next_frontier
-            frontier = next_frontier
+                for entity_id, side in ((rel.source_entity_id, rel.source_name),
+                                        (rel.target_entity_id, rel.target_name)):
+                    if entity_id and entity_id not in selected_ids:
+                        selected_ids.add(entity_id)
+                        next_ids.add(entity_id)
+                    elif side and side not in selected_names:
+                        selected_names.add(side)
+                        next_names.add(side)
+            frontier_ids = next_ids
+            frontier_names = next_names
 
-        entities = db.query(Entity).filter(Entity.name.in_(selected)).all()
+        conditions = []
+        if selected_ids:
+            conditions.append(Entity.id.in_(selected_ids))
+        if selected_names:
+            conditions.append(Entity.name.in_(selected_names))
+        entities = db.query(Entity).filter(or_(*conditions)).all() if conditions else []
         return {
-            "root": entity,
+            "root": root_entity.name if root_entity is not None else entity,
             "entities": [
                 {
                     "id": ent.id,
@@ -3023,6 +3068,296 @@ def graph_subgraph(entity: str, depth: int = 1, limit: int = 80):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+@app.get("/api/graph/search")
+def graph_search(q: str = "", limit: int = 12):
+    """Entity suggestions for the graph studio search box."""
+    from softwiki.source_store.models import EntityAlias
+    from softwiki.graph.resolution import normalize_entity_name
+
+    db = SessionLocal()
+    try:
+        limit = max(1, min(limit, 50))
+        query = (q or "").strip()
+        if not query:
+            return {"items": []}
+        from softwiki.intelligence.graph_claim import link_entities
+
+        items: list[dict] = []
+        seen: set[int] = set()
+        for seed in link_entities(db, query, limit=limit):
+            entity_id = seed.get("entity_id")
+            if entity_id in seen:
+                continue
+            seen.add(entity_id)
+            items.append({
+                "id": entity_id,
+                "name": seed["name"],
+                "type": seed.get("type"),
+                "degree": seed.get("degree", 0),
+                "matched_alias": seed.get("alias"),
+            })
+
+        if len(items) < limit:
+            key = normalize_entity_name(query)
+            rows = (
+                db.query(Entity)
+                .filter(Entity.merged_into.is_(None))
+                .filter(
+                    Entity.name.ilike(f"%{query}%")
+                    | Entity.normalized_name.ilike(f"%{key}%")
+                )
+                .limit(limit)
+                .all()
+            )
+            alias_rows = (
+                db.query(EntityAlias.entity_id)
+                .filter(EntityAlias.normalized.ilike(f"%{key}%"))
+                .limit(limit)
+                .all()
+            )
+            alias_ids = [row[0] for row in alias_rows if row[0] not in seen]
+            if alias_ids:
+                rows += db.query(Entity).filter(Entity.id.in_(alias_ids)).all()
+            for entity in rows:
+                if entity.id in seen:
+                    continue
+                seen.add(entity.id)
+                items.append({
+                    "id": entity.id,
+                    "name": entity.name,
+                    "type": entity.type,
+                    "degree": 0,
+                    "matched_alias": None,
+                })
+        return {"items": items[:limit]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/graph/entity")
+def graph_entity(name: str = "", id: int | None = None):
+    """Entity card: aliases, degree, strongest edges, claims and wiki page."""
+    from softwiki.source_store.models import (
+        CanonicalClaim, Document, EntityAlias,
+    )
+    from softwiki.graph.resolution import normalize_entity_name
+
+    db = SessionLocal()
+    try:
+        entity = None
+        if id is not None:
+            entity = db.query(Entity).filter(Entity.id == id).first()
+        if entity is None and name.strip():
+            entity = db.query(Entity).filter(Entity.name == name.strip()).first()
+        if entity is None and name.strip():
+            key = normalize_entity_name(name)
+            entity = (
+                db.query(Entity)
+                .filter(Entity.merged_into.is_(None))
+                .filter(Entity.normalized_name == key)
+                .first()
+            )
+            if entity is None:
+                alias = db.query(EntityAlias).filter(EntityAlias.normalized == key).first()
+                if alias:
+                    entity = db.query(Entity).filter(Entity.id == alias.entity_id).first()
+        if entity is None:
+            raise HTTPException(status_code=404, detail="entity not found")
+
+        canonical = entity
+        if entity.merged_into:
+            canonical = db.query(Entity).filter(Entity.id == entity.merged_into).first() or entity
+
+        aliases = [row.alias for row in db.query(EntityAlias).filter(EntityAlias.entity_id == canonical.id).all()]
+        merged_from = [
+            row.name for row in db.query(Entity)
+            .filter(Entity.merged_into == canonical.id)
+            .all()
+        ]
+
+        edge_filter = (Relationship.source_entity_id == canonical.id) | (
+            Relationship.target_entity_id == canonical.id
+        )
+        edges = (
+            db.query(Relationship)
+            .filter(Relationship.status == "active")
+            .filter(edge_filter)
+            .order_by(Relationship.weight.desc(), Relationship.confidence.desc())
+            .limit(60)
+            .all()
+        )
+
+        doc_ids = {rel.document_id for rel in edges if rel.document_id}
+        docs = {
+            doc.id: doc.title
+            for doc in db.query(Document).filter(Document.id.in_(doc_ids)).all()
+        } if doc_ids else {}
+
+        claim_ids = {rel.canonical_claim_id for rel in edges if rel.canonical_claim_id}
+        claims = (
+            db.query(CanonicalClaim)
+            .filter(CanonicalClaim.id.in_(claim_ids))
+            .filter(CanonicalClaim.status.in_(["active", "disputed"]))
+            .all()
+        ) if claim_ids else []
+
+        wiki = None
+        try:
+            from softwiki.wiki.subject_pages import _slugify, read_page
+            page = read_page(db, _slugify(canonical.name))
+            if page:
+                wiki = {"slug": page["slug"], "content": page["content"][:1500]}
+        except Exception:
+            wiki = None
+
+        return {
+            "entity": {
+                "id": canonical.id,
+                "name": canonical.name,
+                "type": canonical.type,
+                "description": canonical.description,
+                "normalized_name": canonical.normalized_name,
+                "aliases": sorted(set(aliases)),
+                "merged_from": merged_from,
+            },
+            "degree": len(edges),
+            "edges": [
+                {**_rel_payload(rel), "document_title": docs.get(rel.document_id)}
+                for rel in edges
+            ],
+            "claims": [
+                {
+                    "id": claim.id,
+                    "text": claim.text,
+                    "actor": claim.actor,
+                    "topic": claim.topic,
+                    "status": claim.status,
+                    "confidence": claim.confidence,
+                    "evidence_count": claim.evidence_count,
+                    "document_id": claim.primary_document_id,
+                    "page_start": claim.primary_page_start,
+                    "page_end": claim.primary_page_end,
+                }
+                for claim in claims
+            ],
+            "wiki": wiki,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/graph/path")
+def graph_path(source: str, target: str, max_hops: int = 2):
+    """Shortest relationship path between two entities (for path highlighting)."""
+    from softwiki.graph.resolution import normalize_entity_name
+
+    db = SessionLocal()
+    try:
+        max_hops = max(1, min(int(max_hops), 3))
+
+        def resolve(value: str):
+            value = (value or "").strip()
+            if not value:
+                return None
+            entity = db.query(Entity).filter(Entity.name == value).first()
+            if entity is None:
+                key = normalize_entity_name(value)
+                entity = (
+                    db.query(Entity)
+                    .filter(Entity.merged_into.is_(None))
+                    .filter(Entity.normalized_name == key)
+                    .first()
+                )
+            return entity
+
+        start = resolve(source)
+        end = resolve(target)
+        if start is None or end is None:
+            raise HTTPException(status_code=404, detail="source or target entity not found")
+        if start.merged_into:
+            start = db.query(Entity).filter(Entity.id == start.merged_into).first() or start
+        if end.merged_into:
+            end = db.query(Entity).filter(Entity.id == end.merged_into).first() or end
+
+        frontier = {start.id}
+        parents: dict[int, tuple[int, int]] = {}
+        visited = {start.id}
+        found = False
+        for _ in range(max_hops):
+            if not frontier or found:
+                break
+            rows = (
+                db.query(Relationship)
+                .filter(Relationship.status == "active")
+                .filter(
+                    Relationship.source_entity_id.in_(frontier)
+                    | Relationship.target_entity_id.in_(frontier)
+                )
+                .order_by(Relationship.weight.desc(), Relationship.confidence.desc())
+                .limit(600)
+                .all()
+            )
+            next_frontier = set()
+            for rel in rows:
+                for a, b in ((rel.source_entity_id, rel.target_entity_id),
+                             (rel.target_entity_id, rel.source_entity_id)):
+                    if a is None or b is None or a not in frontier or b in visited:
+                        continue
+                    visited.add(b)
+                    parents[b] = (a, rel.id)
+                    next_frontier.add(b)
+                    if b == end.id:
+                        found = True
+                        break
+                if found:
+                    break
+            frontier = next_frontier
+
+        if end.id not in parents and start.id != end.id:
+            raise HTTPException(status_code=404, detail="no path within max_hops")
+
+        node_ids = [end.id]
+        edge_ids = []
+        cursor = end.id
+        while cursor != start.id:
+            parent, edge_id = parents[cursor]
+            edge_ids.append(edge_id)
+            node_ids.append(parent)
+            cursor = parent
+        node_ids.reverse()
+        edge_ids.reverse()
+
+        nodes = db.query(Entity).filter(Entity.id.in_(node_ids)).all()
+        node_map = {node.id: node for node in nodes}
+        edges = db.query(Relationship).filter(Relationship.id.in_(edge_ids)).all()
+        edge_map = {edge.id: edge for edge in edges}
+
+        return {
+            "nodes": [
+                {
+                    "id": node_id,
+                    "name": node_map[node_id].name if node_id in node_map else str(node_id),
+                    "type": node_map[node_id].type if node_id in node_map else None,
+                }
+                for node_id in node_ids
+            ],
+            "edges": [_rel_payload(edge_map[eid]) for eid in edge_ids if eid in edge_map],
+            "hops": len(edge_ids),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 
 @app.get("/api/modules")
 def list_modules():

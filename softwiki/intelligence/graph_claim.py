@@ -116,62 +116,70 @@ def _boundary_match(haystack: str, needle: str) -> bool:
 
 
 def link_entities(db: Session, question: str, limit: int = MAX_SEEDS) -> list[dict[str, Any]]:
-    """Deterministic entity linking: normalized substring + degree ranking."""
+    """Deterministic entity linking over names, normalized keys and aliases."""
+    from softwiki.graph.resolution import normalize_entity_name
+    from softwiki.source_store.models import EntityAlias
+
     qnorm = normalize_name(question)
     terms = set(query_terms(question))
     if not qnorm:
         return []
 
     degrees = _degrees(db)
-    entities = db.query(Entity).all()
+    entities = (
+        db.query(Entity)
+        .filter(Entity.merged_into.is_(None))
+        .all()
+    )
+    aliases_by_entity: dict[int, list[str]] = {}
+    for row in db.query(EntityAlias).all():
+        aliases_by_entity.setdefault(row.entity_id, []).append(row.alias)
+
+    def match_score(text_key: str) -> float:
+        if len(text_key) < 2:
+            return 0.0
+        if _boundary_match(qnorm, text_key):
+            return 10.0 + min(len(text_key), 40) / 10.0
+        if text_key in terms:
+            return 8.0 + min(len(text_key), 40) / 10.0
+        words = text_key.split()
+        if len(words) > 1 and all(len(w) >= 2 and w in terms for w in words):
+            return 6.0 + min(len(text_key), 40) / 20.0
+        hits = [t for t in terms if len(t) >= 4 and t in text_key]
+        if hits:
+            return 4.0 + max(len(t) for t in hits) / 10.0
+        return 0.0
 
     seeds: list[dict[str, Any]] = []
+    seen_ids: set[int] = set()
     for entity in entities:
-        key = normalize_name(entity.name)
-        if len(key) < 2:
-            continue
-
-        score = 0.0
-        if _boundary_match(qnorm, key):
-            # Full entity name appears in the question.
-            score = 10.0 + min(len(key), 40) / 10.0
-        elif key in terms:
-            score = 8.0 + min(len(key), 40) / 10.0
-        else:
-            words = key.split()
-            if len(words) > 1 and all(len(w) >= 2 and w in terms for w in words):
-                score = 6.0 + min(len(key), 40) / 20.0
-            else:
-                # A long distinctive term of the question is inside the name
-                # ("M55" -> "Cortex-M55"). Short terms are ignored on purpose:
-                # "arm" matches far too many names to be a useful seed.
-                hits = [t for t in terms if len(t) >= 4 and t in key]
-                if hits:
-                    score = 4.0 + max(len(t) for t in hits) / 10.0
-
-        if score <= 0:
+        key = entity.normalized_name or normalize_entity_name(entity.name)
+        score = match_score(key)
+        matched_alias = None
+        for alias in aliases_by_entity.get(entity.id, []):
+            alias_key = normalize_entity_name(alias)
+            alias_score = match_score(alias_key)
+            # An explicit alias is a strong signal, but never outranks the
+            # canonical name being mentioned verbatim.
+            if alias_score > score:
+                score = alias_score - 0.5
+                matched_alias = alias
+        if score <= 0 or entity.id in seen_ids:
             continue
         degree = degrees.get(key, 0)
         score += min(degree, 20) * 0.15
+        seen_ids.add(entity.id)
         seeds.append({
+            "entity_id": entity.id,
             "name": entity.name,
             "type": entity.type,
+            "alias": matched_alias,
             "degree": degree,
             "score": round(score, 3),
         })
 
     seeds.sort(key=lambda s: (s["score"], s["degree"]), reverse=True)
-
-    # "LSL" and "lsl" are separate Entity rows but the same seed for traversal.
-    deduped: list[dict[str, Any]] = []
-    seen_keys: set[str] = set()
-    for seed in seeds:
-        key = normalize_name(seed["name"])
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        deduped.append(seed)
-    return deduped[:limit]
+    return seeds[:limit]
 
 
 def expand(
@@ -180,40 +188,51 @@ def expand(
     max_hops: int = MAX_HOPS,
     max_edges: int = MAX_EDGES,
 ) -> list[dict[str, Any]]:
-    """BFS over relationships stored by name (P0: no entity ids yet)."""
+    """BFS over relationships, preferring resolved entity ids (schema v3)."""
     if not seeds:
         return []
 
-    # normalized key -> raw name as stored in the DB (edges use raw names)
-    frontier: dict[str, str] = {}
-    for seed in seeds:
-        key = normalize_name(seed["name"])
-        if key:
-            frontier.setdefault(key, seed["name"])
-    visited = set(frontier)
+    frontier_ids = {s["entity_id"] for s in seeds if s.get("entity_id")}
+    frontier_names = {normalize_name(s["name"]): s["name"] for s in seeds if s.get("name")}
+    visited_ids = set(frontier_ids)
+    visited_names = set(frontier_names)
     seen_edges: set[int] = set()
     edges: list[dict[str, Any]] = []
 
     for hop in range(1, max_hops + 1):
-        if not frontier or len(edges) >= max_edges:
+        if len(edges) >= max_edges:
             break
-        display = sorted({name.lower() for name in frontier.values() if name})
-        if not display:
+        if not frontier_ids and not frontier_names:
+            break
+
+        conditions = []
+        if frontier_ids:
+            ids = list(frontier_ids)
+            conditions.append(Relationship.source_entity_id.in_(ids))
+            conditions.append(Relationship.target_entity_id.in_(ids))
+        if frontier_names:
+            names = sorted({n.lower() for n in frontier_names.values() if n})
+            if names:
+                conditions.append(func.lower(Relationship.source_name).in_(names))
+                conditions.append(func.lower(Relationship.target_name).in_(names))
+        if not conditions:
             break
 
         rows = (
             db.query(Relationship)
             .filter(Relationship.status == "active")
-            .filter(or_(
-                func.lower(Relationship.source_name).in_(display),
-                func.lower(Relationship.target_name).in_(display),
-            ))
-            .order_by(Relationship.confidence.desc(), Relationship.id.asc())
+            .filter(or_(*conditions))
+            .order_by(
+                Relationship.weight.desc(),
+                Relationship.confidence.desc(),
+                Relationship.id.asc(),
+            )
             .limit(max_edges * 3)
             .all()
         )
 
-        next_frontier: dict[str, str] = {}
+        next_ids: set[int] = set()
+        next_names: dict[str, str] = {}
         for rel in rows:
             if rel.id in seen_edges:
                 continue
@@ -224,21 +243,30 @@ def expand(
                 "id": rel.id,
                 "source": rel.source_name,
                 "target": rel.target_name,
+                "source_entity_id": rel.source_entity_id,
+                "target_entity_id": rel.target_entity_id,
                 "relation_type": rel.relation_type,
                 "description": rel.description,
                 "confidence": rel.confidence if rel.confidence is not None else 1.0,
+                "weight": float(rel.weight or 1.0),
+                "evidence_count": int(rel.evidence_count or 1),
                 "document_id": rel.document_id,
                 "canonical_claim_id": rel.canonical_claim_id,
                 "published_at": rel.published_at,
                 "hop": hop,
             })
+            for entity_id in (rel.source_entity_id, rel.target_entity_id):
+                if entity_id and entity_id not in visited_ids:
+                    visited_ids.add(entity_id)
+                    next_ids.add(entity_id)
             for raw_name in (rel.source_name, rel.target_name):
                 key = normalize_name(raw_name)
-                if key and key not in visited:
-                    visited.add(key)
-                    next_frontier.setdefault(key, raw_name)
+                if key and key not in visited_names:
+                    visited_names.add(key)
+                    next_names.setdefault(key, raw_name)
 
-        frontier = next_frontier
+        frontier_ids = next_ids
+        frontier_names = next_names
 
     return edges
 
@@ -325,6 +353,9 @@ def _claim_score(item: dict[str, Any]) -> float:
     edge = item.get("edge")
     if edge:
         score += 2.0 * float(edge.get("confidence") or 1.0)
+        # Edges seen across several documents are stronger evidence than a
+        # single mention; log keeps one noisy doc from dominating.
+        score += min(2.0, 0.5 * float(edge.get("weight") or 1.0))
     else:
         score += 1.0
     score += 1.5 * float(getattr(claim, "confidence", 0.5) or 0.5)
@@ -458,7 +489,8 @@ def format_graph_context(result: dict[str, Any], limit: int = 12,
         if len(desc) > 160:
             desc = desc[:160] + "…"
         lines.append(
-            f"- {prefix}(hop {edge.get('hop')}, conf {float(edge.get('confidence') or 1.0):.2f}) "
+            f"- {prefix}(hop {edge.get('hop')}, conf {float(edge.get('confidence') or 1.0):.2f}, "
+            f"w={float(edge.get('weight') or 1.0):.0f}) "
             f"{edge.get('source')} --({edge.get('relation_type')})--> {edge.get('target')}"
             + (f": {desc}" if desc else "")
         )

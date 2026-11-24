@@ -1,0 +1,100 @@
+# Golden questions for armkb graph acceptance.
+# expected_entities: at least one must be linked as a seed.
+# expected_terms: keywords that should appear in the retrieved graph/claim context.
+questions:
+  - id: q01
+    question: "What is the Cortex-M55 processor and which vector extension does it support?"
+    expected_entities: ["Cortex-M55"]
+    expected_terms: ["helium", "vector", "m55"]
+  - id: q02
+    question: "Which Armv8.1-M features does the M55 implement?"
+    expected_entities: ["Cortex-M55", "Armv8.1-M", "Helium"]
+    expected_terms: ["armv8", "helium", "dsp"]
+  - id: q03
+    question: "How does the Cortex-M85 differ from the Cortex-M55?"
+    expected_entities: ["Cortex-M85", "Cortex-M55"]
+    expected_terms: ["m85", "m55", "performance"]
+  - id: q04
+    question: "What is the Ethos-U55 and how is it configured?"
+    expected_entities: ["Ethos-U55"]
+    expected_terms: ["npu", "neural", "macro"]
+  - id: q05
+    question: "Which AMBA interface does the Cortex-M55 use for instruction fetch?"
+    expected_entities: ["Cortex-M55", "AMBA"]
+    expected_terms: ["axi", "ahb", "amba"]
+  - id: q06
+    question: "What are the AXI5 channel handshake rules?"
+    expected_entities: ["AMBA AXI5", "AXI"]
+    expected_terms: ["valid", "ready", "handshake"]
+  - id: q07
+    question: "How does AHB5 support security states?"
+    expected_entities: ["AHB5", "AHB"]
+    expected_terms: ["secure", "non-secure", "hnonsec"]
+  - id: q08
+    question: "What is the PL031 real time clock and where is it mapped?"
+    expected_entities: ["PL031"]
+    expected_terms: ["real time", "register", "rtc"]
+  - id: q09
+    question: "What does the NIC-400 interconnect provide?"
+    expected_entities: ["NIC-400"]
+    expected_terms: ["interconnect", "qos", "master"]
+  - id: q10
+    question: "What is PCK-600 used for in a SoC?"
+    expected_entities: ["PCK-600"]
+    expected_terms: ["clock", "controller", "power"]
+  - id: q11
+    question: "How does TrustZone work on Cortex-M processors?"
+    expected_entities: ["TrustZone", "Cortex-M"]
+    expected_terms: ["secure", "non-secure", "state"]
+  - id: q12
+    question: "What is the M-profile Vector Extension?"
+    expected_entities: ["Helium", "M-profile", "MVE"]
+    expected_terms: ["vector", "m-profile", "helium"]
+  - id: q13
+    question: "Which interrupts does the NVIC support on Cortex-M?"
+    expected_entities: ["NVIC", "Cortex-M"]
+    expected_terms: ["interrupt", "priority", "nvic"]
+  - id: q14
+    question: "What memory protection features are available in Armv8-M?"
+    expected_entities: ["Armv8-M", "MPU"]
+    expected_terms: ["mpu", "protection", "region"]
+  - id: q15
+    question: "How do I configure the SysTick timer?"
+    expected_entities: ["SysTick"]
+    expected_terms: ["timer", "reload", "tick"]
+  - id: q16
+    question: "What is the difference between AXI and AHB?"
+    expected_entities: ["AXI", "AHB"]
+    expected_terms: ["axi", "ahb", "burst"]
+  - id: q17
+    question: "Which DMA controllers are documented for Cortex-M systems?"
+    expected_entities: ["DMA"]
+    expected_terms: ["dma", "channel", "transfer"]
+  - id: q18
+    question: "What is the Generic Interrupt Controller used for in Cortex-A?"
+    expected_entities: ["GIC", "Generic Interrupt Controller"]
+    expected_terms: ["interrupt", "gic", "cortex-a"]
+  - id: q19
+    question: "How does the Cortex-M85 coprocessor interface work?"
+    expected_entities: ["Cortex-M85"]
+    expected_terms: ["coprocessor", "m85", "interface"]
+  - id: q20
+    question: "What are the low power modes of Cortex-M55?"
+    expected_entities: ["Cortex-M55"]
+    expected_terms: ["low power", "sleep", "retention"]
+  - id: q21
+    question: "What is the Ethos-U55 SRAM requirement?"
+    expected_entities: ["Ethos-U55"]
+    expected_terms: ["sram", "memory", "npu"]
+  - id: q22
+    question: "How is the Cortex-M55 debug interface implemented?"
+    expected_entities: ["Cortex-M55"]
+    expected_terms: ["debug", "swd", "trace"]
+  - id: q23
+    question: "What is the AMBA Low Power Interface specification?"
+    expected_entities: ["AMBA", "Low Power Interface", "LPI"]
+    expected_terms: ["low power", "lpi", "q-channel"]
+  - id: q24
+    question: "Which cores implement the Helium technology?"
+    expected_entities: ["Helium", "Cortex-M55", "Cortex-M85"]
+    expected_terms: ["helium", "m55", "m85"]
