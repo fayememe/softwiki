@@ -344,7 +344,9 @@
       coffee 7,355/8,496、ai 10,385/12,145，之后 acceptance claims 0 → 16
 - [x] SPE 失败任务重置（attempts 0/max 5）并重新入队，heartbeat 进行中
 - [ ] trial 两库门户仍为用户 agent 生成版（不覆盖）
-- [ ] wiki 候选仍有约 60 个未生成（SPE 跑完后继续）
+- [x] SPE 已生成（attempts 1，done）；批量补建 100 个候选：99 ok / 1 failed（SP 超时）
+- [~] SP 已用 1800s 超时重试，仍在生成（>20min）；其余候选（约 380 个）未建
+- [x] 门户重新生成：**400 页 / 12 分类**；wiki subject 150 个（726 个页面文件）
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
