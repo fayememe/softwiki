@@ -1,0 +1,22 @@
+# Golden questions for the AI-history trial KB (retrieval-level acceptance).
+questions:
+  - {id: a01, question: "What is the Turing test?", expected_entities: ["Turing test"], expected_terms: ["turing", "test", "machine"]}
+  - {id: a02, question: "What is a perceptron?", expected_entities: ["Perceptron"], expected_terms: ["perceptron", "weights", "threshold"]}
+  - {id: a03, question: "How does backpropagation work?", expected_entities: ["Backpropagation"], expected_terms: ["backpropagation", "gradient", "error"]}
+  - {id: a04, question: "What were expert systems used for?", expected_entities: ["Expert system"], expected_terms: ["expert system", "rules", "knowledge"]}
+  - {id: a05, question: "What caused the AI winters?", expected_entities: ["AI winter"], expected_terms: ["winter", "funding", "expectations"]}
+  - {id: a06, question: "What is deep learning?", expected_entities: ["Deep learning"], expected_terms: ["deep learning", "layers", "neural"]}
+  - {id: a07, question: "What is the transformer architecture?", expected_entities: ["Transformer"], expected_terms: ["transformer", "attention", "sequence"]}
+  - {id: a08, question: "What is attention in neural networks?", expected_entities: ["Attention"], expected_terms: ["attention", "weights", "context"]}
+  - {id: a09, question: "What is GPT?", expected_entities: ["GPT"], expected_terms: ["gpt", "language model", "pretrained"]}
+  - {id: a10, question: "How did AlphaGo beat human players?", expected_entities: ["AlphaGo"], expected_terms: ["alphago", "go", "search"]}
+  - {id: a11, question: "What is reinforcement learning?", expected_entities: ["Reinforcement learning"], expected_terms: ["reinforcement", "reward", "agent"]}
+  - {id: a12, question: "How did computer vision develop?", expected_entities: ["Computer vision"], expected_terms: ["vision", "image", "recognition"]}
+  - {id: a13, question: "What is natural language processing?", expected_entities: ["Natural language processing"], expected_terms: ["language", "processing", "text"]}
+  - {id: a14, question: "How is knowledge represented in AI systems?", expected_entities: ["Knowledge representation"], expected_terms: ["knowledge", "representation", "logic"]}
+  - {id: a15, question: "What is a neural network?", expected_entities: ["Neural network"], expected_terms: ["neural network", "neurons", "layers"]}
+  - {id: a16, question: "What is a convolutional neural network used for?", expected_entities: ["Convolutional neural network"], expected_terms: ["convolutional", "images", "cnn"]}
+  - {id: a17, question: "What are recurrent neural networks good at?", expected_entities: ["Recurrent neural network"], expected_terms: ["recurrent", "sequence", "memory"]}
+  - {id: a18, question: "What happened at the Dartmouth workshop in 1956?", expected_entities: ["Dartmouth workshop"], expected_terms: ["dartmouth", "1956", "artificial intelligence"]}
+  - {id: a19, question: "What was symbolic AI?", expected_entities: ["Symbolic AI"], expected_terms: ["symbolic", "logic", "rules"]}
+  - {id: a20, question: "What ethical issues are discussed in AI?", expected_entities: ["AI ethics"], expected_terms: ["ethics", "bias", "society"]}

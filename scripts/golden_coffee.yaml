@@ -1,0 +1,22 @@
+# Golden questions for the coffee trial KB (retrieval-level acceptance).
+questions:
+  - {id: c01, question: "What is espresso and how is it made?", expected_entities: ["Espresso"], expected_terms: ["espresso", "pressure", "water"]}
+  - {id: c02, question: "What is the difference between a latte and a cappuccino?", expected_entities: ["Latte", "Cappuccino"], expected_terms: ["latte", "cappuccino", "milk"]}
+  - {id: c03, question: "What is the difference between arabica and robusta?", expected_entities: ["Arabica", "Robusta"], expected_terms: ["arabica", "robusta", "caffeine"]}
+  - {id: c04, question: "How is coffee decaffeinated?", expected_entities: ["Decaffeination"], expected_terms: ["decaf", "caffeine", "solvent"]}
+  - {id: c05, question: "What are the main coffee roasting levels?", expected_entities: ["Roasting"], expected_terms: ["roast", "temperature", "bean"]}
+  - {id: c06, question: "Why does grind size matter for brewing?", expected_entities: ["Grinding"], expected_terms: ["grind", "extraction", "particle"]}
+  - {id: c07, question: "How does a moka pot work?", expected_entities: ["Moka pot"], expected_terms: ["moka", "steam", "pressure"]}
+  - {id: c08, question: "What is the AeroPress and how is it used?", expected_entities: ["AeroPress"], expected_terms: ["aeropress", "immersion", "filter"]}
+  - {id: c09, question: "How does a French press brew coffee?", expected_entities: ["French press"], expected_terms: ["french press", "immersion", "grounds"]}
+  - {id: c10, question: "What pressure do espresso machines use?", expected_entities: ["Espresso machine"], expected_terms: ["bar", "pressure", "espresso"]}
+  - {id: c11, question: "What is crema in espresso?", expected_entities: ["Crema"], expected_terms: ["crema", "foam", "espresso"]}
+  - {id: c12, question: "How much caffeine is in a cup of coffee?", expected_entities: ["Caffeine"], expected_terms: ["caffeine", "mg", "cup"]}
+  - {id: c13, question: "Where did coffee drinking originate?", expected_entities: ["Ethiopia", "Yemen"], expected_terms: ["ethiopia", "yemen", "history"]}
+  - {id: c14, question: "What is the coffee belt?", expected_entities: ["Coffee belt"], expected_terms: ["tropics", "latitude", "belt"]}
+  - {id: c15, question: "What is the difference between washed and natural processing?", expected_entities: ["Coffee processing"], expected_terms: ["washed", "natural", "processing"]}
+  - {id: c16, question: "What do studies say about coffee and health?", expected_entities: ["Coffee"], expected_terms: ["health", "risk", "study"]}
+  - {id: c17, question: "What is Fairtrade certification for coffee?", expected_entities: ["Fairtrade"], expected_terms: ["fairtrade", "certification", "farmers"]}
+  - {id: c18, question: "How sustainable is coffee production?", expected_entities: ["Sustainability"], expected_terms: ["sustainability", "shade", "climate"]}
+  - {id: c19, question: "How is Turkish coffee prepared?", expected_entities: ["Turkish coffee"], expected_terms: ["turkish", "cezve", "grounds"]}
+  - {id: c20, question: "What is cold brew coffee?", expected_entities: ["Cold brew"], expected_terms: ["cold brew", "immersion", "hours"]}

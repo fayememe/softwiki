@@ -127,6 +127,7 @@ UI/claim/wiki 都不消费它。触发重新评估的条件：多跳问答评测
 | agent 工具级权限：所有 profile deny bash/edit/write；study 只读、work propose、manage ingest/index/build | ✅ | 写操作按角色收敛 |
 | 前端 i18n（zh/en/ja，默认 zh） | ✅ | trial 客户要求 |
 | Graph Studio `/graph-studio` | ✅ | 演示与排查 |
+| Wikiweb 静态门户：确定性生成器（复用固定 CSS/外壳） | ✅ | 内容来自 DB，重跑只换内容不改框架；见 `docs/04-guides/wikiweb.md` |
 | 侧栏分组 + 角色驱动可见性 | ✅ | 权限与导航一致 |
 
 ## 10. 部署与运维
@@ -169,6 +170,7 @@ UI/claim/wiki 都不消费它。触发重新评估的条件：多跳问答评测
 |---|---|---|
 | ~~`SOFTWIKI_DISABLE_LIGHTRAG` 只拦查询~~ | 已修（2026-11-25）：入库与查询同开关 | — |
 | trial 无 CI | 每次手工同步，易漂移 | `scripts/deploy-trial.sh` 已就绪；公网 git 反代可达，CI 可选 |
+| Wikiweb 仍是静态快照 | 数据更新后需重跑生成器 + 重启 web | `wikiweb_build.py` 已就绪，可接 worker/timer |
 | trial 仍是手工 web i18n（不在 git） | 前端改动无法追溯 | 收编进仓库 |
 | 咖啡/AI 库没有 golden set | 回答质量无法量化 | 各建 20 题 |
 | BM25 仍是 pickle | 百万级/多写者会受限 | 观察，非当前瓶颈 |

@@ -331,6 +331,21 @@
 - [x] 发现：`git.softkitty.me`（homelab git 公网反代）**trial 可达**（~7s，repo 为
       public 且 HEAD=`9d4493c`）→ trial CI 技术上可行，待决定是否启用
 
+### M19 — ARM Wikiweb + 试用库评测（2026-11-25）
+- [x] `scripts/wikiweb_build.py`：确定性静态门户（复用 Coffee 的 CSS/外壳），
+      内容来自 canonical claims / events / relationships / documents；
+      摘要取 LLM Wiki 页首段（不调 LLM）；slug 冲突去重；测试覆盖
+- [x] javis armkb 门户生成：**300 页 / 12 分类**，`/wikiweb/armkb/` 200；
+      摘要改为首段并去掉 `[N]` 引用
+- [x] 重要坑：Next 在启动时枚举 `public/`，生成后必须**重启 web 容器**，否则 404
+- [x] trial 两库 golden set（各 20 题）并跑检索验收：
+      coffee 实体命中 75% / 覆盖 **80.0% vs 46.7%**；ai 95% / **88.3% vs 56.7%**
+- [x] 修复 trial 图未挂 claim：`knowledge_v2_projections.py` 回填
+      coffee 7,355/8,496、ai 10,385/12,145，之后 acceptance claims 0 → 16
+- [x] SPE 失败任务重置（attempts 0/max 5）并重新入队，heartbeat 进行中
+- [ ] trial 两库门户仍为用户 agent 生成版（不覆盖）
+- [ ] wiki 候选仍有约 60 个未生成（SPE 跑完后继续）
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
