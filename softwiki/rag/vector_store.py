@@ -6,7 +6,9 @@ from softwiki.config import get_index_path
 _VECTOR_CACHE = {}
 
 
-class LocalVectorStore:
+class FileVectorStore:
+    """Legacy backend: one .npz per workspace, brute-force cosine."""
+
     def __init__(self):
         self.last_loaded_path = None
         self.chunk_ids = []
@@ -130,3 +132,150 @@ class LocalVectorStore:
             })
             
         return results
+
+
+class PgVectorStore:
+    """PostgreSQL + pgvector backend.
+
+    Same interface as ``FileVectorStore`` so callers (hybrid search, /api/index,
+    MCP) do not change. One database per knowledge base means no kb column is
+    needed; chunk ids are stable and cascaded on chunk deletion.
+    """
+
+    _ensured_urls: set[str] = set()
+
+    def __init__(self):
+        self.last_loaded_path = None
+        self._dim = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
+        self._model = os.getenv("EMBEDDING_MODEL", "unknown")
+
+    # ── connection / schema ──
+    def _session(self):
+        from softwiki.source_store.db import SessionLocal
+        return SessionLocal()
+
+    def _url(self) -> str:
+        from softwiki.config import get_db_url
+        return get_db_url()
+
+    def _ensure_schema(self, db) -> None:
+        url = str(db.get_bind().url)
+        if url in self._ensured_urls:
+            return
+        from sqlalchemy import text
+        db.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        db.execute(text(
+            "CREATE TABLE IF NOT EXISTS chunk_embeddings ("
+            " chunk_id BIGINT PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,"
+            " model TEXT NOT NULL DEFAULT '',"
+            " dim INTEGER NOT NULL DEFAULT 0,"
+            f" embedding vector({self._dim}) NOT NULL)"
+        ))
+        db.commit()
+        self._ensured_urls.add(url)
+
+    # ── interface ──
+    def get_current_path(self) -> str:
+        return f"pgvector://{self._url()}#chunk_embeddings"
+
+    def load(self):
+        return None
+
+    def save(self):
+        return None
+
+    def reset(self):
+        from sqlalchemy import text
+        db = self._session()
+        try:
+            self._ensure_schema(db)
+            db.execute(text("TRUNCATE TABLE chunk_embeddings"))
+            db.commit()
+        finally:
+            db.close()
+
+    def add_vectors(self, chunk_ids: List[int], embeddings: List[List[float]]):
+        if not chunk_ids:
+            return
+        from sqlalchemy import bindparam, text
+        db = self._session()
+        try:
+            self._ensure_schema(db)
+            rows = []
+            for chunk_id, vector in zip(chunk_ids, embeddings):
+                vec = np.asarray(vector, dtype=np.float32)
+                if vec.ndim != 1 or vec.size == 0:
+                    continue
+                if vec.size != self._dim:
+                    self._dim = int(vec.size)
+                rows.append({
+                    "chunk_id": int(chunk_id),
+                    "vec": "[" + ",".join(f"{v:.7g}" for v in vec) + "]",
+                })
+            if not rows:
+                return
+            stmt = text(
+                "INSERT INTO chunk_embeddings (chunk_id, model, dim, embedding)"
+                " VALUES (:chunk_id, :model, :dim, CAST(:vec AS vector))"
+                " ON CONFLICT (chunk_id) DO UPDATE"
+                " SET embedding = EXCLUDED.embedding, model = EXCLUDED.model, dim = EXCLUDED.dim"
+            ).bindparams(bindparam("model", value=self._model), bindparam("dim", value=self._dim))
+            db.execute(stmt, rows)
+            db.commit()
+        finally:
+            db.close()
+
+    def delete_vectors(self, chunk_ids: List[int]):
+        if not chunk_ids:
+            return
+        from sqlalchemy import text
+        db = self._session()
+        try:
+            self._ensure_schema(db)
+            db.execute(
+                text("DELETE FROM chunk_embeddings WHERE chunk_id = ANY(:ids)"),
+                {"ids": [int(cid) for cid in chunk_ids]},
+            )
+            db.commit()
+        finally:
+            db.close()
+
+    def search(self, query_vector: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
+        from sqlalchemy import text
+        vec = np.asarray(query_vector, dtype=np.float32)
+        if vec.ndim != 1 or vec.size == 0:
+            return []
+        literal = "[" + ",".join(f"{v:.7g}" for v in vec) + "]"
+        db = self._session()
+        try:
+            self._ensure_schema(db)
+            rows = db.execute(
+                text(
+                    "SELECT chunk_id, 1 - (embedding <=> CAST(:q AS vector)) AS score"
+                    " FROM chunk_embeddings"
+                    " ORDER BY embedding <=> CAST(:q AS vector)"
+                    " LIMIT :k"
+                ),
+                {"q": literal, "k": max(1, int(top_k))},
+            ).all()
+            return [
+                {"chunk_id": int(row[0]), "score": float(row[1])}
+                for row in rows
+            ]
+        finally:
+            db.close()
+
+
+class LocalVectorStore:
+    """Facade: file backend by default, pgvector when enabled.
+
+    All existing call sites instantiate ``LocalVectorStore()``; the backend is
+    chosen here so the migration is a single environment switch:
+    ``SOFTWIKI_VECTOR_BACKEND=pg``.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        backend = (os.getenv("SOFTWIKI_VECTOR_BACKEND") or "file").strip().lower()
+        if backend in ("pg", "postgres", "postgresql", "pgvector"):
+            return PgVectorStore(*args, **kwargs)
+        return FileVectorStore(*args, **kwargs)

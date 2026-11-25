@@ -38,7 +38,7 @@ x-api-common: &api-common
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     environment:
       POSTGRES_USER: softwiki
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-softwiki}
