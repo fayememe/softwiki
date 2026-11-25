@@ -101,6 +101,25 @@ def type_label(entity_type: str | None) -> str:
     return TYPE_LABELS.get((entity_type or "other").lower(), (entity_type or "Other").title())
 
 
+def _lead_from_markdown(text: str, limit: int = 700) -> str:
+    text = re.sub(r"\[\d+\]", "", text or "")
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    parts: list[str] = []
+    for block in blocks:
+        if block.startswith("#"):
+            continue
+        cleaned = _plain_markdown(block)
+        if not cleaned:
+            continue
+        parts.append(cleaned)
+        if sum(len(p) for p in parts) >= 300:
+            break
+    lead = " ".join(parts)
+    if len(lead) > limit:
+        lead = lead[:limit].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+    return lead
+
+
 def _plain_markdown(text: str) -> str:
     text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
     text = re.sub(r"^---\n.*?\n---\n", "", text, flags=re.S)
@@ -403,7 +422,10 @@ def render_article(row: dict, ctx: dict, docs: dict, edges: list[dict],
 <tr><th>Related</th><td>{''.join(related) or '—'}</td></tr>
 </table></aside>"""
 
-    lead = prose or (esc(claims[0]["text"]) if claims else esc(row["description"] or ""))
+    if prose:
+        lead = esc(_lead_from_markdown(prose))
+    else:
+        lead = esc(claims[0]["text"]) if claims else esc(row["description"] or "")
     facts_rows = "".join(
         f"<tr><td>{linkify(c['text'])}{cite(c['doc_id'])}</td>"
         f"<td>{esc(c['actor'])}</td>"
@@ -483,7 +505,7 @@ def render_index(ctx: dict, selected: list[dict], counts: dict, events: list[dic
         feature_html = (
             f'<section class="feature-card"><div class="kicker">Featured article</div>'
             f'<h2><a href="wiki/{slugify(featured["name"])}.html">{esc(featured["name"])}</a></h2>'
-            f'<p>{esc(_plain_markdown(lead))[:400]}</p>'
+            f'<p>{esc(_lead_from_markdown(lead, 400))}</p>'
             f'<a class="more" href="wiki/{slugify(featured["name"])}.html">Read the article →</a></section>'
         )
     cat_cards = ""
@@ -747,7 +769,7 @@ def main() -> None:
         search_entries.append({
             "t": row["name"], "y": row["type"],
             "u": f"wiki/{slugs[row['name']]}.html",
-            "s": _plain_markdown(lead)[:160],
+            "s": _lead_from_markdown(lead, 160),
         })
     with open(os.path.join(kb_dir, "search-index.json"), "w", encoding="utf-8") as handle:
         json.dump(search_entries, handle, ensure_ascii=False)
