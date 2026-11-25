@@ -480,6 +480,15 @@
 
 ## 本 session 状态记录（handoff）
 
+- **2026-11-25 ARM Wikiweb + 试用库评测 + 运维补丁**：
+  - **Wikiweb**：新增 `scripts/wikiweb_build.py`（复用 Coffee 的 CSS/外壳，确定性生成）；javis armkb 已生成 **300 页 / 12 分类** 到 `exports/wikiweb/armkb/`，`/wikiweb/armkb/` 200。**关键坑**：Next 启动时枚举 `public/`，生成后必须 `docker restart softwiki-web-1`，否则 404。
+  - **试用库评测**：`scripts/golden_coffee.yaml` / `golden_ai_history.yaml` 各 20 题；trial 图未挂 claim 的问题用 `knowledge_v2_projections.py` 补（coffee 7,355/8,496、ai 10,385/12,145），之后：
+    coffee 实体命中 75% / 术语覆盖 **80.0% vs 46.7%**；ai 95% / **88.3% vs 56.7%**；p50 18/25ms。
+  - **运维**：wiki 任务 heartbeat+reaper（javis 回收 5 个卡死任务；SPE 已重置 attempts=0/max=5 并重跑）；`SOFTWIKI_DISABLE_LIGHTRAG` 现在同时拦入库；`scripts/deploy-trial.sh` 已实际用于 trial 部署。
+  - **重要状态**：javis 的 `softwiki-deploy.timer` **当前被临时 stop**（避免 CI 重启打断 SPE 生成）。SPE 完成后要 `sudo systemctl start softwiki-deploy.timer`。
+  - **未完成**：SPE 仍在生成（大主题，已运行 >10min）；wiki 候选 534 个、已建 49 subject（494 缺），SPE 完成后需批量补（建议先 top 100）；trial 两库门户保留用户 agent 版本，未覆盖。
+
+
 - **2026-11-25 向量迁移到 pgvector（javis + trial 两库）**：
   - **代码**：`softwiki/rag/vector_store.py` 拆成 `FileVectorStore` / `PgVectorStore`，`LocalVectorStore` 作为门面按 `SOFTWIKI_VECTOR_BACKEND` 选择；文件后端保留，改环境变量即可回退。
   - **表**：`chunk_embeddings(chunk_id FK ON DELETE CASCADE, model, dim, embedding vector(1536))`，HNSW `m=16, ef_construction=64`；写为 UPSERT，删 chunk 级联清向量。
