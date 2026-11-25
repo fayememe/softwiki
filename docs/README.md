@@ -10,7 +10,7 @@ graph TD
 | Category | Description |
 |----------|-------------|
 | [01-architecture](./01-architecture/overview.md) | System architecture, data flow, interface definitions; [**技术方案选择总表**](./01-architecture/technical-choices.md) |
-| [02-design](./02-design/data-model.md) | Data models, pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [graph × claim × wiki retrieval](./02-design/graph-claim-wiki.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [wiki page granularity](./02-design/wiki-page-granularity.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
+| [02-design](./02-design/data-model.md) | [**数据模型与表结构（字段/用例）**](./02-design/data-model.md), pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [graph × claim × wiki retrieval](./02-design/graph-claim-wiki.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [wiki page granularity](./02-design/wiki-page-granularity.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
 | [03-operations](./03-operations/setup.md) | Setup, CLI, storage operations; [user-system manual](./03-operations/user-system-manual.md) |
 | [04-guides](./04-guides/quickstart.md) | Quickstart, Shell/WebUI usage, workflows |
 | [05-roadmap](./05-roadmap/status.md) | Project status, phase planning; [agent-web plan](./05-roadmap/agent-web-plan.md) |
