@@ -63,7 +63,7 @@ def _create_index(store, kind: str) -> None:
         db.close()
 
 
-def _recall(store, ids: list[int], matrix: np.ndarray, id_index: dict[int, int],
+def _recall(store, ids: list[int], matrix: np.ndarray,
             samples: int, top_k: int = 50) -> dict:
     """Compare file (float64 brute force) vs pgvector top-k for sample rows."""
     rng = np.random.default_rng(7)
@@ -160,8 +160,9 @@ def main() -> None:
         "dim": int(matrix.shape[1]) if matrix.ndim == 2 else None,
     }
     if not args.skip_recall:
-        id_index = {cid: idx for cid, idx in keep}
-        report["recall"] = _recall(store, [c for c, _ in keep], matrix, id_index, args.samples)
+        live_ids = [cid for cid, _ in keep]
+        live_matrix = matrix[[idx for _, idx in keep]]
+        report["recall"] = _recall(store, live_ids, live_matrix, args.samples)
     print(json.dumps(report, ensure_ascii=False), flush=True)
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:

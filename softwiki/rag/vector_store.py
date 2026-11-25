@@ -249,6 +249,10 @@ class PgVectorStore:
         db = self._session()
         try:
             self._ensure_schema(db)
+            # HNSW prunes by ef_search; it must be >= the requested k or the
+            # index returns fewer/less accurate neighbours.
+            ef_search = max(40, int(top_k) * 4)
+            db.execute(text(f"SET LOCAL hnsw.ef_search = {ef_search}"))
             rows = db.execute(
                 text(
                     "SELECT chunk_id, 1 - (embedding <=> CAST(:q AS vector)) AS score"
