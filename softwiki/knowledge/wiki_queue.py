@@ -144,6 +144,11 @@ RECONCILE_INTERVAL_SECONDS = float(os.getenv("WIKI_RECONCILE_INTERVAL_SECONDS", 
 # A task whose heartbeat stopped (container restart mid-generation, crash) used
 # to stay "running" forever and was never retried. Reap it after this window.
 STALE_RUNNING_MINUTES = float(os.getenv("WIKI_TASK_STALE_MINUTES", "30"))
+# Concurrency and bulk backfill are opt-in so small deployments keep one worker.
+WORKER_CONCURRENCY = max(1, int(os.getenv("WIKI_WORKER_CONCURRENCY", "1")))
+AUTO_ENQUEUE_MISSING = os.getenv("WIKI_AUTO_ENQUEUE_MISSING", "").lower() in ("1", "true", "yes")
+AUTO_ENQUEUE_LIMIT = max(1, int(os.getenv("WIKI_AUTO_ENQUEUE_LIMIT", "100")))
+REQUEUE_RUNNING_ON_START = os.getenv("WIKI_REQUEUE_RUNNING_ON_START", "").lower() in ("1", "true", "yes")
 HEARTBEAT_SECONDS = float(os.getenv("WIKI_TASK_HEARTBEAT_SECONDS", "60"))
 
 
@@ -183,6 +188,54 @@ def reap_stale_running(db: Session, stale_minutes: Optional[float] = None) -> di
     return {"reaped": requeued + failed, "requeued": requeued, "failed": failed}
 
 
+def requeue_running_on_start(db: Session) -> int:
+    """On process start, put every `running` task back to pending.
+
+    Safe for the single-worker/single-instance deployment we run today: the
+    previous process is gone, so nothing can still be working on those rows.
+    Multi-instance deployments must leave WIKI_REQUEUE_RUNNING_ON_START off.
+    """
+    rows = db.query(WikiRebuildTask).filter(WikiRebuildTask.status == "running").all()
+    now = datetime.utcnow()
+    for row in rows:
+        row.status = "pending"
+        row.error = "requeued on worker start"
+        row.updated_at = now
+    if rows:
+        db.commit()
+        print(f"[wiki-worker] requeued {len(rows)} running task(s) on start", flush=True)
+    return len(rows)
+
+
+def enqueue_missing_subjects(db: Session, limit: int = AUTO_ENQUEUE_LIMIT,
+                             min_relations: int = 5) -> int:
+    """Queue subject pages for candidates that have no page yet.
+
+    This is what makes a bulk backfill durable: the list lives in the DB, so a
+    restart resumes instead of losing an in-memory loop.
+    """
+    from softwiki.wiki.auto_pages import _pending_subjects, enqueue_subject
+    from softwiki.wiki.subject_pages import list_generated_pages, subject_candidates
+
+    candidates = subject_candidates(db, min_relations=min_relations, use_cache=False)
+    have = {s.get("subject") for s in list_generated_pages(db).get("subjects", [])}
+    queued = _pending_subjects(db)
+    created = 0
+    for cand in candidates:
+        subject = cand["subject"]
+        if subject in have or subject in queued:
+            continue
+        if enqueue_subject(db, subject, reason="backfill"):
+            created += 1
+            queued.add(subject)
+        if created >= limit:
+            break
+    if created:
+        db.commit()
+        print(f"[wiki-worker] enqueued {created} missing subject(s)", flush=True)
+    return created
+
+
 def _heartbeat(task_id: int, stop_event: threading.Event) -> None:
     from softwiki.source_store.db import SessionLocal
 
@@ -199,44 +252,70 @@ def _heartbeat(task_id: int, stop_event: threading.Event) -> None:
             db.close()
 
 
-def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
-    """Process page tasks, and periodically queue pages whose claims changed.
+def _worker_loop(stop_event: Optional[threading.Event] = None) -> None:
+    """Claim and process one task per iteration (one loop per worker thread)."""
+    from softwiki.source_store.db import SessionLocal
 
-    The periodic pass is incremental only: it never bootstraps a kb that has no
-    pages yet (that is the user's explicit "start generation" action). Running
-    it here rather than per document avoids churning while a corpus is still
-    being imported.
+    while not (stop_event and stop_event.is_set()):
+        db = SessionLocal()
+        try:
+            result = run_once(db)
+        except Exception as exc:  # noqa: BLE001 - one bad task must not stop the pool
+            print(f"[wiki-worker] loop error: {exc}", flush=True)
+            result = None
+        finally:
+            db.close()
+        time.sleep(2 if result else 5)
+
+
+def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
+    """Start N worker threads plus one reconcile/backfill leader.
+
+    Restart safety: tasks are durable rows. With
+    ``WIKI_REQUEUE_RUNNING_ON_START=1`` a restart puts orphaned `running` rows
+    back to `pending` immediately; with ``WIKI_AUTO_ENQUEUE_MISSING=1`` the
+    leader keeps topping the queue up with missing subject candidates, so a
+    bulk backfill continues across deploys without an external process.
     """
     from softwiki.source_store.db import SessionLocal
 
     db = SessionLocal()
     try:
-        reap_stale_running(db)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[wiki-worker] stale-task reap skipped: {exc}", flush=True)
+        if REQUEUE_RUNNING_ON_START:
+            requeue_running_on_start(db)
+        if AUTO_ENQUEUE_MISSING:
+            enqueue_missing_subjects(db)
+    except Exception as exc:  # noqa: BLE001 - startup must not kill the app
+        print(f"[wiki-worker] startup recovery skipped: {exc}", flush=True)
     finally:
         db.close()
 
+    concurrency = WORKER_CONCURRENCY
+    try:
+        from softwiki.config import get_db_url
+
+        if get_db_url().startswith("sqlite"):
+            # SQLite has no SKIP LOCKED; concurrent claimers would double-run.
+            concurrency = 1
+    except Exception:  # noqa: BLE001 - keep the configured value on failure
+        pass
+    for index in range(concurrency):
+        threading.Thread(
+            target=_worker_loop, name=f"wiki-worker-{index + 1}", daemon=True
+        ).start()
+    print(f"[wiki-worker] {concurrency} worker(s) started", flush=True)
+
+    # The calling thread becomes the leader: reconcile + periodic backfill.
     last_reconcile = 0.0
     while not (stop_event and stop_event.is_set()):
-        db = SessionLocal()
-        try:
-            result = run_once(db)
-        except Exception as exc:
-            print(f"[wiki-worker] loop error: {exc}", flush=True)
-            result = None
-        finally:
-            db.close()
-
         now = time.monotonic()
         if now - last_reconcile >= RECONCILE_INTERVAL_SECONDS:
             last_reconcile = now
             db = SessionLocal()
             try:
                 reap_stale_running(db)
-            except Exception as exc:  # noqa: BLE001
-                print(f"[wiki-worker] stale-task reap skipped: {exc}", flush=True)
-            try:
+                if AUTO_ENQUEUE_MISSING:
+                    enqueue_missing_subjects(db)
                 from softwiki.wiki.auto_pages import reconcile
 
                 queued = reconcile(db, allow_initial=False)
@@ -247,5 +326,4 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
                 print(f"[wiki-worker] reconcile skipped: {exc}", flush=True)
             finally:
                 db.close()
-
-        time.sleep(2 if result else 5)
+        time.sleep(5)
