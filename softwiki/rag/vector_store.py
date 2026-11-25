@@ -253,6 +253,9 @@ class PgVectorStore:
             # index returns fewer/less accurate neighbours.
             ef_search = max(40, int(top_k) * 4)
             db.execute(text(f"SET LOCAL hnsw.ef_search = {ef_search}"))
+            # The planner mis-prices HNSW vs a 1.5k-dim seq scan on 40k rows and
+            # picks the latter (~400 ms). Force the ANN index for this query.
+            db.execute(text("SET LOCAL enable_seqscan = off"))
             rows = db.execute(
                 text(
                     "SELECT chunk_id, 1 - (embedding <=> CAST(:q AS vector)) AS score"
