@@ -305,6 +305,19 @@
 - [x] javis CI 同步到 `ad60d95`，验收复跑 100% / 82.0% / p50 61ms / p95 82ms
 - [ ] trial 无 CI，本轮是手工同步；后续仍要手工
 
+### M17 — 向量后端迁移 pgvector（2026-11-25）
+> 文档：`docs/03-operations/storage.md`「向量后端：文件 vs pgvector」
+- [x] `PgVectorStore` + `LocalVectorStore` 门面：`SOFTWIKI_VECTOR_BACKEND=pg|file`（默认 file，可回退）
+- [x] `chunk_embeddings`（FK cascade）+ UPSERT 写 + cosine ANN + delete/reset；索引 HNSW(m=16,ef=64)
+- [x] `scripts/migrate_vectors_to_pg.py`：npz → 过滤孤儿 → 分批 upsert → 索引 → 数量 + recall@50 校验
+- [x] 查询期 `hnsw.ef_search=max(40,k*4)` + `enable_seqscan=off`（否则 top-50 召回 80%、走 seq scan 400ms）
+- [x] javis armkb：39,870 live / 39,870 孤儿；recall@50 **99.7%**；pg 查询 **4.7ms**（file 348ms / 加载 614ms）
+- [x] trial 两库：coffee 3,489 / ai 5,497，recall **100%**，p50 4.2/4.4ms；`/api/ask` 21/19 sources 正常
+- [x] 部署：compose `POSTGRES_IMAGE` 可覆盖；javis CI `.env`、trial `.env/.env.ai`；
+      trial 通过 `docker.1ms.run` 镜像源拉 pgvector 后 `docker tag`
+- [x] 备份：`backup-armkb-before-pgvector-20261124-192809.sql.gz`、`backup-{coffee,ai}-before-pgvector-20261125-121407.sql.gz`
+- [ ] 文件后端 npz/pkl 暂留回退；确认稳定后可归档（trial 41/65MB、javis 936MB）
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
@@ -438,6 +451,16 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-25 向量迁移到 pgvector（javis + trial 两库）**：
+  - **代码**：`softwiki/rag/vector_store.py` 拆成 `FileVectorStore` / `PgVectorStore`，`LocalVectorStore` 作为门面按 `SOFTWIKI_VECTOR_BACKEND` 选择；文件后端保留，改环境变量即可回退。
+  - **表**：`chunk_embeddings(chunk_id FK ON DELETE CASCADE, model, dim, embedding vector(1536))`，HNSW `m=16, ef_construction=64`；写为 UPSERT，删 chunk 级联清向量。
+  - **迁移**：`scripts/migrate_vectors_to_pg.py`；armkb 过滤掉一半孤儿（79,740 → 39,870），recall@50 99.7%；trial 两库 100%。
+  - **性能**：armkb pg 查询 4.7ms vs 文件 348ms、加载 614ms；进程不再常驻 936MB 矩阵。存储：表 ~825MB + 索引 312MB。
+  - **部署**：javis 走 CI（tag `9fca6c0`）；trial 手工同步 + `Dockerfile.api-fast` 重建 api，postgres 镜像换 `pgvector/pgvector:pg16`（trial 经 `docker.1ms.run` 拉取后 tag）。两栈 api/mcp 已 recreate，swagent 已重启。
+  - **关键坑**：查询必须 `SET LOCAL hnsw.ef_search=max(40,k*4)` 且 `enable_seqscan=off`，否则召回只有 80%、耗时 400ms。
+  - **回滚**：文件后端 + 原 npz 仍在；`SOFTWIKI_VECTOR_BACKEND=file` 重启 api/mcp 即可；DB 备份见上。
+
 
 - **2026-11-25 trial 两库 Graph v2 + 助手中文化 + agent 权限（全量重做）**：
   - **代码**：trial 不是 git 仓库 → 整棵 `web/`、`softwiki/`、`scripts/`、`kb-templates/` 手工同步；

@@ -151,3 +151,73 @@ CREATE EXTENSION vector;
 
 - PostgreSQL only affects the **LightRAG layer**. Main data (documents, chunks, claims, etc.) remains in SQLite.
 - Existing JSON storage data is **not automatically migrated** when switching backends. Requires re-ingestion.
+
+---
+
+## 向量后端：文件 vs pgvector（2026-11-25）
+
+### 切换开关
+
+```
+SOFTWIKI_VECTOR_BACKEND=file   # 默认，.npz + 内存暴力余弦
+SOFTWIKI_VECTOR_BACKEND=pg     # PostgreSQL + pgvector
+```
+
+`LocalVectorStore` 现在是门面：调用点不变，后端由环境变量决定。文件后端保留，
+切回去只需改环境变量并重启 api/mcp。
+
+### pgvector 表
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE chunk_embeddings (
+  chunk_id  bigint PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
+  model     text NOT NULL DEFAULT '',
+  dim       integer NOT NULL DEFAULT 0,
+  embedding vector(1536) NOT NULL
+);
+CREATE INDEX ix_chunk_embeddings_hnsw ON chunk_embeddings
+  USING hnsw (embedding vector_cosine_ops) WITH (m=16, ef_construction=64);
+```
+
+- 写：`INSERT ... ON CONFLICT (chunk_id) DO UPDATE`，增量、幂等；
+- 查：`ORDER BY embedding <=> $q LIMIT k`；
+- 删 chunk 级联删向量，不再有“索引指向已删 chunk”。
+
+### 查询期的两个必需设置
+
+| 设置 | 原因 |
+|---|---|
+| `SET LOCAL hnsw.ef_search = max(40, k*4)` | ef_search < k 时 top-k 召回显著下降 |
+| `SET LOCAL enable_seqscan = off` | 40k×1536 时 planner 会选 seq scan（~400ms），强制走 HNSW（~4ms） |
+
+### 迁移脚本
+
+```bash
+python scripts/migrate_vectors_to_pg.py --batch 200 --index hnsw --samples 20 --json /tmp/report.json
+```
+
+流程：读 npz → 用 `chunks` 过滤孤儿向量 → 分批 upsert → 建 HNSW → 数量校验 +
+file/pg top-50 召回对比。脚本幂等，可重复执行。
+
+### 实测（2026-11-25）
+
+| 库 | live 向量 | 孤儿丢弃 | recall@50 | pg 查询 p50 |
+|---|---|---|---|---|
+| javis armkb | 39,870 | 39,870 | 99.7%（min 94%） | 4.7 ms |
+| trial coffee | 3,489 | 0 | 100% | 4.2 ms |
+| trial ai-history | 5,497 | 0 | 100% | 4.4 ms |
+
+对比文件后端（armkb）：`FileVectorStore` 加载 npz **614 ms**、单次 top-10 检索 **~348 ms**；
+pgvector 单次 **4.7 ms**，进程不再常驻 936 MB float64 矩阵。
+存储代价：armkb `chunk_embeddings` 表 ~825 MB（含 TOAST）+ HNSW 索引 312 MB。
+
+### 踩坑
+
+- armkb 的 npz 有**一半是孤儿**（79,740 条里 39,870 条 chunk 已不存在）——迁移必须过滤；
+- 表必须带维度（`vector(1536)`），无维度的 `vector` 不利于索引；
+- 索引在**灌完数据之后**建，否则构建很慢；
+- trial-host 连不上 Docker Hub：用可达的镜像源（如 `docker.1ms.run`）拉取后
+  `docker tag` 成 `pgvector/pgvector:pg16`；
+- compose 用 `POSTGRES_IMAGE` 变量切换镜像（javis CI `.env`、trial `.env/.env.ai`），
+  同 major 版本的 PGDATA 可直接复用。
