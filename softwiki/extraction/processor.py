@@ -22,6 +22,11 @@ _lightrag_adapter_warned = False
 def _get_lightrag_adapter():
     """Lazy-import and return the LightRAG adapter if available."""
     global _lightrag_adapter, _lightrag_adapter_warned
+    # The same switch must gate ingestion and queries. Previously only the
+    # answer path checked it, so installing the optional extra would silently
+    # start a second extraction pipeline.
+    if os.getenv("SOFTWIKI_DISABLE_LIGHTRAG", "").lower() in ("1", "true", "yes"):
+        return None
     if _lightrag_adapter is not None:
         return _lightrag_adapter
     try:

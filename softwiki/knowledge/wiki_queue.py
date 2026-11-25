@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
@@ -96,6 +96,16 @@ def run_once(db: Session, generator=None) -> Optional[dict]:
     task = claim_next(db)
     if task is None:
         return None
+    heartbeat_stop = threading.Event()
+    heartbeat = threading.Thread(target=_heartbeat, args=(task.id, heartbeat_stop), daemon=True)
+    heartbeat.start()
+    try:
+        return _run_claimed(db, task, generator)
+    finally:
+        heartbeat_stop.set()
+
+
+def _run_claimed(db: Session, task: WikiRebuildTask, generator=None) -> dict:
     if getattr(task, "kind", "topic") == "subject":
         from softwiki.wiki.subject_pages import generate_subject_pages
 
@@ -131,6 +141,62 @@ def pending_count(db: Session) -> dict:
 
 
 RECONCILE_INTERVAL_SECONDS = float(os.getenv("WIKI_RECONCILE_INTERVAL_SECONDS", "300"))
+# A task whose heartbeat stopped (container restart mid-generation, crash) used
+# to stay "running" forever and was never retried. Reap it after this window.
+STALE_RUNNING_MINUTES = float(os.getenv("WIKI_TASK_STALE_MINUTES", "30"))
+HEARTBEAT_SECONDS = float(os.getenv("WIKI_TASK_HEARTBEAT_SECONDS", "60"))
+
+
+def reap_stale_running(db: Session, stale_minutes: Optional[float] = None) -> dict:
+    """Requeue (or fail) tasks whose running heartbeat went stale.
+
+    Called at worker start and on every reconcile tick, so a container restart
+    during generation cannot strand tasks.
+    """
+    minutes = STALE_RUNNING_MINUTES if stale_minutes is None else stale_minutes
+    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
+    rows = (
+        db.query(WikiRebuildTask)
+        .filter(WikiRebuildTask.status == "running")
+        .filter(
+            (WikiRebuildTask.updated_at.is_(None))
+            | (WikiRebuildTask.updated_at < cutoff)
+        )
+        .all()
+    )
+    requeued = failed = 0
+    now = datetime.utcnow()
+    for row in rows:
+        if (row.attempts or 0) < (row.max_attempts or 2):
+            row.status = "pending"
+            requeued += 1
+        else:
+            row.status = "failed"
+            row.finished_at = now
+            failed += 1
+        row.error = "stale running task reaped (no heartbeat)"
+        row.updated_at = now
+    if rows:
+        db.commit()
+        print(f"[wiki-worker] reaped {requeued} stale running task(s), "
+              f"failed {failed}", flush=True)
+    return {"reaped": requeued + failed, "requeued": requeued, "failed": failed}
+
+
+def _heartbeat(task_id: int, stop_event: threading.Event) -> None:
+    from softwiki.source_store.db import SessionLocal
+
+    while not stop_event.wait(HEARTBEAT_SECONDS):
+        db = SessionLocal()
+        try:
+            db.query(WikiRebuildTask).filter(WikiRebuildTask.id == task_id).update(
+                {"updated_at": datetime.utcnow()}
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 - heartbeat must not kill the task
+            print(f"[wiki-worker] heartbeat failed for task {task_id}: {exc}", flush=True)
+        finally:
+            db.close()
 
 
 def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
@@ -142,6 +208,14 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
     being imported.
     """
     from softwiki.source_store.db import SessionLocal
+
+    db = SessionLocal()
+    try:
+        reap_stale_running(db)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[wiki-worker] stale-task reap skipped: {exc}", flush=True)
+    finally:
+        db.close()
 
     last_reconcile = 0.0
     while not (stop_event and stop_event.is_set()):
@@ -158,6 +232,10 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
         if now - last_reconcile >= RECONCILE_INTERVAL_SECONDS:
             last_reconcile = now
             db = SessionLocal()
+            try:
+                reap_stale_running(db)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[wiki-worker] stale-task reap skipped: {exc}", flush=True)
             try:
                 from softwiki.wiki.auto_pages import reconcile
 
