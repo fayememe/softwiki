@@ -159,3 +159,24 @@ python scripts/graph_acceptance.py --runs 5 --json /tmp/armkb_graph.json
 **504 补图（2026-11-24）**：首轮重抽约 16% 窗口 504 被跳过（关系 4,572）；
 随后用 `scripts/graph_topup.py --all` 只重跑图抽取，关系数升到 **9,491**，
 术语覆盖 77.8% → **82.0%**，检索延迟经正则缓存优化后 p50 从 502ms 降到 **62ms**。
+
+### 图质量快照（armkb，2026-11-25 补图 + 归一后）
+
+| 指标 | 数值 |
+|---|---|
+| active 关系 | 9,470 |
+| 未挂 canonical claim | 534（5.6%） |
+| 平均 weight | 1.117 |
+| weight ≥ 2 | 729 |
+| weight ≥ 3 | 167 |
+| 最大 weight | 12（APB domain —part_of→ AMBA） |
+
+解读：
+
+- 绝大多数边只在一篇文档出现（weight=1），跨文档互证仍是少数；这与 73 篇手册
+  各覆盖不同模块相符，不代表抽取错误；
+- 534 条未挂 claim 的边集中在“泛化关系/表格行”上，`knowledge_v2_projections.py`
+  的 Jaccard ≥0.12 阈值没有匹配到同文档 claim；降低阈值会提高挂载率但也会引入
+  错配，暂不调整；
+- 若要进一步提升，优先级是：① 实体别名继续收编（AXI4/ACE/AHB-Lite）；② 对
+  weight≥3 的边人工抽检；③ 用 golden set 的 graph on/off 差异定位“挂错”的边。
