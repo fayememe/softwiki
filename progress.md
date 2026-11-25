@@ -318,6 +318,19 @@
 - [x] 备份：`backup-armkb-before-pgvector-20261124-192809.sql.gz`、`backup-{coffee,ai}-before-pgvector-20261125-121407.sql.gz`
 - [ ] 文件后端 npz/pkl 暂留回退；确认稳定后可归档（trial 41/65MB、javis 936MB）
 
+### M18 — 三处运维/质量欠账（2026-11-25）
+- [x] wiki 任务租约：`running` 每 60s 心跳；worker 启动/每轮回收超过
+      `WIKI_TASK_STALE_MINUTES`（默认 30）的 running → pending（未超 max_attempts）或 failed。
+      javis 实测回收 5 个卡了一天的任务，日志 `reaped 5 stale running task(s)`
+- [x] LightRAG 开关：`processor._get_lightrag_adapter()` 尊重 `SOFTWIKI_DISABLE_LIGHTRAG`，
+      入库与查询同开关（测试覆盖 disable / 未 disable 两条路径）
+- [x] `scripts/deploy-trial.sh`：preflight → pg_dump → 同步源码 → api-fast 构建 →
+      两栈 recreate → swagent 重启 → /api/health + /api/kb + web 检查；
+      支持 `--check` / `--skip-build` / `--skip-backup` / `--migrate-vectors`。
+      已用它实际部署 trial（备份 `20261125-011113`），两栈 healthy
+- [x] 发现：`git.softkitty.me`（homelab git 公网反代）**trial 可达**（~7s，repo 为
+      public 且 HEAD=`9d4493c`）→ trial CI 技术上可行，待决定是否启用
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计

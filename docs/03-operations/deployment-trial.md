@@ -40,7 +40,14 @@ Docker：28.5.2
 Compose：/usr/local/bin/docker-compose v5.6.1
 ```
 
-## 更新代码（手动，无 CI）
+## 更新代码（手动 / 一键脚本）
+
+> 2026-11-25：新增 `scripts/deploy-trial.sh`（开发机执行），把下面步骤收成一条命令：
+> `./scripts/deploy-trial.sh [--check|--skip-build|--skip-backup|--migrate-vectors]`。
+> 另外实测 trial 可达公网反代 `https://git.softkitty.me/faye/softwiki.git`（~7s，public，
+> HEAD 与内部一致），因此 **trial CI 技术上可行**；当前仍保持手工/脚本部署作为变更控制。
+
+### 手动步骤（脚本内部的流程）
 
 目标机没有 CI timer，且到 Forgejo（`10.3.9.19:2222`）不通，必须从开发机推代码。
 

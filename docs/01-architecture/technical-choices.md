@@ -167,8 +167,8 @@ UI/claim/wiki 都不消费它。触发重新评估的条件：多跳问答评测
 
 | 项 | 风险 | 计划 |
 |---|---|---|
-| `SOFTWIKI_DISABLE_LIGHTRAG` 只拦查询、不拦入库 | 一旦装了 optional extra 就会自动跑 LightRAG | 5 行修复 + 测试 |
-| trial 无 CI | 每次手工同步，易漂移 | 一键 `deploy-trial.sh` |
+| ~~`SOFTWIKI_DISABLE_LIGHTRAG` 只拦查询~~ | 已修（2026-11-25）：入库与查询同开关 | — |
+| trial 无 CI | 每次手工同步，易漂移 | `scripts/deploy-trial.sh` 已就绪；公网 git 反代可达，CI 可选 |
 | trial 仍是手工 web i18n（不在 git） | 前端改动无法追溯 | 收编进仓库 |
 | 咖啡/AI 库没有 golden set | 回答质量无法量化 | 各建 20 题 |
 | BM25 仍是 pickle | 百万级/多写者会受限 | 观察，非当前瓶颈 |
