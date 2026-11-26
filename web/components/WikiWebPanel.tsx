@@ -43,6 +43,10 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
   const [railDragging, setRailDragging] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
+  // Double-tap detection is done by hand: taking pointer capture makes Chrome
+  // unreliable about synthesising `dblclick` on the handle.
+  const lastTapRef = useRef(0);
+  const dragStartXRef = useRef(0);
 
   useEffect(() => {
     try {
@@ -189,6 +193,7 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
                 // drag silently freezes at the starting width.
                 event.currentTarget.setPointerCapture(event.pointerId);
                 draggingRef.current = true;
+                dragStartXRef.current = event.clientX;
                 setRailDragging(true);
                 document.body.style.cursor = 'col-resize';
                 document.body.style.userSelect = 'none';
@@ -199,7 +204,19 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
               }}
               onPointerUp={(event) => {
                 event.currentTarget.releasePointerCapture?.(event.pointerId);
+                const moved = Math.abs(event.clientX - dragStartXRef.current);
                 endRailDrag();
+                if (moved > 4) {
+                  lastTapRef.current = 0;
+                  return;
+                }
+                const now = Date.now();
+                if (now - lastTapRef.current < 320) {
+                  setRailWidth(RAIL_DEFAULT);
+                  lastTapRef.current = 0;
+                } else {
+                  lastTapRef.current = now;
+                }
               }}
               onPointerCancel={endRailDrag}
               onDoubleClick={() => setRailWidth(RAIL_DEFAULT)}
