@@ -348,6 +348,20 @@
 - [~] SP 已用 1800s 超时重试，仍在生成（>20min）；其余候选（约 380 个）未建
 - [x] 门户重新生成：**400 页 / 12 分类**；wiki subject 150 个（726 个页面文件）
 
+### M20 — LLM 故障治理（2026-11-26）
+> 事故：oneroute 余额耗尽（剩余 $0.037，单页预扣 ~$0.06）→ 403；自动补队列每轮重试
+> 导致 8,199 个 failed 任务，并写坏 `wiki_rebuild_tasks` 的 btree 索引。
+- [x] 止血：`WIKI_AUTO_ENQUEUE_MISSING=0`、删除 8,199 failed 行、`REINDEX TABLE`
+- [x] 失败窗口：`WIKI_BACKFILL_RETRY_HOURS=6`，近期失败的 subject 不再自动重排
+- [x] **provider 熔断**（`intelligence/llm_health.py`）：401/403/额度/鉴权 = fatal，
+      立即熔断（默认 900s）；5xx/超时 3 次熔断 60s；成功复位；
+      熔断期间 `create_chat_completion` 直接抛 `ProviderUnavailable`，不发请求
+- [x] 队列语义修正：provider 失败时任务回 `pending`（不消耗 attempts/不标 failed），
+      worker 熔断期间暂停领取，`AUTO_ENQUEUE` 跳过
+- [x] `/api/knowledge/metrics` 暴露 `llm_provider`（open/reason/retry_in/strikes）
+- [x] 充值后恢复：probe ok，熔断 closed；补队列重新入队 **189**，3 workers 运行中
+- [ ] 剩余 subject 跑完后：重新生成 wikiweb + 重启 web + 复测 golden set
+
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
 - [x] `softwiki/identity/localauth.py`：scrypt 哈希（独立盐）、首启创建、按 IP 限速、审计
