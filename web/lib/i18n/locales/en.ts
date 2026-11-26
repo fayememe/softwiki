@@ -59,6 +59,7 @@ export const en = {
     subjects: 'subject pages',
     status: 'Status',
     statusUnknown: 'Not generated yet, or unreadable',
+    resizeRail: 'Drag to resize, double-click to reset',
   },
 
   sidebar: {

@@ -65,7 +65,7 @@ softwiki            [语言] [折叠]
 | 门户预览 | `iframe /wikiweb`（静态快照），右上「在新标签打开」 |
 | 页面与生成 | 原 `WikiPagesPanel`：主题页列表、批量生成、agent 提案（`/api/wiki/plans`）的批准/拒绝 |
 
-右侧栏：
+右侧栏（宽度可拖动，240–720px，双击分隔条复位，宽度记在 localStorage）：
 
 - 生成：跳到「页面与生成」；「重建门户」**禁用**——当前只有 `scripts/wikiweb_build.py`，且 Next 启动时才枚举目录，需要重启 web。
 - Wiki 助手：打开右侧助手面板并落在 `manage` 项目（唯一可提交 wiki 变更的 profile）。
@@ -92,3 +92,4 @@ softwiki            [语言] [折叠]
 - 侧栏会话（localStorage）与面板内 agent session 选择器仍是两个概念，后续可合并。
 - 旧全局会话 key `softwiki_sessions` 未迁移；升级后历史会话不显示（数据仍在 localStorage）。
 - 旧 `GraphPanel.tsx` 已不再被引用，可删除。
+- 拖动分隔条时必须用 pointer capture（否则指针越过 iframe 后事件被 iframe 吃掉，拖动会卡在起始宽度）。

@@ -57,6 +57,7 @@ export const ja: Dict = {
     subjects: '件の主題ページ',
     status: '状態',
     statusUnknown: '未生成、または読み取れません',
+    resizeRail: 'ドラッグで幅を変更、ダブルクリックでリセット',
   },
 
   sidebar: {
