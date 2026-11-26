@@ -345,8 +345,8 @@
 - [x] SPE 失败任务重置（attempts 0/max 5）并重新入队，heartbeat 进行中
 - [ ] trial 两库门户仍为用户 agent 生成版（不覆盖）
 - [x] SPE 已生成（attempts 1，done）；批量补建 100 个候选：99 ok / 1 failed（SP 超时）
-- [~] SP 已用 1800s 超时重试，仍在生成（>20min）；其余候选（约 380 个）未建
-- [x] 门户重新生成：**400 页 / 12 分类**；wiki subject 150 个（726 个页面文件）
+- [x] SP 重试成功；批量补建完成：subject **542 个 / 1,933 个页面文件**，failed 0
+- [x] 门户最终生成：**600 页 / 13 分类**，`/wikiweb/armkb/` 200
 
 ### M20 — LLM 故障治理（2026-11-26）
 > 事故：oneroute 余额耗尽（剩余 $0.037，单页预扣 ~$0.06）→ 403；自动补队列每轮重试
@@ -360,7 +360,8 @@
       worker 熔断期间暂停领取，`AUTO_ENQUEUE` 跳过
 - [x] `/api/knowledge/metrics` 暴露 `llm_provider`（open/reason/retry_in/strikes）
 - [x] 充值后恢复：probe ok，熔断 closed；补队列重新入队 **189**，3 workers 运行中
-- [ ] 剩余 subject 跑完后：重新生成 wikiweb + 重启 web + 复测 golden set
+- [x] 剩余 subject 跑完（pending/running/failed 均 0）；wikiweb 600 页；
+      golden 复测：实体命中 100%，术语覆盖 **84.7% vs 40.3%**，p50 73ms / p95 89ms
 
 ### M10 — 内置 admin 账号（2026-11-22）
 > 文档：`docs/03-operations/auth-proxy.md` §6.7
