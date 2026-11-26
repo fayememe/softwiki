@@ -754,7 +754,7 @@ export default function GraphStudioPanel() {
             onWheel={onWheel}
           />
           {status ? <div className={styles.status}>{status}</div> : null}
-          <div className={styles.hint}>Left click a node for details · double-click expands · middle-drag to pan · wheel to zoom</div>
+          <div className={styles.hint}>Click a node for details · double-click to expand · middle-drag to pan · wheel to zoom</div>
           <div className={styles.legend}>
             {Object.entries(TYPE_COLORS).slice(0, 8).map(([type, color]) => (
               <span key={type}><i style={{ background: color }} />{type.replace('_', ' ')}</span>

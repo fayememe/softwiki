@@ -257,7 +257,7 @@
 .hint {
   bottom: 12px;
   /* The legend sits on the same baseline; keep the hint from running into it. */
-  max-width: 42%;
+  max-width: 60%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -266,11 +266,13 @@
 .legend {
   position: absolute;
   right: 14px;
-  bottom: 12px;
+  /* Own row above the hint: the two used to share the bottom-left corner and
+     the legend ran straight over the hint text. */
+  bottom: 34px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  max-width: 60%;
+  max-width: 72%;
   font-size: 10px;
   color: var(--muted);
   pointer-events: none;
