@@ -43,7 +43,7 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [engine, setEngine] = useState<'quick' | 'agent'>('quick');
+  const [engine, setEngine] = useState<'quick' | 'agent'>('agent');
   const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
   const [agentAvailable, setAgentAvailable] = useState<boolean | null>(null);
   const [agentSessions, setAgentSessions] = useState<AgentSessionSummary[]>([]);
@@ -273,6 +273,12 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
                   </button>
                 ))}
               </div>
+              <button
+                className={styles.secondaryLink}
+                onClick={() => setEngine(engine === 'agent' ? 'quick' : 'agent')}
+              >
+                {engine === 'agent' ? t('chat.useQuick') : t('chat.useAgent')}
+              </button>
             </div>
           ) : engine === 'agent' ? (
             <div className={styles.messageList}>
@@ -310,23 +316,15 @@ export default function ChatPanel({ sessionId, messages, onMessagesChange }: Cha
       {/* Mode / workflow / report bar */}
       <div className={styles.modeBar}>
         <div className={styles.modeInner}>
-          <div className={styles.engineSwitch} role="group" aria-label={t('chat.answerEngine')}>
+          {engine === 'quick' && (
             <button
-              className={`${styles.engineBtn} ${engine === 'quick' ? styles.engineActive : ''}`}
-              onClick={() => setEngine('quick')}
-              disabled={isLoading}
-            >
-              {t('chat.engineQuick')}
-            </button>
-            <button
-              className={`${styles.engineBtn} ${engine === 'agent' ? styles.engineActive : ''}`}
+              className={styles.engineBtn}
               onClick={() => setEngine('agent')}
-              disabled={isLoading}
               title={t('chat.agentEngineTitle')}
             >
-              SWAgent
+              {t('chat.quickBadge')} · {t('chat.useAgent')}
             </button>
-          </div>
+          )}
           {engine === 'quick' ? MODES.map(m => (
             <button
               key={m.id}

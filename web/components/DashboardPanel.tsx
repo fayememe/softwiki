@@ -1,87 +1,136 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { apiStatus, apiListWorkspaces } from '@/lib/api';
+/**
+ * Cross-kb overview.
+ *
+ * This is deliberately not "the current kb": the instance may serve several
+ * knowledge bases (one directory each under WORKSPACES_ROOT), and the home page
+ * is where you compare them. Counts come from `/api/kb/stats`, which reads each
+ * kb's own database and marks ones this instance cannot serve as unavailable
+ * instead of showing zeroes.
+ */
+
+import { useCallback, useEffect, useState } from 'react';
+import { apiKbStats, apiSwitchKb } from '@/lib/api';
+import type { KbStatsEntry, KbStatsResponse } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import styles from './DashboardPanel.module.css';
 
-interface Counts {
-  documents: number; chunks: number; claims: number;
-  entities: number; relationships: number; events: number;
-}
-
-const FLOW = [
-  { id: 'input', icon: '📥', items: [
-    { key: 'documents', color: '#5588ff' },
-  ]},
-  { id: 'process', icon: '⚙️', items: [
-    { key: 'chunks', color: '#22d3ee' },
-    { key: 'claims', color: '#a78bfa' },
-  ]},
-  { id: 'knowledge', icon: '🧠', items: [
-    { key: 'entities', color: '#22c55e' },
-    { key: 'relationships', color: '#f59e0b' },
-    { key: 'events', color: '#ef4444' },
-  ]},
-];
+const COUNT_KEYS = ['documents', 'chunks', 'claims', 'entities', 'relationships', 'events'] as const;
 
 export default function DashboardPanel() {
   const t = useT();
-  const [counts, setCounts] = useState<Counts | null>(null);
-  const [ws, setWs] = useState('');
+  const [data, setData] = useState<KbStatsResponse | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
 
-  useEffect(() => {
-    apiStatus().then(s => {
-      setCounts(s.counts as Counts);
-      setWs(s.workspace.split('/').pop() || '');
-    }).catch(() => {});
-    const interval = setInterval(() => {
-      apiStatus().then(s => setCounts(s.counts as Counts)).catch(() => {});
-    }, 10000);
-    return () => clearInterval(interval);
+  const load = useCallback(async () => {
+    try {
+      setData(await apiKbStats());
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }, []);
 
-  const v = (key: string) => counts ? counts[key as keyof Counts] : 0;
+  useEffect(() => {
+    void load();
+    const interval = setInterval(() => { void load(); }, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  const openKb = useCallback(async (kb: KbStatsEntry) => {
+    if (!kb.available || kb.active || busy) return;
+    setBusy(kb.name);
+    try {
+      if (await apiSwitchKb(kb.name)) {
+        window.location.reload();
+        return;
+      }
+      if (kb.web_url) {
+        const target = new URL(kb.web_url, window.location.href);
+        target.hostname = window.location.hostname;
+        target.protocol = window.location.protocol;
+        window.location.href = target.toString();
+      }
+    } finally {
+      setBusy('');
+    }
+  }, [busy]);
+
+  const kbs = data?.kbs ?? [];
+  const available = kbs.filter(k => k.available).length;
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>{t('dashboard.title')}</h1>
-          <p className={styles.subtitle}>{t('dashboard.workspace')} <strong>{ws}</strong></p>
+          <p className={styles.subtitle}>
+            {data
+              ? t('dashboard.instanceSummary', { total: kbs.length, available })
+              : t('dashboard.loading')}
+          </p>
         </div>
-        <div className={styles.total}>
-          <span className={styles.totalNum}>{v('documents')}</span>
-          <span className={styles.totalLabel}>{t('dashboard.documents')}</span>
-        </div>
+        {data && (
+          <div className={styles.total}>
+            <span className={styles.totalNum}>{data.totals.documents.toLocaleString()}</span>
+            <span className={styles.totalLabel}>{t('dashboard.documents')}</span>
+          </div>
+        )}
       </div>
 
-      {/* Data flow diagram */}
-      <div className={styles.flow}>
-        {FLOW.map((stage, si) => (
-          <div key={stage.id} className={styles.stage}>
-            <div className={styles.stageHeader}>
-              <span className={styles.stageIcon}>{stage.icon}</span>
-              <span className={styles.stageName}>{t(`dashboard.stage_${stage.id}`)}</span>
-            </div>
-            <div className={styles.stageCards}>
-              {stage.items.map(item => (
-                <div key={item.key} className={styles.flowCard}>
-                  <span className={styles.flowValue}>{v(item.key)}</span>
-                  <span className={styles.flowLabel}>{t(`dashboard.item_${item.key}`)}</span>
-                </div>
-              ))}
-            </div>
-            {si < FLOW.length - 1 && (
-              <div className={styles.arrow}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+      {error && <div className={styles.error}>{error}</div>}
+
+      {data && (
+        <>
+          <div className={styles.totalsRow}>
+            {COUNT_KEYS.map(key => (
+              <div key={key} className={styles.totalCell}>
+                <span className={styles.totalCellNum}>{data.totals[key].toLocaleString()}</span>
+                <span className={styles.totalCellLabel}>{t(`dashboard.item_${key}`)}</span>
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div className={styles.grid}>
+            {kbs.map(kb => (
+              <button
+                key={kb.name}
+                type="button"
+                className={`${styles.card} ${kb.active ? styles.cardActive : ''} ${!kb.available ? styles.cardDisabled : ''}`}
+                onClick={() => void openKb(kb)}
+                title={kb.available ? kb.description : (kb.reason || t('dashboard.unavailable'))}
+                disabled={!kb.available || kb.active || busy === kb.name}
+              >
+                <div className={styles.cardHead}>
+                  <span className={styles.cardName}>{kb.name}</span>
+                  {kb.active && <span className={styles.activePill}>{t('dashboard.current')}</span>}
+                  {!kb.available && <span className={styles.badTag}>{t('dashboard.unavailable')}</span>}
+                </div>
+                <p className={styles.cardDesc}>{kb.description}</p>
+                {kb.counts ? (
+                  <div className={styles.cardCounts}>
+                    {COUNT_KEYS.map(key => (
+                      <div key={key}>
+                        <span className={styles.cardNum}>{kb.counts![key].toLocaleString()}</span>
+                        <span className={styles.cardLabel}>{t(`dashboard.item_${key}`)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // The raw reason is often a driver message (missing column,
+                  // refused connection). Keep it in the tooltip, show a stable
+                  // label in the card.
+                  <p className={styles.cardReason} title={kb.reason || ''}>
+                    {t('dashboard.unavailable')}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

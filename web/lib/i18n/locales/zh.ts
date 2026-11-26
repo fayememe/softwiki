@@ -111,6 +111,9 @@ export const zh: Dict = {
     mode_creative: '创意',
     answerEngine: '回答引擎',
     engineQuick: '快速',
+    useQuick: '使用快速检索（无助手工具链）',
+    useAgent: '切回助手',
+    quickBadge: '快速检索模式',
     agentEngineTitle: 'SWAgent；只读知识库 + 网络研究',
     newSession: '新建会话',
     agentSessionAria: '智能体会话',
@@ -395,7 +398,7 @@ export const zh: Dict = {
   },
 
   dashboard: {
-    title: '看板',
+    title: '总览',
     workspace: '知识库：',
     documents: '文档',
     stage_input: '输入',
@@ -407,6 +410,10 @@ export const zh: Dict = {
     item_entities: '实体',
     item_relationships: '关系',
     item_events: '事件',
+    instanceSummary: '本实例 {total} 个知识库，{available} 个可用',
+    loading: '加载中…',
+    current: '当前',
+    unavailable: '本实例不可用',
   },
 
   search: {

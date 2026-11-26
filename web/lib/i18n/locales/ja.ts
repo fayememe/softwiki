@@ -111,6 +111,9 @@ export const ja: Dict = {
     mode_creative: '創造',
     answerEngine: '回答エンジン',
     engineQuick: 'クイック',
+    useQuick: '高速検索を使用（エージェントなし）',
+    useAgent: 'アシスタントに戻る',
+    quickBadge: '高速検索モード',
     agentEngineTitle: 'SWAgent；読み取り専用 KB + ウェブ調査',
     newSession: '新規セッション',
     agentSessionAria: 'エージェントセッション',
@@ -399,7 +402,7 @@ export const ja: Dict = {
   },
 
   dashboard: {
-    title: 'ダッシュボード',
+    title: '概要',
     workspace: 'ワークスペース：',
     documents: 'ドキュメント',
     stage_input: '入力',
@@ -411,6 +414,10 @@ export const ja: Dict = {
     item_entities: 'エンティティ',
     item_relationships: '関係',
     item_events: 'イベント',
+    instanceSummary: 'このインスタンスに {total} 件のナレッジベース、{available} 件が利用可能',
+    loading: '読み込み中…',
+    current: '現在',
+    unavailable: 'このインスタンスでは利用不可',
   },
 
   search: {

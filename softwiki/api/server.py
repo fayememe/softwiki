@@ -3525,18 +3525,11 @@ def kb_register(name: str, request: Request, reauth_token: Optional[str] = None)
     audit.record("kb.register", target={"kb": name}, result="ok", source_ip=_client_ip(request))
     return {"name": name, **record.to_dict()}
 
-@app.get("/api/kb")
-def list_knowledge_bases(verify: bool = False):
-    """List knowledge bases with the topics each one covers.
+def _kb_infos_for_caller() -> tuple[str, list, str]:
+    """Kbs this caller may see, plus the active one.
 
-    Only kbs that are (a) registered and (b) inside the caller's ``kb_scope``
-    are listed, so an unregistered kb disappears for agents and users alike
-    while its data stays on disk.
-
-    ``verify=true`` additionally probes each kb's database, because a directory
-    can exist while its database was never created in this instance (the UI
-    must not offer a kb that answers with 500). The probe is cached for a few
-    seconds; the default stays filesystem-only, per design D1.
+    One place for the rule shared by /api/kb and /api/kb/stats: registered on
+    disk and inside the identity's ``kb_scope``.
     """
     from softwiki.config import get_workspaces_root
     from softwiki.kb.context import current_kb_name
@@ -3554,6 +3547,23 @@ def list_knowledge_bases(verify: bool = False):
     infos = [info for info in infos if info.name in visible]
 
     active = current_kb_name() or os.path.basename(get_workspace_dir())
+    return root, infos, active
+
+
+@app.get("/api/kb")
+def list_knowledge_bases(verify: bool = False):
+    """List knowledge bases with the topics each one covers.
+
+    Only kbs that are (a) registered and (b) inside the caller's ``kb_scope``
+    are listed, so an unregistered kb disappears for agents and users alike
+    while its data stays on disk.
+
+    ``verify=true`` additionally probes each kb's database, because a directory
+    can exist while its database was never created in this instance (the UI
+    must not offer a kb that answers with 500). The probe is cached for a few
+    seconds; the default stays filesystem-only, per design D1.
+    """
+    _root, infos, active = _kb_infos_for_caller()
 
     probed: dict[str, tuple] = {}
     if verify:
@@ -3586,6 +3596,89 @@ def list_knowledge_bases(verify: bool = False):
         "verified": verify,
         "kbs": [_entry(info) for info in infos],
     }
+
+
+#: Per-kb counts are expensive to recompute and change slowly; cache briefly so
+#: the home dashboard can poll without opening every kb's database each time.
+_KB_STATS_TTL_SECONDS = 30.0
+_kb_stats_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _kb_counts(info) -> dict:
+    """Row counts for one kb, read from its own database.
+
+    Returns ``{"available": bool, "reason": str|None, "counts": {...}}`` and
+    never raises: a broken/unbuilt kb should render as unavailable on the
+    dashboard instead of taking the whole endpoint down.
+    """
+    from softwiki.config import db_url_for_workspace
+    from softwiki.kb.health import probe_kb
+
+    available, reason = probe_kb(info.path)
+    if not available:
+        return {"available": False, "reason": reason, "counts": None}
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    url = db_url_for_workspace(info.path)
+    engine = create_engine(url, pool_pre_ping=True)
+    session_factory = sessionmaker(bind=engine)
+    db = session_factory()
+    try:
+        counts = {
+            "documents": db.query(Document).count(),
+            "chunks": db.query(Chunk).count(),
+            "claims": db.query(Claim).count(),
+            "entities": db.query(Entity).count(),
+            "relationships": db.query(Relationship).count(),
+            "events": db.query(Event).count(),
+        }
+        return {"available": True, "reason": None, "counts": counts}
+    except Exception as exc:  # noqa: BLE001 - surfaced to the UI as a reason
+        return {"available": False, "reason": str(exc)[:200], "counts": None}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+@app.get("/api/kb/stats")
+def kb_stats():
+    """Counts for every kb this callers can see, for the cross-kb dashboard.
+
+    The active kb is included with ``active=true``. Kbs whose directory exists
+    but whose database was never created in this instance come back with
+    ``available=false`` and a reason, so the UI can grey them out instead of
+    pretending they have zero documents.
+    """
+    import time as _time
+
+    _root, infos, active = _kb_infos_for_caller()
+    now = _time.monotonic()
+    entries = []
+    for info in infos:
+        cached = _kb_stats_cache.get(info.name)
+        if cached and now - cached[0] < _KB_STATS_TTL_SECONDS:
+            counts = cached[1]
+        else:
+            counts = _kb_counts(info)
+            _kb_stats_cache[info.name] = (now, counts)
+        entries.append({
+            "name": info.name,
+            "description": info.description,
+            "web_url": info.web_url,
+            "active": info.name == active,
+            **counts,
+        })
+
+    totals = {"documents": 0, "chunks": 0, "claims": 0, "entities": 0, "relationships": 0, "events": 0}
+    for entry in entries:
+        if not entry["counts"]:
+            continue
+        for key in totals:
+            totals[key] += entry["counts"].get(key, 0)
+
+    return {"active": active, "kbs": entries, "totals": totals, "cached_seconds": _KB_STATS_TTL_SECONDS}
 
 
 @app.post("/api/workspace")

@@ -113,6 +113,9 @@ export const en = {
     mode_creative: 'Creative',
     answerEngine: 'Answer engine',
     engineQuick: 'Quick',
+    useQuick: 'Use quick retrieval (no agent tools)',
+    useAgent: 'Back to assistant',
+    quickBadge: 'Quick retrieval',
     agentEngineTitle: 'SWAgent; read-only KB + web research',
     newSession: 'New session',
     agentSessionAria: 'Agent session',
@@ -403,7 +406,7 @@ export const en = {
   },
 
   dashboard: {
-    title: 'Dashboard',
+    title: 'Overview',
     workspace: 'Workspace:',
     documents: 'documents',
     stage_input: 'Input',
@@ -415,6 +418,10 @@ export const en = {
     item_entities: 'Entities',
     item_relationships: 'Relationships',
     item_events: 'Events',
+    instanceSummary: '{total} knowledge bases in this instance, {available} available',
+    loading: 'Loading…',
+    current: 'Current',
+    unavailable: 'Unavailable here',
   },
 
   search: {

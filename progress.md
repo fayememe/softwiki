@@ -410,6 +410,27 @@
 - [ ] KB 管理面板（注册表 / 卸载脱钩）
 - [ ] 贡献者笔记审核入库（manage/work 可见）
 
+### M21 — 界面重整（2026-11-26）
+> 设计：`docs/02-design/ui-information-architecture.md`（✅ frozen）
+- [x] 侧栏改为「总览 / 知识库 / 管理 / 会话」，删除自动折叠（只手动）
+- [x] 导入/冲突改为单项 `wiki-work+`（不再整组隐藏）；管理组 `wiki-admin+`
+- [x] 新增「用户」入口（AdminPanel 之前无法进入）；「新建库」更名「知识库管理」
+- [x] 会话列表常驻侧栏底部；会话按知识库隔离（`softwiki_sessions:<kb>`）
+- [x] 助手按钮移到主区右上，与主题按钮同簇（不再重叠）
+- [x] 图谱：Graph Studio 组件化内嵌（`GraphStudioPanel`），删除外链项；
+      `/graph-studio` 保留为薄包装
+- [x] 图谱交互修复：仅中键平移、左键空白不动作、滚轮以光标为锚点、新增 fit 按钮
+- [x] 图谱力学修复：斥力下限/上限、速度上限、阻尼 0.9、中心引力、软边界、
+      动能停帧；展开节点以父实体为锚、视野外自动 fit
+- [x] Wiki 面板：门户内嵌 + 「页面与生成」tab（原 LLM Wiki 面板收编）+ 助手入口（落 manage）
+- [x] 对话默认只走 agent；Quick 降为对话空状态的次级入口
+- [x] 首页改为跨库总览：新增 `GET /api/kb/stats`（30s 缓存，逐库读 DB，
+      不可用库灰显）；`tests/test_kb_stats.py` 2 项通过
+- [ ] 门户重建按钮（需后台任务 API + 重启 web）
+- [ ] 侧栏会话与面板内 agent session 选择器合并
+- [ ] 旧全局会话 key 迁移（升级后历史会话不显示）
+- [ ] 删除已无引用的 `GraphPanel.tsx`
+
 ## Pending issues / Blocker
 
 - [!] **trial-host embedding 上游 504（2026-11-20 发现）**：`oneroute` 的 `/v1/embeddings` 返回 `Error code: 504`，单次耗时 **185s** 才失败；容器日志 `[rag] embedding unavailable, using BM25 only`。因此 `/api/ask` 会先卡 185s 再降级，实测 200s 超时未返回。
@@ -496,6 +517,22 @@
 6. **P2**：近重复文档、NLI 冲突、自动 family/revision。
 
 ## 本 session 状态记录（handoff）
+
+- **2026-11-26 界面重整（逐项确认后实施）**：
+  - **IA**：侧栏 = 总览 / 知识库（文档、论断、图谱、时间线、Wiki 门户、导入、冲突）/ 管理（知识库管理、用户）/ 会话（常驻）。
+    自动折叠已删；角色门槛改为组级 + 单品级并存。
+  - **图谱**：`components/GraphStudioPanel.tsx` 为唯一实现，`/graph-studio` 只是包装。
+    平移改为仅中键（原来左键 `onClick` 才写 dragRef，实际不能拖）；滚轮以光标为中心；
+    力学加了距离下限、力/速度上限、阻尼 0.9、中心引力、软边界与动能停帧；
+    展开以父实体为锚，视野外自动 fit，并新增 fit 按钮。
+  - **Wiki**：门户 iframe 内嵌 + 「页面与生成」tab（原 LLM Wiki 面板）+ 助手入口（落 manage）；
+    「重建门户」禁用并说明需脚本 + 重启 web。
+  - **对话**：默认 agent；Quick 只保留空状态里的次级入口（demo 降级路径）。
+  - **首页**：`GET /api/kb/stats` 汇总本实例全部可见库，30s 缓存，打不开的库标 unavailable。
+  - **验证**：`npm run build` 通过；headless Chrome 实测侧栏顺序、角色门槛（work 见导入/冲突、study 不见）、
+    图谱内嵌、Wiki 面板、右上按钮坐标（x=1510/1552，无重叠）；`pytest tests/test_kb_stats.py` 2 passed。
+  - **注意**：trial-host 两栈各只服务一个库，首页只会显示 1 个库（部署形态，不是 bug）。
+  - **提交**：`d3ceac4` 侧栏 / `6f47ce1` 图谱 / `80e62bf` wiki 面板 / 后续一次首页 + 对话。
 
 - **2026-11-25 ARM Wikiweb + 试用库评测 + 运维补丁**：
   - **Wikiweb**：新增 `scripts/wikiweb_build.py`（复用 Coffee 的 CSS/外壳，确定性生成）；javis armkb 已生成 **300 页 / 12 分类** 到 `exports/wikiweb/armkb/`，`/wikiweb/armkb/` 200。**关键坑**：Next 启动时枚举 `public/`，生成后必须 `docker restart softwiki-web-1`，否则 404。

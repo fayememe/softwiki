@@ -405,6 +405,55 @@ export async function apiSwitchWorkspace(workspace: string): Promise<WorkspaceSw
   return res.json();
 }
 
+
+export interface KbCounts {
+  documents: number;
+  chunks: number;
+  claims: number;
+  entities: number;
+  relationships: number;
+  events: number;
+}
+
+export interface KbStatsEntry {
+  name: string;
+  description: string;
+  web_url: string | null;
+  active: boolean;
+  available: boolean;
+  reason: string | null;
+  counts: KbCounts | null;
+}
+
+export interface KbStatsResponse {
+  active: string;
+  kbs: KbStatsEntry[];
+  totals: KbCounts;
+  cached_seconds: number;
+}
+
+/** Counts for every kb this instance serves, for the cross-kb dashboard. */
+export async function apiKbStats(): Promise<KbStatsResponse> {
+  const res = await fetch(`${API_BASE}/api/kb/stats`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`KB stats failed: ${res.status}`);
+  return res.json();
+}
+
+/** Switch the caller's active kb in place. Returns false when this instance
+ *  does not serve that kb (separate stacks) and the caller should navigate. */
+export async function apiSwitchKb(kb: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/kb/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kb }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function apiStatus(workspace?: string): Promise<StatusResponse> {
   const url = workspace
     ? `${API_BASE}/api/status?workspace=${encodeURIComponent(workspace)}`

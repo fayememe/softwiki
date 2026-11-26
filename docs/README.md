@@ -10,7 +10,7 @@ graph TD
 | Category | Description |
 |----------|-------------|
 | [01-architecture](./01-architecture/overview.md) | System architecture, data flow, interface definitions; [**技术方案选择总表**](./01-architecture/technical-choices.md) |
-| [02-design](./02-design/data-model.md) | [**数据模型与表结构（字段/用例）**](./02-design/data-model.md), pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [graph × claim × wiki retrieval](./02-design/graph-claim-wiki.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [wiki page granularity](./02-design/wiki-page-granularity.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
+| [02-design](./02-design/data-model.md) | [**界面信息架构**](./02-design/ui-information-architecture.md), [**数据模型与表结构（字段/用例）**](./02-design/data-model.md), pipeline, RAG/graph design, config schema; [knowledge-system philosophy](./02-design/knowledge-system-philosophy.md); [graph × claim × wiki retrieval](./02-design/graph-claim-wiki.md); [chat UX](./02-design/chat-ux.md); [multi-kb](./02-design/multi-kb.md); [wiki page granularity](./02-design/wiki-page-granularity.md); [auth/OIDC/超级用户](./02-design/auth-oidc.md) |
 | [03-operations](./03-operations/setup.md) | Setup, CLI, storage operations; [user-system manual](./03-operations/user-system-manual.md) |
 | [04-guides](./04-guides/quickstart.md) | Quickstart, Shell/WebUI usage, workflows; [Wikiweb 门户](./04-guides/wikiweb.md) |
 | [05-roadmap](./05-roadmap/status.md) | Project status, phase planning; [agent-web plan](./05-roadmap/agent-web-plan.md) |
@@ -23,6 +23,7 @@ graph TD
 > 给「下一个 session」看的快照。保持更新。
 
 - **当前阶段**：试用就绪（Trial Readiness）—— 单校、单实例、自部署、试用评估。
+- **界面重整（2026-11-26）**：[`02-design/ui-information-architecture.md`](./02-design/ui-information-architecture.md)——侧栏改为「总览 / 知识库 / 管理 / 会话」，手动折叠；图谱内嵌 Graph Studio；Wiki 门户内嵌并带助手栏；对话默认只走 agent（Quick 降为次级入口）；首页改为跨库总览。
 - **技术选择总表（2026-11-25）**：[`01-architecture/technical-choices.md`](./01-architecture/technical-choices.md)——各层选了什么 / 为什么 / 没选什么 / 已知欠账。
 - **当前知识库**：build-host `kb-alpha`（ARM 技术文档，73 篇 / 39,870 chunks）；trial-host 试用库 `coffee-kb` 185 篇 / 3,489 chunks、`ai-history-kb` 160 篇 / 5,497 chunks。
 - **trial-host 语料管线（2026-11-03）**：开发机抓正文 → markdown(front matter) → 推送入库；见 [`03-operations/deployment-trial.md`](./03-operations/deployment-trial.md)。trial-host 对 Wikipedia/Guardian/NewYorker/Atlantic 是 TCP 层封锁，改 DNS 无效。

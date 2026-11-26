@@ -1,6 +1,6 @@
 .panel {
-  padding: 32px 40px;
-  max-width: 900px;
+  padding: 56px 40px 32px;
+  max-width: 1180px;
   margin: 0 auto;
   width: 100%;
   overflow-y: auto;
@@ -11,7 +11,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .title {
@@ -25,11 +25,6 @@
   font-size: 14px;
   color: var(--text-tertiary);
   margin-top: 4px;
-}
-
-.subtitle strong {
-  color: var(--text-primary);
-  font-weight: 600;
 }
 
 .total {
@@ -56,85 +51,172 @@
   letter-spacing: 0.05em;
 }
 
-/* ── Flow diagram ── */
-.flow {
-  display: flex;
-  align-items: flex-start;
-  gap: 0;
-}
-
-.stage {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  position: relative;
-}
-
-.stageHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.stageIcon {
-  font-size: 14px;
-}
-
-.stageCards {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 0 8px;
-}
-
-.flowCard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+.error {
+  padding: 12px 14px;
   border-radius: 10px;
-  transition: all var(--transition-fast);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 
-.flowCard:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border-hover);
+/* ── Instance totals ── */
+.totalsRow {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
-.flowValue {
-  font-size: 18px;
+.totalCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.totalCellNum {
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1;
 }
 
-.flowLabel {
-  font-size: 12px;
+.totalCellLabel {
+  font-size: 11px;
   color: var(--text-tertiary);
-  font-weight: 500;
 }
 
-.arrow {
-  position: absolute;
-  right: -14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-disabled);
-  z-index: 1;
+/* ── Per-kb cards ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
 }
 
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.card:hover:not(:disabled) {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-hover);
+  transform: translateY(-1px);
+}
+
+.cardActive {
+  border-color: var(--accent-blue, #5588ff);
+}
+
+.cardDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activePill,
+.badTag {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.activePill {
+  color: var(--accent-blue, #5588ff);
+  border-color: var(--accent-blue, #5588ff);
+}
+
+.badTag {
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.45);
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardCounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.cardCounts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cardNum {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardLabel {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.cardReason {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #d97706;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .totalsRow {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .panel {
+    padding: 56px 20px 24px;
+  }
+}
