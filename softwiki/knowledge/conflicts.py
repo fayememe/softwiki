@@ -329,6 +329,14 @@ def _rebuild_counts(db: Session) -> dict:
     }
 
 
+def _llm_status() -> dict:
+    try:
+        from softwiki.intelligence.llm_health import breaker
+        return breaker.status()
+    except Exception:  # noqa: BLE001 - metrics must never fail
+        return {"open": False, "reason": "", "retry_in_seconds": 0, "strikes": 0}
+
+
 def metrics(db: Session) -> dict:
     from sqlalchemy import func
     from softwiki.source_store.models import Claim, Event, Relationship
@@ -363,4 +371,5 @@ def metrics(db: Session) -> dict:
             Event.canonical_claim_id.isnot(None)
         ).scalar() or 0,
         "wiki_rebuild_tasks": _rebuild_counts(db),
+        "llm_provider": _llm_status(),
     }

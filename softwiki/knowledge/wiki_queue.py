@@ -115,6 +115,9 @@ def _run_claimed(db: Session, task: WikiRebuildTask, generator=None) -> dict:
             return {"topic": task.topic, "kind": "subject", "status": "done",
                     "attempts": task.attempts}
         except Exception as exc:  # noqa: BLE001 - one bad subject must not stop the queue
+            if _pause_task_for_provider(db, task, exc):
+                return {"topic": task.topic, "kind": "subject", "status": "paused",
+                        "attempts": task.attempts, "error": str(exc)[:200]}
             finish_task(db, task, str(exc))
             return {"topic": task.topic, "kind": "subject", "status": task.status,
                     "attempts": task.attempts, "error": str(exc)}
@@ -127,6 +130,9 @@ def _run_claimed(db: Session, task: WikiRebuildTask, generator=None) -> dict:
         finish_task(db, task, None)
         return {"topic": task.topic, "status": "done", "attempts": task.attempts}
     except Exception as exc:
+        if _pause_task_for_provider(db, task, exc):
+            return {"topic": task.topic, "status": "paused",
+                    "attempts": task.attempts, "error": str(exc)[:200]}
         finish_task(db, task, str(exc))
         return {"topic": task.topic, "status": task.status, "attempts": task.attempts, "error": str(exc)}
 
@@ -218,6 +224,12 @@ def enqueue_missing_subjects(db: Session, limit: int = AUTO_ENQUEUE_LIMIT,
     This is what makes a bulk backfill durable: the list lives in the DB, so a
     restart resumes instead of losing an in-memory loop.
     """
+    from softwiki.intelligence.llm_health import breaker
+
+    if breaker.is_open():
+        print("[wiki-worker] provider breaker open; skip backfill enqueue", flush=True)
+        return 0
+
     from softwiki.wiki.auto_pages import _pending_subjects, enqueue_subject
     from softwiki.wiki.subject_pages import list_generated_pages, subject_candidates
 
@@ -251,6 +263,33 @@ def enqueue_missing_subjects(db: Session, limit: int = AUTO_ENQUEUE_LIMIT,
     return created
 
 
+def _provider_paused() -> bool:
+    from softwiki.intelligence.llm_health import breaker
+    return breaker.is_open()
+
+
+def _pause_task_for_provider(db: Session, task: WikiRebuildTask, exc: BaseException) -> bool:
+    """If the failure is an LLM provider problem, keep the task pending.
+
+    Marking it failed would waste an attempt and make the failure look like bad
+    data; the breaker already prevents new work until the cooldown expires.
+    """
+    from softwiki.intelligence.llm_health import breaker, is_fatal
+
+    fatal = is_fatal(exc)
+    if fatal and not breaker.is_open():
+        # The call may not have gone through create_chat_completion (e.g. an
+        # adapter); still make the failure visible and stop the queue.
+        breaker.record_failure(exc)
+    if not (breaker.is_open() or fatal):
+        return False
+    task.status = "pending"
+    task.error = f"provider paused: {exc}"[:2000]
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    return True
+
+
 def _heartbeat(task_id: int, stop_event: threading.Event) -> None:
     from softwiki.source_store.db import SessionLocal
 
@@ -272,6 +311,9 @@ def _worker_loop(stop_event: Optional[threading.Event] = None) -> None:
     from softwiki.source_store.db import SessionLocal
 
     while not (stop_event and stop_event.is_set()):
+        if _provider_paused():
+            time.sleep(30)
+            continue
         db = SessionLocal()
         try:
             result = run_once(db)

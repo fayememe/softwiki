@@ -91,22 +91,30 @@ def _disable_thinking(client) -> None:
 
 
 def create_chat_completion(client, attempts: int = 3, **kwargs):
-    """Chat completion with retry/backoff for transient gateway errors (504/502).
+    """Chat completion with retry/backoff, guarded by the provider breaker.
 
-    Bulk re-extraction fans out many concurrent calls; gateways answer some of
-    them with 5xx. Retrying is much cheaper than a silent quality loss, and it
-    keeps the caller's fallback path for genuine failures.
+    Fatal errors (401/403, quota exhausted) are not retried and open a circuit
+    breaker so a bulk job cannot turn one billing problem into thousands of
+    task failures. Transient 5xx/timeouts are retried with backoff.
     """
     import random
     import time
 
+    from softwiki.intelligence.llm_health import ProviderUnavailable, breaker
+
+    if breaker.is_open():
+        raise ProviderUnavailable(breaker.reason or "LLM provider temporarily unavailable")
+
     last_error = None
     for attempt in range(1, max(1, attempts) + 1):
         try:
-            return client.chat.completions.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001 - retried below
+            response = client.chat.completions.create(**kwargs)
+            breaker.record_success()
+            return response
+        except Exception as exc:  # noqa: BLE001 - classified below
             last_error = exc
-            if attempt >= attempts:
+            breaker.record_failure(exc)
+            if breaker.is_open() or attempt >= attempts:
                 break
             time.sleep(min(8, 2 ** attempt) + random.random())
     raise last_error  # type: ignore[misc]
