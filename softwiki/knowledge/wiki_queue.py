@@ -148,6 +148,10 @@ STALE_RUNNING_MINUTES = float(os.getenv("WIKI_TASK_STALE_MINUTES", "30"))
 WORKER_CONCURRENCY = max(1, int(os.getenv("WIKI_WORKER_CONCURRENCY", "1")))
 AUTO_ENQUEUE_MISSING = os.getenv("WIKI_AUTO_ENQUEUE_MISSING", "").lower() in ("1", "true", "yes")
 AUTO_ENQUEUE_LIMIT = max(1, int(os.getenv("WIKI_AUTO_ENQUEUE_LIMIT", "100")))
+# A dead LLM provider (403 quota, 401 bad key) fails instantly; without this
+# window the backfill would re-enqueue the same subjects every tick and fill
+# the queue with thousands of failures.
+BACKFILL_RETRY_HOURS = float(os.getenv("WIKI_BACKFILL_RETRY_HOURS", "6"))
 REQUEUE_RUNNING_ON_START = os.getenv("WIKI_REQUEUE_RUNNING_ON_START", "").lower() in ("1", "true", "yes")
 HEARTBEAT_SECONDS = float(os.getenv("WIKI_TASK_HEARTBEAT_SECONDS", "60"))
 
@@ -220,10 +224,21 @@ def enqueue_missing_subjects(db: Session, limit: int = AUTO_ENQUEUE_LIMIT,
     candidates = subject_candidates(db, min_relations=min_relations, use_cache=False)
     have = {s.get("subject") for s in list_generated_pages(db).get("subjects", [])}
     queued = _pending_subjects(db)
+    cutoff = datetime.utcnow() - timedelta(hours=BACKFILL_RETRY_HOURS)
+    recently_failed = {
+        row[0]
+        for row in db.query(WikiRebuildTask.topic)
+        .filter(
+            WikiRebuildTask.kind == "subject",
+            WikiRebuildTask.status == "failed",
+            WikiRebuildTask.created_at >= cutoff,
+        )
+        .all()
+    }
     created = 0
     for cand in candidates:
         subject = cand["subject"]
-        if subject in have or subject in queued:
+        if subject in have or subject in queued or subject in recently_failed:
             continue
         if enqueue_subject(db, subject, reason="backfill"):
             created += 1
