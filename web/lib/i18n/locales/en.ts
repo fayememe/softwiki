@@ -501,6 +501,10 @@ export const en = {
     kbAria: 'Knowledge base',
     kbTitle: 'Switch knowledge base',
     current: 'Current KB',
+    loading: 'Loading…',
+    currentInstance: 'current instance',
+    unavailable: 'Unavailable in this instance',
+    notServed: '{n} kb not served by this instance',
   },
 };
 

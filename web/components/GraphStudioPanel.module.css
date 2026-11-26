@@ -256,6 +256,11 @@
 
 .hint {
   bottom: 12px;
+  /* The legend sits on the same baseline; keep the hint from running into it. */
+  max-width: 42%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .legend {

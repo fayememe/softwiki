@@ -488,5 +488,9 @@ export const zh: Dict = {
     kbAria: '知识库',
     kbTitle: '切换知识库',
     current: '当前知识库',
+    loading: '加载中…',
+    currentInstance: '当前实例',
+    unavailable: '本实例不提供该库',
+    notServed: '{n} 个库本实例不可用',
   },
 };

@@ -495,5 +495,9 @@ export const ja: Dict = {
     kbAria: 'ナレッジベース',
     kbTitle: 'ナレッジベースを切り替え',
     current: '現在の KB',
+    loading: '読み込み中…',
+    currentInstance: '現在のインスタンス',
+    unavailable: 'このインスタンスでは利用不可',
+    notServed: '{n} 件の KB はこのインスタンスで利用できません',
   },
 };

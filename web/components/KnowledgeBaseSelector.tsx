@@ -105,15 +105,15 @@ export default function KnowledgeBaseSelector() {
           fontSize: 11,
         }}
       >
-        {loading && <option value="">Loading…</option>}
+        {loading && <option value="">{t('workspace.loading')}</option>}
         {!loading && kbs.length === 0 && <option value="">{t('workspace.current')}</option>}
         {kbs.map((k) => {
           const blocked = k.available === false;
           const suffix = blocked
-            ? ' — unavailable'
+            ? ` — ${t('workspace.unavailable')}`
             : k.web_url
               ? ''
-              : ' — current instance';
+              : ` — ${t('workspace.currentInstance')}`;
           return (
             <option key={k.name} value={k.name} disabled={blocked} title={k.unavailable_reason || undefined}>
               {k.name}{suffix}
@@ -131,7 +131,7 @@ export default function KnowledgeBaseSelector() {
           }}
           title={kbs.filter((k) => k.available === false).map((k) => `${k.name}: ${k.unavailable_reason || 'no database'}`).join('\n')}
         >
-          {unavailable} kb not served by this instance
+          {t('workspace.notServed', { n: unavailable })}
         </div>
       )}
     </div>
