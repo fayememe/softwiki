@@ -38,6 +38,22 @@ export const en = {
     theme_dark: 'Dark',
   },
 
+  wikiweb: {
+    title: 'Wiki portal',
+    subtitle: 'Static published snapshot generated from canonical claims',
+    reload: 'Refresh',
+    openExternal: 'Open in new tab',
+    generate: 'Generate',
+    rebuild: 'Rebuild portal',
+    rebuildUnavailable: 'Needs a server-side job and a web restart; not wired yet',
+    assistant: 'Wiki assistant',
+    assistantPlaceholder: 'Describe the page changes you want…',
+    send: 'Send',
+    assistantHint: 'Not wired yet: generation and prompts still live in LLM Wiki',
+    status: 'Status',
+    statusUnknown: 'Not generated yet, or unreadable',
+  },
+
   sidebar: {
     home: 'Home',
     chat: 'Chat',
@@ -53,7 +69,9 @@ export const en = {
     groupContrib: 'Contributor',
     groupAdmin: 'Admin',
     users: 'Users',
-    kbwizard: 'New KB',
+    kbwizard: 'Knowledge bases',
+    wikiweb: 'Wiki portal',
+    overview: 'Overview',
     wikiPortal: 'Wiki Portal',
     wikiPortalTitle: 'Open the Knowledge Wiki portal (new tab)',
     swagent: 'SWAgent',

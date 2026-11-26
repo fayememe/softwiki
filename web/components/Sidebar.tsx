@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Session, ThemeMode } from '@/app/page';
+import type { Session } from '@/app/page';
 import { NEW_CHAT_NAME } from '@/app/page';
 import { useI18n } from '@/lib/i18n';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -11,7 +11,7 @@ import styles from './Sidebar.module.css';
 
 export type ActivePanel =
   | 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts'
-  | 'graph' | 'timeline' | 'llmwiki' | 'kbwizard' | 'users';
+  | 'graph' | 'timeline' | 'llmwiki' | 'wikiweb' | 'kbwizard' | 'users';
 
 const ROLE_RANK: Record<string, number> = {
   'wiki-study': 1,
@@ -33,20 +33,11 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
-  workspaces: string[];
-  activeWorkspace: string;
-  onWorkspaceChange: (name: string) => void;
-  theme?: ThemeMode;
-  onCycleTheme?: () => void;
-  onToggleAssistant?: () => void;
-  assistantOpen?: boolean;
 }
 
-function ChatIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>; }
 function IngestIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>; }
 function DocsIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
 function ClaimsIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>; }
-function WikiIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>; }
 function MoonIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
 function SunIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>; }
 
@@ -64,7 +55,7 @@ const NAV_GROUPS: {
   labelKey?: string;
   // Minimum role required to see the group. study < work < manage < admin.
   minRole?: RoleId;
-  items: { id: ActivePanel; icon: React.ReactNode }[];
+  items: { id: ActivePanel; icon: React.ReactNode; minRole?: RoleId }[];
 }[] = [
   {
     key: 'overview',
@@ -78,20 +69,9 @@ const NAV_GROUPS: {
       { id: 'claims', icon: <ClaimsIcon /> },
       { id: 'graph', icon: <GraphIcon /> },
       { id: 'timeline', icon: <TimelineIcon /> },
-      { id: 'llmwiki', icon: <WikiIcon /> },
-    ],
-  },
-  {
-    key: 'assist',
-    items: [{ id: 'chat', icon: <ChatIcon /> }],
-  },
-  {
-    key: 'contrib',
-    labelKey: 'sidebar.groupContrib',
-    minRole: 'wiki-work',
-    items: [
-      { id: 'ingest', icon: <IngestIcon /> },
-      { id: 'conflicts', icon: <ConflictsIcon /> },
+      { id: 'wikiweb', icon: <PortalIcon /> },
+      { id: 'ingest', icon: <IngestIcon />, minRole: 'wiki-work' },
+      { id: 'conflicts', icon: <ConflictsIcon />, minRole: 'wiki-work' },
     ],
   },
   {
@@ -100,9 +80,12 @@ const NAV_GROUPS: {
     minRole: 'wiki-admin',
     items: [
       { id: 'kbwizard', icon: <KbIcon /> },
+      { id: 'users', icon: <UsersIcon /> },
     ],
   },
 ];
+
+function UsersIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
 
 function formatDate(
   ts: number,
@@ -122,14 +105,12 @@ function formatDate(
 export default function Sidebar({
   activePanel, onPanelChange, docCount, claimCount,
   sessions, activeSessionId, onNewSession, onSelectSession, onDeleteSession, onRenameSession,
-  workspaces, activeWorkspace, onWorkspaceChange,
-  theme, onCycleTheme, onToggleAssistant, assistantOpen,
 }: SidebarProps) {
   const { t, locale } = useI18n();
   const htmlLocale = locale === 'zh' ? 'zh-CN' : locale;
-  const isWiki = activePanel === 'llmwiki';
+  // Collapse is manual only; no panel gets to resize the sidebar behind the
+  // user's back.
   const [collapsed, setCollapsed] = useState(false);
-  const effectiveCollapsed = collapsed || isWiki;
 
   // Role gates what the sidebar shows: contributors (work+) get ingest and
   // conflicts, admins get KB management. Enforced server-side too; this only
@@ -142,8 +123,6 @@ export default function Sidebar({
       .catch(() => setRoleRank(1));
   }, []);
 
-  // Auto-collapse when entering wiki, expand when leaving
-  useEffect(() => { setCollapsed(isWiki); }, [isWiki]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -167,16 +146,16 @@ export default function Sidebar({
   };
 
   return (
-    <aside className={`${styles.sidebar} ${effectiveCollapsed ? styles.collapsed : ''}`}>
-      {/* ── Top: Logo + Workspace ── */}
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+      {/* ── Top: Logo + Language + Manual collapse ── */}
       <div className={styles.top}>
         <div className={styles.logoArea}>
           <button className={styles.logoBtn} onClick={() => setCollapsed(c => !c)}>
             <span className={styles.logoPrompt}>{'>_'}</span>
-            {effectiveCollapsed ? 'sw' : 'softwiki'}
+            {collapsed ? 'sw' : 'softwiki'}
           </button>
         </div>
-        {!effectiveCollapsed && (
+        {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <LanguageSwitcher />
             <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} title={t("sidebar.collapse")}>
@@ -188,8 +167,8 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* ── Workspace Selector ── */}
-      {!effectiveCollapsed && (
+      {/* ── Knowledge base + role ── */}
+      {!collapsed && (
         <div className={styles.wsSection}>
           <KnowledgeBaseSelector />
           <RoleSelector />
@@ -198,71 +177,41 @@ export default function Sidebar({
 
       {/* ── Middle: Tool Nav ── */}
       <nav className={styles.nav}>
-        {NAV_GROUPS.filter(g => !g.minRole || roleRank >= (ROLE_RANK[g.minRole] ?? 99)).map(group => (
-          <div key={group.key} className={styles.navGroup}>
-            {!effectiveCollapsed && group.labelKey && (
-              <div className={styles.navGroupLabel}>{t(group.labelKey)}</div>
-            )}
-            {group.items.map(item => {
-              const b = badge(item.id);
-              const label = t(`sidebar.${item.id}`);
-              return (
-                <button
-                  key={item.id}
-                  className={`${styles.navItem} ${activePanel === item.id ? styles.navActive : ''}`}
-                  onClick={() => onPanelChange(item.id)}
-                  title={collapsed ? label : undefined}
-                >
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  {!effectiveCollapsed && <span className={styles.navLabel}>{label}</span>}
-                  {!effectiveCollapsed && b !== undefined && b > 0 && (
-                    <span className={styles.navBadge}>{b.toLocaleString()}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-        <button
-          className={`${styles.navItem} ${assistantOpen ? styles.navActive : ''}`}
-          onClick={onToggleAssistant}
-          title={t('assistant.title')}
-        >
-          <span className={styles.navIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>
-            </svg>
-          </span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>{t('assistant.title')}</span>}
-        </button>
-        <a
-          className={`${styles.navItem} ${styles.navLink}`}
-          href="/wikiweb"
-          target="_blank"
-          rel="noopener noreferrer"
-          title={t("sidebar.wikiPortalTitle")}
-        >
-          <span className={styles.navIcon}><PortalIcon /></span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>{t("sidebar.wikiPortal")}</span>}
-          {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
-        </a>
-        <a
-          className={`${styles.navItem} ${styles.navLink}`}
-          href="/graph-studio"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Knowledge Graph Studio"
-        >
-          <span className={styles.navIcon}><GraphIcon /></span>
-          {!effectiveCollapsed && <span className={styles.navLabel}>Graph Studio</span>}
-          {!effectiveCollapsed && <span className={styles.navBadge}>↗</span>}
-        </a>
+        {NAV_GROUPS
+          .filter(g => !g.minRole || roleRank >= (ROLE_RANK[g.minRole] ?? 99))
+          .map(group => {
+            const items = group.items.filter(it => !it.minRole || roleRank >= (ROLE_RANK[it.minRole] ?? 99));
+            if (items.length === 0 && group.labelKey) return null;
+            return (
+              <div key={group.key} className={styles.navGroup}>
+                {!collapsed && group.labelKey && (
+                  <div className={styles.navGroupLabel}>{t(group.labelKey)}</div>
+                )}
+                {items.map(item => {
+                  const b = badge(item.id);
+                  const label = t(`sidebar.${item.id}`);
+                  return (
+                    <button
+                      key={item.id}
+                      className={`${styles.navItem} ${activePanel === item.id ? styles.navActive : ''}`}
+                      onClick={() => onPanelChange(item.id)}
+                      title={collapsed ? label : undefined}
+                    >
+                      <span className={styles.navIcon}>{item.icon}</span>
+                      {!collapsed && <span className={styles.navLabel}>{label}</span>}
+                      {!collapsed && b !== undefined && b > 0 && (
+                        <span className={styles.navBadge}>{b.toLocaleString()}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
       </nav>
 
-      {/* ── Bottom: Session List (only for Chat) ── */}
-      {!effectiveCollapsed && activePanel === 'chat' && (
+      {/* ── Bottom: sessions, always visible ── */}
+      {!collapsed && (
         <div className={styles.sessionSection}>
           <div className={styles.sessionHeader}>
             <span className={styles.sessionTitle}>{t("sidebar.sessions")}</span>
@@ -279,7 +228,7 @@ export default function Sidebar({
               <div className={styles.sessionEmpty}>{t("sidebar.noSessions")}</div>
             ) : (
               sessions.map(session => (
-                <div key={session.id} className={`${styles.sessionItem} ${activeSessionId === session.id ? styles.sessionActive : ''}`}>
+                <div key={session.id} className={`${styles.sessionItem} ${activePanel === 'chat' && activeSessionId === session.id ? styles.sessionActive : ''}`}>
                   <button className={styles.sessionClick} onClick={() => onSelectSession(session.id)} title={session.name}>
                     <div className={styles.sessionInfo}>
                       {editingId === session.id ? (
@@ -317,7 +266,7 @@ export default function Sidebar({
       )}
 
       {/* ── Collapsed mode ── */}
-      {effectiveCollapsed && (
+      {collapsed && (
         <div className={styles.collapsedFooter}>
           <LanguageSwitcher collapsed />
           <button className={styles.expandBtn} onClick={() => setCollapsed(false)} title={t("sidebar.expand")}>

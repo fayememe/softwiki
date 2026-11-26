@@ -169,13 +169,20 @@ body::before {
 }
 
 /* ════════════════════════════════════════════════════════
-   THEME FLOAT BUTTON
+   TOP-RIGHT ACTION CLUSTER
+   Assistant + theme live in one fixed row so they can never overlap.
    ════════════════════════════════════════════════════════ */
-.theme-float-btn {
+.top-actions {
   position: fixed;
   top: 12px;
   right: 14px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -192,8 +199,14 @@ body::before {
   box-shadow: var(--glass-shadow);
 }
 
-.theme-float-btn:hover {
+.icon-btn:hover {
   background: var(--glass-bg-hover);
   color: var(--text-primary);
   border-color: var(--glass-border-hover);
+}
+
+.icon-btn-active {
+  color: var(--accent, #5588ff);
+  border-color: var(--accent, #5588ff);
+  background: var(--glass-bg-hover);
 }

@@ -14,8 +14,9 @@ import DashboardPanel from '@/components/DashboardPanel';
 import GraphPanel from '@/components/GraphPanel';
 import KbWizardPanel from '@/components/KbWizardPanel';
 import TimelinePanel from '@/components/TimelinePanel';
+import WikiWebPanel from '@/components/WikiWebPanel';
 import GlobalSearch from '@/components/GlobalSearch';
-import { apiStatus, apiListWorkspaces, apiSwitchWorkspace } from '@/lib/api';
+import { apiStatus } from '@/lib/api';
 import type { Message } from '@/components/ChatMessage';
 import { useT } from '@/lib/i18n';
 
@@ -35,14 +36,18 @@ export type ThemeMode = 'dark' | 'light' | 'auto';
  */
 export const NEW_CHAT_NAME = 'New Chat';
 
-const SESSION_KEY = 'softwiki_sessions';
 const THEME_KEY = 'softwiki_theme';
-const WORKSPACE_KEY = 'softwiki_workspace';
 
-function loadSessions(): Session[] {
+/**
+ * Sessions are per knowledge base: switching kb must not drag another library's
+ * conversation history into view (the two have unrelated claims and sources).
+ */
+const sessionsKey = (kb: string) => `softwiki_sessions:${kb}`;
+
+function loadSessions(kb: string): Session[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(sessionsKey(kb));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     for (const s of parsed) {
@@ -56,8 +61,8 @@ function loadSessions(): Session[] {
   }
 }
 
-function saveSessions(sessions: Session[]) {
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessions)); } catch {}
+function saveSessions(kb: string, sessions: Session[]) {
+  try { localStorage.setItem(sessionsKey(kb), JSON.stringify(sessions)); } catch {}
 }
 
 function genId(): string {
@@ -157,9 +162,10 @@ function HomeInner() {
   const [claimCount, setClaimCount] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>('auto');
   const [agentOpen, setAgentOpen] = useState(false);
-  const [workspaces, setWorkspaces] = useState<string[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [activeWorkspace, setActiveWorkspace] = useState<string>('default');
+  // Which kb this WebUI is serving. Sessions live under it; the kb switcher
+  // reloads the page, so this is read once.
+  const [kbName, setKbName] = useState<string | null>(null);
 
   // Load theme
   useEffect(() => {
@@ -174,24 +180,18 @@ function HomeInner() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Load workspaces
+  // Which kb is active (the process-wide workspace is not user-switchable here)
   useEffect(() => {
-    apiListWorkspaces().then(res => {
-      setWorkspaces(res.workspaces);
-      const saved = localStorage.getItem(WORKSPACE_KEY);
-      if (saved && res.workspaces.includes(saved)) {
-        setActiveWorkspace(saved);
-        apiSwitchWorkspace(saved).catch(() => {});
-      } else {
-        setActiveWorkspace(res.active);
-        localStorage.setItem(WORKSPACE_KEY, res.active);
-      }
-    }).catch(() => {});
+    fetch('/api/kb', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setKbName(d.active || d.kbs?.[0]?.name || 'default'))
+      .catch(() => setKbName('default'));
   }, []);
 
-  // Load sessions
+  // Load this kb's sessions
   useEffect(() => {
-    const loaded = loadSessions();
+    if (!kbName) return;
+    const loaded = loadSessions(kbName);
     if (loaded.length > 0) {
       setSessions(loaded);
       setActiveSessionId(loaded[0].id);
@@ -200,11 +200,11 @@ function HomeInner() {
       setSessions([def]);
       setActiveSessionId(def.id);
     }
-  }, []);
+  }, [kbName]);
 
   useEffect(() => {
-    if (sessions.length > 0) saveSessions(sessions);
-  }, [sessions]);
+    if (kbName && sessions.length > 0) saveSessions(kbName, sessions);
+  }, [kbName, sessions]);
 
   // ⌘K / Ctrl+K global search
   useEffect(() => {
@@ -217,17 +217,6 @@ function HomeInner() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
-
-  const handleWorkspaceChange = useCallback(async (name: string) => {
-    try {
-      await apiSwitchWorkspace(name);
-      setActiveWorkspace(name);
-      localStorage.setItem(WORKSPACE_KEY, name);
-      window.location.reload();
-    } catch (e) {
-      console.error('Failed to switch workspace:', e);
-    }
   }, []);
 
   const fetchStats = useCallback(async () => {
@@ -248,6 +237,12 @@ function HomeInner() {
 
   const updateSession = useCallback((id: string, updater: (s: Session) => Session) => {
     setSessions(prev => prev.map(s => s.id === id ? updater(s) : s));
+  }, []);
+
+  // Selecting a session from the always-visible sidebar list also opens chat.
+  const selectSession = useCallback((id: string) => {
+    setActiveSessionId(id);
+    setActivePanel('chat');
   }, []);
 
   const handleNewSession = useCallback(() => {
@@ -301,32 +296,40 @@ function HomeInner() {
         sessions={sessions}
         activeSessionId={activeSessionId}
         onNewSession={handleNewSession}
-        onSelectSession={setActiveSessionId}
+        onSelectSession={selectSession}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
-        workspaces={workspaces}
-        activeWorkspace={activeWorkspace}
-        onWorkspaceChange={handleWorkspaceChange}
-        theme={theme}
-        onCycleTheme={cycleTheme}
-        assistantOpen={agentOpen}
-        onToggleAssistant={() => setAgentOpen((v) => !v)}
       />
       <main style={{ flex: 1, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <button
-          onClick={cycleTheme}
-          className="theme-float-btn"
-          title={t('app.themeTitle', { theme: t(`app.theme_${theme}`) })}
-          aria-label={t('app.toggleTheme')}
-        >
-          {theme === 'light' ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
-          ) : theme === 'dark' ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" fill="currentColor" opacity="0.3"/></svg>
-          )}
-        </button>
+        {/* ── Top-right actions: assistant + theme, one cluster ── */}
+        <div className="top-actions">
+          <button
+            onClick={() => setAgentOpen(v => !v)}
+            className={`icon-btn ${agentOpen ? 'icon-btn-active' : ''}`}
+            title={t('assistant.title')}
+            aria-label={t('assistant.title')}
+            aria-pressed={agentOpen}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>
+            </svg>
+          </button>
+          <button
+            onClick={cycleTheme}
+            className="icon-btn"
+            title={t('app.themeTitle', { theme: t(`app.theme_${theme}`) })}
+            aria-label={t('app.toggleTheme')}
+          >
+            {theme === 'light' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+            ) : theme === 'dark' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" fill="currentColor" opacity="0.3"/></svg>
+            )}
+          </button>
+        </div>
         {activePanel === 'chat' && activeSession && (
           <ChatPanel
             key={activeSession.id}
@@ -343,6 +346,7 @@ function HomeInner() {
         {activePanel === 'graph' && <GraphPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
         {activePanel === 'llmwiki' && <WikiPagesPanel />}
+        {activePanel === 'wikiweb' && <WikiWebPanel />}
         {activePanel === 'kbwizard' && <KbWizardPanel />}
         {activePanel === 'users' && <AdminPanel />}
       </main>

@@ -36,6 +36,22 @@ export const ja: Dict = {
     theme_dark: 'ダーク',
   },
 
+  wikiweb: {
+    title: 'Wiki ポータル',
+    subtitle: 'canonical claim から生成された静的スナップショット',
+    reload: '再読み込み',
+    openExternal: '新しいタブで開く',
+    generate: '生成',
+    rebuild: 'ポータルを再生成',
+    rebuildUnavailable: 'サーバースクリプトと web 再起動が必要（未接続）',
+    assistant: 'Wiki アシスタント',
+    assistantPlaceholder: '調整したいページを自然言語で記述…',
+    send: '送信',
+    assistantHint: '未接続：生成とプロンプトは LLM Wiki にあります',
+    status: '状態',
+    statusUnknown: '未生成、または読み取れません',
+  },
+
   sidebar: {
     home: 'ホーム',
     chat: 'チャット',
@@ -51,7 +67,9 @@ export const ja: Dict = {
     groupContrib: 'コントリビューター',
     groupAdmin: '管理',
     users: 'ユーザー',
-    kbwizard: '新規KB',
+    kbwizard: 'ナレッジベース管理',
+    wikiweb: 'Wiki ポータル',
+    overview: '概要',
     wikiPortal: 'Wiki ポータル',
     wikiPortalTitle: '新しいタブでナレッジ Wiki ポータルを開く',
     swagent: 'SWAgent',
