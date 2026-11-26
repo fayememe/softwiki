@@ -11,7 +11,7 @@ import ConflictsPanel from '@/components/ConflictsPanel';
 import WikiPagesPanel from '@/components/WikiPagesPanel';
 import AdminPanel from '@/components/AdminPanel';
 import DashboardPanel from '@/components/DashboardPanel';
-import GraphPanel from '@/components/GraphPanel';
+import GraphStudioPanel from '@/components/GraphStudioPanel';
 import KbWizardPanel from '@/components/KbWizardPanel';
 import TimelinePanel from '@/components/TimelinePanel';
 import WikiWebPanel from '@/components/WikiWebPanel';
@@ -343,7 +343,7 @@ function HomeInner() {
         {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} />}
         {activePanel === 'claims' && <ClaimsPanel />}
         {activePanel === 'conflicts' && <ConflictsPanel />}
-        {activePanel === 'graph' && <GraphPanel />}
+        {activePanel === 'graph' && <GraphStudioPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
         {activePanel === 'llmwiki' && <WikiPagesPanel />}
         {activePanel === 'wikiweb' && <WikiWebPanel />}
