@@ -11,7 +11,7 @@ import styles from './Sidebar.module.css';
 
 export type ActivePanel =
   | 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts'
-  | 'graph' | 'timeline' | 'llmwiki' | 'wikiweb' | 'kbwizard' | 'users';
+  | 'graph' | 'timeline' | 'wikiweb' | 'kbwizard' | 'users';
 
 const ROLE_RANK: Record<string, number> = {
   'wiki-study': 1,

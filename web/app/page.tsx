@@ -8,7 +8,6 @@ import IngestPanel from '@/components/IngestPanel';
 import DocumentsPanel from '@/components/DocumentsPanel';
 import ClaimsPanel from '@/components/ClaimsPanel';
 import ConflictsPanel from '@/components/ConflictsPanel';
-import WikiPagesPanel from '@/components/WikiPagesPanel';
 import AdminPanel from '@/components/AdminPanel';
 import DashboardPanel from '@/components/DashboardPanel';
 import GraphStudioPanel from '@/components/GraphStudioPanel';
@@ -162,6 +161,7 @@ function HomeInner() {
   const [claimCount, setClaimCount] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>('auto');
   const [agentOpen, setAgentOpen] = useState(false);
+  const [agentProject, setAgentProject] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   // Which kb this WebUI is serving. Sessions live under it; the kb switcher
   // reloads the page, so this is read once.
@@ -237,6 +237,13 @@ function HomeInner() {
 
   const updateSession = useCallback((id: string, updater: (s: Session) => Session) => {
     setSessions(prev => prev.map(s => s.id === id ? updater(s) : s));
+  }, []);
+
+  // The wiki panel hands control to the same assistant pane the header opens,
+  // but lands on the Manage project (the one allowed to propose wiki changes).
+  const openWikiAssistant = useCallback(() => {
+    setAgentProject('manage');
+    setAgentOpen(true);
   }, []);
 
   // Selecting a session from the always-visible sidebar list also opens chat.
@@ -345,13 +352,17 @@ function HomeInner() {
         {activePanel === 'conflicts' && <ConflictsPanel />}
         {activePanel === 'graph' && <GraphStudioPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
-        {activePanel === 'llmwiki' && <WikiPagesPanel />}
-        {activePanel === 'wikiweb' && <WikiWebPanel />}
+        {activePanel === 'wikiweb' && (
+          <WikiWebPanel onOpenAssistant={openWikiAssistant} />
+        )}
         {activePanel === 'kbwizard' && <KbWizardPanel />}
         {activePanel === 'users' && <AdminPanel />}
       </main>
       {agentOpen && (
-        <AgentSidePane onClose={() => setAgentOpen(false)} />
+        <AgentSidePane
+          initialProject={agentProject}
+          onClose={() => { setAgentOpen(false); setAgentProject(undefined); }}
+        />
       )}
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

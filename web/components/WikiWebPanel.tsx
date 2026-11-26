@@ -1,34 +1,38 @@
 'use client';
 
 /**
- * Wiki portal panel.
+ * Wiki panel: the published portal and the generation surface, in one place.
  *
- * The generated portal is a static snapshot served from
- * `<workspace>/exports/wikiweb/` under `/wikiweb`. It is shown inline so the
- * user never loses the app chrome, with an explicit "open in new tab" escape
- * hatch for full-screen browsing.
+ * Two tabs:
+ *   - Portal: the static snapshot served from `<workspace>/exports/wikiweb/`
+ *     under `/wikiweb`, embedded so the app chrome stays visible, with an
+ *     explicit "open in new tab" escape hatch.
+ *   - Pages: the per-subject wiki pages and the agent-proposed change plans
+ *     (`/api/wiki/plans`), i.e. the place where generation is driven.
  *
- * The right rail is the control surface for regenerating it. It is deliberately
- * honest about what is wired up: page generation and prompts exist, rebuilding
- * the static portal is a script today (see `scripts/wikiweb_build.py`) and stays
- * disabled until there is a job API for it.
+ * The right rail is the control surface. Rebuilding the static portal is still
+ * a script (`scripts/wikiweb_build.py`) that also requires a web restart, so
+ * that button stays disabled and says so — no fake success states.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n';
+import WikiPagesPanel from './WikiPagesPanel';
 import styles from './WikiWebPanel.module.css';
 
+type Tab = 'portal' | 'pages';
+
 interface PortalState {
-  lastBuilt: string | null;
-  stale: boolean | null;
+  generated: boolean | null;
+  subjects: number | null;
 }
 
-export default function WikiWebPanel() {
+export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: () => void }) {
   const t = useT();
-  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const [tab, setTab] = useState<Tab>('portal');
   const [kb, setKb] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [portal, setPortal] = useState<PortalState>({ lastBuilt: null, stale: null });
+  const [portal, setPortal] = useState<PortalState>({ generated: null, subjects: null });
 
   useEffect(() => {
     fetch('/api/kb', { cache: 'no-store' })
@@ -38,44 +42,54 @@ export default function WikiWebPanel() {
   }, []);
 
   useEffect(() => {
-    if (!kb) return;
-    fetch(`/api/wiki/pages?limit=1&kb=${encodeURIComponent(kb)}`, { cache: 'no-store' })
+    fetch('/api/wiki/pages', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
         if (!d) return;
         setPortal({
-          lastBuilt: d.generated_at ?? d.last_built ?? null,
-          stale: typeof d.stale === 'number' ? d.stale > 0 : null,
+          generated: Boolean(d.generated),
+          subjects: Array.isArray(d.subjects) ? d.subjects.length : null,
         });
       })
       .catch(() => {});
-  }, [kb]);
+  }, [tab]);
 
   const reload = useCallback(() => setReloadKey(k => k + 1), []);
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div>
+        <div className={styles.headerLeft}>
           <h1 className={styles.title}>{t('wikiweb.title')}</h1>
-          <p className={styles.subtitle}>
-            {kb ? `${kb} · ` : ''}
-            {t('wikiweb.subtitle')}
-          </p>
+          <div className={styles.tabs} role="tablist">
+            <button
+              role="tab"
+              aria-selected={tab === 'portal'}
+              className={`${styles.tab} ${tab === 'portal' ? styles.tabActive : ''}`}
+              onClick={() => setTab('portal')}
+            >
+              {t('wikiweb.tabPortal')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'pages'}
+              className={`${styles.tab} ${tab === 'pages' ? styles.tabActive : ''}`}
+              onClick={() => setTab('pages')}
+            >
+              {t('wikiweb.tabPages')}
+            </button>
+          </div>
         </div>
         <div className={styles.actions}>
-          <button className={styles.ghostBtn} onClick={reload} title={t('wikiweb.reload')}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12a9 9 0 1 1-3-6.7" /><polyline points="21 3 21 9 15 9" />
-            </svg>
-            {t('wikiweb.reload')}
-          </button>
-          <a
-            className={styles.primaryBtn}
-            href="/wikiweb"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          {tab === 'portal' && (
+            <button className={styles.ghostBtn} onClick={reload} title={t('wikiweb.reload')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-3-6.7" /><polyline points="21 3 21 9 15 9" />
+              </svg>
+              {t('wikiweb.reload')}
+            </button>
+          )}
+          <a className={styles.primaryBtn} href="/wikiweb" target="_blank" rel="noopener noreferrer">
             {t('wikiweb.openExternal')}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -86,45 +100,59 @@ export default function WikiWebPanel() {
       </header>
 
       <div className={styles.body}>
-        <div className={styles.frameWrap}>
-          <iframe
-            key={reloadKey}
-            ref={frameRef}
-            className={styles.frame}
-            src="/wikiweb"
-            title={t('wikiweb.title')}
-          />
-        </div>
-
-        {/* ── Wiki assistant rail (skeleton; wired in the next step) ── */}
-        <aside className={styles.rail}>
-          <div className={styles.railSection}>
-            <h2 className={styles.railTitle}>{t('wikiweb.generate')}</h2>
-            <button className={styles.railBtn} disabled title={t('wikiweb.rebuildUnavailable')}>
-              {t('wikiweb.rebuild')}
-            </button>
-            <p className={styles.railHint}>{t('wikiweb.rebuildUnavailable')}</p>
+        {tab === 'pages' ? (
+          <div className={styles.pagesPane}>
+            <WikiPagesPanel />
           </div>
+        ) : (
+          <>
+            <div className={styles.frameWrap}>
+              <iframe
+                key={reloadKey}
+                className={styles.frame}
+                src="/wikiweb"
+                title={t('wikiweb.title')}
+              />
+            </div>
 
-          <div className={styles.railSection}>
-            <h2 className={styles.railTitle}>{t('wikiweb.assistant')}</h2>
-            <textarea
-              className={styles.railInput}
-              placeholder={t('wikiweb.assistantPlaceholder')}
-              rows={3}
-              disabled
-            />
-            <button className={styles.railBtn} disabled>{t('wikiweb.send')}</button>
-            <p className={styles.railHint}>{t('wikiweb.assistantHint')}</p>
-          </div>
+            <aside className={styles.rail}>
+              <div className={styles.railSection}>
+                <h2 className={styles.railTitle}>{t('wikiweb.generate')}</h2>
+                <button className={styles.railBtn} onClick={() => setTab('pages')}>
+                  {t('wikiweb.managePages')}
+                </button>
+                <button className={styles.railBtn} disabled title={t('wikiweb.rebuildUnavailable')}>
+                  {t('wikiweb.rebuild')}
+                </button>
+                <p className={styles.railHint}>{t('wikiweb.rebuildUnavailable')}</p>
+              </div>
 
-          <div className={styles.railSection}>
-            <h2 className={styles.railTitle}>{t('wikiweb.status')}</h2>
-            <p className={styles.railHint}>
-              {portal.lastBuilt ?? t('wikiweb.statusUnknown')}
-            </p>
-          </div>
-        </aside>
+              <div className={styles.railSection}>
+                <h2 className={styles.railTitle}>{t('wikiweb.assistant')}</h2>
+                <button
+                  className={styles.railBtn}
+                  onClick={onOpenAssistant}
+                  disabled={!onOpenAssistant}
+                >
+                  {t('wikiweb.openAssistant')}
+                </button>
+                <p className={styles.railHint}>{t('wikiweb.assistantHint')}</p>
+              </div>
+
+              <div className={styles.railSection}>
+                <h2 className={styles.railTitle}>{t('wikiweb.status')}</h2>
+                <p className={styles.railHint}>
+                  {kb ? `${kb} · ` : ''}
+                  {portal.generated === null
+                    ? t('wikiweb.statusUnknown')
+                    : portal.generated
+                      ? `${t('wikiweb.statusGenerated')} · ${portal.subjects ?? 0} ${t('wikiweb.subjects')}`
+                      : t('wikiweb.statusNotGenerated')}
+                </p>
+              </div>
+            </aside>
+          </>
+        )}
       </div>
     </div>
   );

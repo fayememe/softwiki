@@ -69,7 +69,14 @@ function saveSessions(projectId: string, sessions: StoredSession[]) {
   }
 }
 
-export default function AgentSidePane({ onClose }: { onClose: () => void }) {
+export default function AgentSidePane({
+  onClose,
+  initialProject,
+}: {
+  onClose: () => void;
+  /** Land on this project instead of the first one (e.g. `manage` from the wiki panel). */
+  initialProject?: string;
+}) {
   const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string>('');
@@ -112,8 +119,11 @@ export default function AgentSidePane({ onClose }: { onClose: () => void }) {
     fetch('/api/agent/projects', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
-        setProjects(d.projects || []);
-        if ((d.projects || []).length) setProjectId(d.projects[0].id);
+        const list: Project[] = d.projects || [];
+        setProjects(list);
+        if (!list.length) return;
+        const wanted = initialProject && list.some((p) => p.id === initialProject);
+        setProjectId(wanted ? (initialProject as string) : list[0].id);
       })
       .catch(() => setProjects([]));
   }, []);
