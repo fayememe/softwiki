@@ -96,6 +96,18 @@ export async function GET(
   const rest = scoped ? segments.slice(1) : segments;
   const base = path.join(ROOT, kb, 'exports', 'wikiweb');
 
+  // `/wikiweb/<kb>` (Next strips the trailing slash) would serve index.html at
+  // a path one level shallower than its `../assets/...` links assume. Redirect
+  // to the explicit file so relative URLs resolve inside the kb.
+  if (scoped && rest.length === 0) {
+    const url = new URL(`/wikiweb/${encodeURIComponent(first)}/index.html`, request.url);
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+    if (host) url.host = host;
+    const proto = request.headers.get('x-forwarded-proto');
+    if (proto) url.protocol = `${proto}:`;
+    return Response.redirect(url, 307);
+  }
+
   // Asset paths are relative to the page and drop the kb segment for top-level
   // pages (`../assets/wiki.css` -> `/wikiweb/assets/...`). Resolve them across
   // kbs instead of trusting the active one.
