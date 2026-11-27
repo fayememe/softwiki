@@ -37,10 +37,16 @@ def _load_yaml(path: str) -> dict:
     except Exception:
         return {}
 
-def _get_agent_soul(ws: str, root: str, web: bool = False) -> str:
-    """Load the base soul (TUI admin or web research), merge workspace override."""
+def _get_agent_soul(ws: str, root: str, web: bool = False, mode: str = None) -> str:
+    """Load the base soul for a mode, merge the workspace override.
+
+    The browser agent used the research soul for every project, so Work/Manage
+    chats answered questions through `softwiki_ask` instead of doing management
+    work. Only the read-only research/study modes get the research soul now.
+    """
     templates_dir = os.path.join(root, "softwiki", "templates")
-    soul_name = "agent_soul_web.md" if web else "agent_soul.md"
+    research = web and (mode is None or mode in ("wiki-research", "wiki-study"))
+    soul_name = "agent_soul_web.md" if research else "agent_soul.md"
     soul = _read_file(os.path.join(templates_dir, soul_name))
     for override in (os.path.join(ws, "config", "agents.md"),
                      os.path.join(ws, "config", "agent_soul.md")):
@@ -316,6 +322,8 @@ _WRITE_TOOLS = {
     "wiki_propose": "softwiki_wiki_propose",
     "workspace_set": "softwiki_workspace_set",
     "modules_set": "softwiki_modules_set",
+    "resume_extraction": "softwiki_resume_extraction",
+    "wiki_subject_build": "softwiki_wiki_subject_build",
 }
 
 #: Extra shells/editors are never needed by a knowledge-base agent: it works
@@ -341,6 +349,8 @@ def _agent_permissions(mode: str) -> dict[str, str]:
             _WRITE_TOOLS["wiki_propose"],
             _WRITE_TOOLS["workspace_set"],
             _WRITE_TOOLS["modules_set"],
+            _WRITE_TOOLS["resume_extraction"],
+            _WRITE_TOOLS["wiki_subject_build"],
         ]
     elif mode == "wiki-work":
         denied += [
@@ -349,6 +359,8 @@ def _agent_permissions(mode: str) -> dict[str, str]:
             _WRITE_TOOLS["rebuild_index"],
             _WRITE_TOOLS["workspace_set"],
             _WRITE_TOOLS["modules_set"],
+            _WRITE_TOOLS["resume_extraction"],
+            _WRITE_TOOLS["wiki_subject_build"],
         ]
     elif mode == "wiki-manage":
         denied += [
@@ -377,8 +389,7 @@ def prepare_agent_runtime(
     abs_project_root = root
     runtime_dir = get_workspace_runtime_dir(ws, abs_project_root)
 
-    # 1. Load merged agent soul & workflows
-    soul      = _get_agent_soul(ws, root, web=web)
+    # 1. Load merged workflows (the soul depends on the resolved mode)
     workflows = _get_workflows(ws, root)
 
     # 2. Format workflows into markdown instructions
@@ -407,6 +418,8 @@ def prepare_agent_runtime(
             mode = f"wiki-{mode}"
         else:
             mode = default_mode
+
+    soul = _get_agent_soul(ws, root, web=web, mode=mode)
 
     session_id = os.getenv("SOFTWIKI_SESSION_ID", "default")
     abs_ws_path = os.path.abspath(ws)

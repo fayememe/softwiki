@@ -66,6 +66,106 @@ def status() -> str:
     finally:
         db.close()
 
+
+@mcp.tool()
+def pipeline_status(kb: str = None) -> str:
+    """Report where each stage of the knowledge base stands and what needs work.
+
+    Use this FIRST for management requests ("修复/补齐/重建/更新"): it says which
+    stage is stale, empty or generating, so you act on the right one instead of
+    answering a question.
+
+    Args:
+        kb: Knowledge base name (see kb_list). Omit to use the active kb.
+    """
+    from softwiki.config import get_workspace_dir
+    from softwiki.kb.context import KbResolutionError, current_kb_name, default_kb_name, enter_kb, restore_kb
+    from softwiki.kb.pipeline import describe, snapshot
+
+    try:
+        previous_kb = enter_kb(kb or default_kb_name())
+    except KbResolutionError as exc:
+        return f"Pipeline status failed: {exc}"
+    db = SessionLocal()
+    try:
+        name = current_kb_name() or os.path.basename(get_workspace_dir())
+        return describe(snapshot(db, name, get_workspace_dir()))
+    except Exception as e:
+        return f"Pipeline status failed: {e}"
+    finally:
+        db.close()
+        restore_kb(previous_kb)
+
+
+@mcp.tool()
+def resume_extraction(limit: int = 10) -> str:
+    """Resume extraction for documents left pending or stuck extracting.
+
+    Background extraction does not survive a restart, so documents can sit in
+    pending forever. Only documents without any claims are picked up.
+
+    Args:
+        limit: How many documents to queue (default 10, max 50).
+    """
+    from softwiki.kb.context import current_kb_name
+    from softwiki.source_store.models import Claim
+    from softwiki.extraction.processor import run_extraction_pipeline
+
+    limit = max(1, min(int(limit or 10), 50))
+    db = SessionLocal()
+    try:
+        docs = (
+            db.query(Document)
+            .outerjoin(Claim, Claim.document_id == Document.id)
+            .filter(Document.status.in_(("pending", "extracting")), Claim.id.is_(None))
+            .order_by(Document.id)
+            .limit(limit)
+            .all()
+        )
+        started = []
+        for doc in docs:
+            if not doc.cleaned_text:
+                continue
+            run_extraction_pipeline(db, doc.id, doc.cleaned_text, doc.published_at, background=True)
+            started.append(doc.id)
+        kb = current_kb_name() or "(active)"
+        if not started:
+            return f"没有待抽取的文档（kb={kb}）。"
+        return (f"已在 {kb} 重新开始 {len(started)} 篇的抽取（doc id: "
+                f"{', '.join(map(str, started))}）。抽取在后台进行，稍后用 pipeline_status 复查。")
+    except Exception as e:
+        return f"Resume extraction failed: {e}"
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def wiki_subject_build(subject: str) -> str:
+    """Generate (or regenerate) the wiki page for one entity/subject.
+
+    Args:
+        subject: Entity name, as listed by the wiki candidate list.
+    """
+    from softwiki.kb.context import KbResolutionError, default_kb_name, enter_kb, restore_kb
+    from softwiki.wiki.subject_pages import generate_subject_pages
+
+    try:
+        previous_kb = enter_kb(default_kb_name())
+    except KbResolutionError as exc:
+        return f"Wiki build failed: {exc}"
+    db = SessionLocal()
+    try:
+        result = generate_subject_pages(db, subject)
+        return f"已生成 {subject} 的 Wiki 页：{result}"
+    except (ValueError, RuntimeError) as e:
+        return f"Wiki build failed: {e}"
+    except Exception as e:
+        return f"Wiki build failed: {e}"
+    finally:
+        db.close()
+        restore_kb(previous_kb)
+
+
 @mcp.tool()
 def ingest(url: str = None, file: str = None, source_id: str = None) -> str:
     """Ingest a new document from a URL or a local PDF file into the active workspace.
