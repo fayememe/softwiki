@@ -116,7 +116,6 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_COLOR = '#94a3b8';
-const canvasBg = '#0b1220';
 
 function colorOf(type: string | null): string {
   return TYPE_COLORS[(type || 'other').toLowerCase()] ?? DEFAULT_COLOR;
@@ -432,6 +431,20 @@ export default function GraphStudioPanel() {
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    // Canvas colours follow the active theme; read the tokens the CSS module
+    // exposes on the wrapper instead of hardcoding a dark palette.
+    const css = getComputedStyle(wrap);
+    const token = (name: string, fallback: string) =>
+      css.getPropertyValue(name).trim() || fallback;
+    const canvasBg = token('--graph-canvas-bg', '#0b1220');
+    const edgeColor = token('--graph-edge', 'rgba(148,163,184,0.38)');
+    const edgeDim = token('--graph-edge-dim', 'rgba(148,163,184,0.12)');
+    const labelColor = token('--graph-label', '#e2e8f0');
+    const labelDim = token('--graph-label-dim', 'rgba(226,232,240,0.4)');
+    const pathColor = token('--graph-path', '#fbbf24');
+    const selectColor = token('--graph-select', '#38bdf8');
+    const dimNode = token('--graph-node-dim', 'rgba(100,116,139,0.35)');
+
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.fillStyle = canvasBg;
@@ -465,11 +478,7 @@ export default function GraphStudioPanel() {
       ctx.lineWidth = onPath
         ? 3.5
         : Math.min(3, 0.6 + Math.log2(1 + e.weight));
-      ctx.strokeStyle = onPath
-        ? '#fbbf24'
-        : dim
-          ? 'rgba(148,163,184,0.12)'
-          : 'rgba(148,163,184,0.38)';
+      ctx.strokeStyle = onPath ? pathColor : dim ? edgeDim : edgeColor;
       ctx.stroke();
     }
 
@@ -479,19 +488,19 @@ export default function GraphStudioPanel() {
       const dim = active ? !neighbours.has(n.name) : false;
       ctx.beginPath();
       ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = dim ? 'rgba(100,116,139,0.35)' : color;
+      ctx.fillStyle = dim ? dimNode : color;
       ctx.globalAlpha = dim ? 0.5 : 1;
       ctx.fill();
       ctx.globalAlpha = 1;
       if (pathNames.has(n.name) || n.name === selected) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, radius + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = pathNames.has(n.name) ? '#fbbf24' : '#38bdf8';
+        ctx.strokeStyle = pathNames.has(n.name) ? pathColor : selectColor;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
       if (scale > 0.55 && (!active || neighbours.has(n.name))) {
-        ctx.fillStyle = dim ? 'rgba(226,232,240,0.4)' : '#e2e8f0';
+        ctx.fillStyle = dim ? labelDim : labelColor;
         ctx.font = '11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(n.name, n.x, n.y + radius + 13);
