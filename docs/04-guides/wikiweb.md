@@ -64,6 +64,11 @@ exports/wikiweb/
   `public/wikiweb` 并固定 `WIKIWEB_ENTRY`，既要求重启，又让所有库都显示同一个门户）；
 - web 容器只需要把 `SOFTWIKI_STACK_ROOT` 只读挂到 `/data/workspaces`；
 - 该库没生成门户时返回明确的提示页，而不是别的库的内容。
+- **入口固定用 `/wikiweb/<kb>/index.html`**：Next 会 308 掉尾斜杠，页面若在一层更浅的
+  路径上提供，`../assets/wiki.css` 会解析成 `/assets/...` 而 404（门户变成裸 HTML）；
+  无库内路径时路由会 307 到 index.html。
+- 资源请求可能是 `/wikiweb/assets/...`（相对路径丢掉了库名），路由会在所有 kb 的
+  `exports/wikiweb/assets/` 里查找，命中即返回。
 
 否则 `/wikiweb/...` 返回 404（文件确实在容器里，但 Next 不认识）。
 
