@@ -312,7 +312,9 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
             <div className={styles.metrics}>
               <span><strong>{data.wiki.subject_pages.toLocaleString()}</strong> {t('pipeline.subjectPages')}</span>
               {data.wiki.stale > 0 && (
-                <span className={styles.warnText}>{data.wiki.stale} {t('pipeline.wikiStale')}</span>
+                <span className={styles.warnText}>
+                  {t('pipeline.wikiStale', { n: data.wiki.stale })}
+                </span>
               )}
               {data.wiki.running && (
                 <span className={styles.roomText}>

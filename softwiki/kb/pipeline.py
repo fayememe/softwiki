@@ -156,6 +156,14 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
     wiki_subjects = len(pages.get("subjects") or [])
     wiki_generated = bool(pages.get("generated"))
     wiki_built_at = db.query(func.max(WikiArtifactState.built_at)).scalar()
+    # Subject pages are files (exports/wiki/pages/index.json); the artifact table
+    # only tracks curated topic pages. Use whichever is newer for "built".
+    pages_index = os.path.join(workspace, "exports", "wiki", "pages", "index.json")
+    pages_mtime = os.path.getmtime(pages_index) if os.path.exists(pages_index) else None
+    built_candidates = [ts for ts in (
+        wiki_built_at.timestamp() if wiki_built_at else None, pages_mtime
+    ) if ts]
+    built_at = max(built_candidates) if built_candidates else None
 
     bm25_path = get_index_path("bm25_index.pkl")
     bm25_mtime = os.path.getmtime(bm25_path) if os.path.exists(bm25_path) else None
@@ -224,7 +232,7 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
             "tasks": tasks,
             "running": (tasks.get("pending", 0) + tasks.get("running", 0)) > 0,
             "active": active_tasks,
-            "built_at": wiki_built_at.isoformat() + "Z" if wiki_built_at else None,
+            "built_at": _iso(built_at),
         },
         "portal": {
             "exists": portal_exists,
