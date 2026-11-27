@@ -2082,6 +2082,40 @@ def ingest_file(file: UploadFile = File(...), source_id: Optional[str] = Form(No
     finally:
         db.close()
 
+@app.post("/api/kb/extract-pending")
+def extract_pending(limit: int = 10):
+    """Resume extraction for documents left in pending/extracting.
+
+    Background extraction lives in the API process, so a restart (every deploy)
+    strands whatever was queued. Without this the pipeline page would show
+    "generating" forever.
+    """
+    require_capability("ingest.write")
+    from softwiki.extraction.processor import run_extraction_pipeline
+
+    limit = max(1, min(limit, 50))
+    db = SessionLocal()
+    try:
+        docs = (
+            db.query(Document)
+            .filter(Document.status.in_(("pending", "extracting")))
+            .order_by(Document.id)
+            .limit(limit)
+            .all()
+        )
+        started = []
+        for doc in docs:
+            if not doc.cleaned_text:
+                continue
+            run_extraction_pipeline(db, doc.id, doc.cleaned_text, doc.published_at, background=True)
+            started.append(doc.id)
+    finally:
+        db.close()
+
+    _pipeline_cache.clear()
+    return {"status": "ok", "started": started, "count": len(started)}
+
+
 @app.post("/api/index")
 def rebuild_index(kb: Optional[str] = None):
     """Chunk all documents and rebuild dense embeddings and BM25 index files.
@@ -3757,6 +3791,11 @@ def kb_pipeline():
         status_rows = db.query(Document.status, func.count(Document.id)).group_by(Document.status).all()
         doc_status = {(status or "completed"): int(count) for status, count in status_rows}
         docs_total = sum(doc_status.values())
+        oldest_unfinished = (
+            db.query(func.min(Document.collected_at))
+            .filter(Document.status.in_(("pending", "extracting")))
+            .scalar()
+        )
         docs_unfinished = sum(
             doc_status.get(key, 0) for key in ("pending", "extracting", "failed")
         )
@@ -3868,6 +3907,9 @@ def kb_pipeline():
                 "without_chunks": docs_without_chunks,
                 "without_claims": docs_without_claims,
                 "without_relationships": docs_without_relationships,
+                "oldest_unfinished": (
+                    oldest_unfinished.isoformat() + "Z" if oldest_unfinished else None
+                ),
             },
             "index": {
                 "chunks": int(chunks),

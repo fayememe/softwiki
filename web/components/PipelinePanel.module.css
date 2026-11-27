@@ -153,6 +153,17 @@
 .warnText { color: #ac6600; }
 .roomText { color: var(--accent-blue, #3366cc); }
 
+.cardActions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cardActions .cardBtn {
+  margin-top: 0;
+}
+
 .cardBtn {
   margin-top: auto;
   align-self: flex-start;

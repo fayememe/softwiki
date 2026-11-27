@@ -151,6 +151,9 @@ export const zh: Dict = {
     branchRetrievalHint: '文档 → 切块 + 向量化 → 检索索引（问答时检索原文）',
     branchKnowledgeHint: '文档 → 抽取 → 论断 → 投影 → 图谱 / 时间线',
     branchPublishHint: '论断 → 组合 → Wiki 页面 → 发布 → 静态门户',
+    resumeExtraction: '继续抽取待处理',
+    resuming: '…',
+    resumeDone: '已重新开始 {n} 篇的抽取',
   },
 
   chat: {

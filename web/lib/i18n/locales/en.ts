@@ -153,6 +153,9 @@ export const en = {
     branchRetrievalHint: 'documents → chunk + embed → retrieval index (original text used by Q&A)',
     branchKnowledgeHint: 'documents → extract → claims → project → graph / timeline',
     branchPublishHint: 'claims → compose → wiki pages → publish → static portal',
+    resumeExtraction: 'Resume extraction',
+    resuming: '…',
+    resumeDone: 'Restarted extraction for {n} documents',
   },
 
   chat: {

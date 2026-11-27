@@ -29,6 +29,7 @@ interface Pipeline {
     without_chunks: number;
     without_claims: number;
     without_relationships: number;
+    oldest_unfinished: string | null;
   };
   index: {
     chunks: number;
@@ -59,6 +60,7 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
   const [data, setData] = useState<Pipeline | null>(null);
   const [error, setError] = useState('');
   const [rebuilding, setRebuilding] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
@@ -99,6 +101,23 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
       setRebuilding(false);
     }
   }, [load, rebuilding, t]);
+
+  const resumeExtraction = useCallback(async () => {
+    if (resuming) return;
+    setResuming(true);
+    setNotice('');
+    try {
+      const res = await fetch(`${API_BASE}/api/kb/extract-pending?limit=10`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+      setNotice(t('pipeline.resumeDone', { n: body.count ?? 0 }));
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setResuming(false);
+    }
+  }, [load, resuming, t]);
 
   const chip = (state: StageState, label?: string) => (
     <span className={`${styles.chip} ${styles[`chip_${state}`]}`}>{label ?? t(`pipeline.state_${state}`)}</span>
@@ -170,7 +189,14 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
                 <span className={styles.warnText}>{t('pipeline.docsPending', { n: data.documents.unfinished })}</span>
               )}
             </div>
-            <button className={styles.cardBtn} onClick={() => onNavigate?.('ingest')}>{t('pipeline.goIngest')}</button>
+            <div className={styles.cardActions}>
+              <button className={styles.cardBtn} onClick={() => onNavigate?.('ingest')}>{t('pipeline.goIngest')}</button>
+              {data.documents.unfinished > 0 && (
+                <button className={styles.cardBtn} onClick={() => void resumeExtraction()} disabled={resuming}>
+                  {resuming ? t('pipeline.resuming') : t('pipeline.resumeExtraction')}
+                </button>
+              )}
+            </div>
           </article>
 
           <div className={styles.arrow}>

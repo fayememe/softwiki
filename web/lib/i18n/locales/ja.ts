@@ -151,6 +151,9 @@ export const ja: Dict = {
     branchRetrievalHint: 'ドキュメント → 分割 + ベクトル化 → 検索インデックス（Q&A が原文を検索）',
     branchKnowledgeHint: 'ドキュメント → 抽出 → 主張 → 投影 → グラフ / タイムライン',
     branchPublishHint: '主張 → 構成 → Wiki ページ → 公開 → 静的ポータル',
+    resumeExtraction: '抽出を再開',
+    resuming: '…',
+    resumeDone: '{n} 件の抽出を再開しました',
   },
 
   chat: {
