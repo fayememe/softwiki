@@ -135,7 +135,7 @@ export default function WikiWebPanel({
               <iframe
                 key={reloadKey}
                 className={styles.frame}
-                src={kb ? `/wikiweb/${encodeURIComponent(kb)}/` : '/wikiweb'}
+                src={kb ? `/wikiweb/${encodeURIComponent(kb)}/index.html` : '/wikiweb'}
                 title={t('wikiweb.title')}
               />
             </div>

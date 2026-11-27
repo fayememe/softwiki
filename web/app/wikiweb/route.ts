@@ -24,7 +24,13 @@ export async function GET(request: Request) {
     /* fall through to the redirect below; the catch-all explains the 404 */
   }
 
-  const url = new URL(active ? `/wikiweb/${encodeURIComponent(active)}/` : '/wikiweb/', request.url);
+  // Explicit index.html: Next strips a trailing slash with a 308, which would
+  // make the portal's relative asset paths (`../assets/...`) resolve outside
+  // the kb and load an unstyled page.
+  const url = new URL(
+    active ? `/wikiweb/${encodeURIComponent(active)}/index.html` : '/wikiweb/',
+    request.url,
+  );
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
   if (host) url.host = host;
   const proto = request.headers.get('x-forwarded-proto');
