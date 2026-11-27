@@ -272,8 +272,11 @@ sudo -E env TAG=<sha> \
 - 直接 `docker compose up` 会用目录名当 project（`softwiki-ci`），起出**第二套栈**并占用
   6300/6301/6308；必须显式 `--project-name softwiki` 并传上面那组 env，否则挂载和库都错。
 - 只重建 api 时 web 镜像不会跟着打新 tag；用 `docker tag softwiki-web:<旧> softwiki-web:<新>`。
-- LLM 走 trial 网关：`armkb/config/model_profiles.yaml` 指向 `oneroute` + `deepseek-v4.1-flash`，
-  key 由 `/opt/aitools/apps/softwiki/.env` 的 `DEEPSEEK_API_KEY` 提供（不落 yaml）。
+- LLM 走 trial 网关：**实例默认**（`.env`）即为 `oneroute` + `deepseek-v4.1-flash`
+  （`OPENAI_API_BASE` / `OPENAI_API_KEY` / `EXTRACTION_MODEL` / `ANALYSIS_MODEL` / `WIKI_MODEL`），
+  key 由 `DEEPSEEK_API_KEY` 提供；`armkb/config/model_profiles.yaml` 也指向同一网关（不落 key）。
+  embedding 与助手 shell 仍走 OpenAI（`EMBEDDING_API_KEY` / `SHELL_API_KEY` 各自独立）。
+  2026-11-26 之前默认是 Gemini，预付额度耗尽后切到 trial 网关。
 
 **回滚**：`sudo docker tag softwiki-api:<旧sha> softwiki-api:latest` 相当于回退 TAG；
 数据库备份 `backup-armkb-<ts>.sql.gz`，workspace 备份 `backup-armkb-ws-<ts>.tgz`。

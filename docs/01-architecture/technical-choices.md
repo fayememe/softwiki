@@ -140,7 +140,7 @@ UI/claim/wiki 都不消费它。触发重新评估的条件：多跳问答评测
 | postgres 镜像：`POSTGRES_IMAGE` 可覆盖（javis/trial 用 `pgvector/pgvector:pg16`） | ✅ | 同 major PGDATA 直接复用 | 自建镜像 |
 | trial 拉镜像：`docker.1ms.run` 镜像源 + `docker tag` | ✅ | Docker Hub 不可达 | 直连 Docker Hub |
 | 镜像 tag = commit sha，旧镜像留 `pre-*` | ✅ | 可回滚 | latest 漂移 |
-| LLM 网关：oneroute + `deepseek-v4.1-flash`；key 只在 `.env` | ✅ | 成本/可达性 | 各家直连、明文 key |
+| LLM 网关：oneroute + `deepseek-v4.1-flash`；key 只在 `.env`。2026-11-26 起 **javis 实例默认**也切到该网关（此前默认 Gemini，额度耗尽后 402） | ✅ | 成本/可达性 | 各家直连、明文 key |
 | 备份：`pg_dump` + workspace tar | ✅ | 可恢复 | 只备份代码 |
 
 ## 11. 评测与可观测

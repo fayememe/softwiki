@@ -471,6 +471,11 @@
   之后无新增 402。
 - **机制**：`SOFTWIKI_KB_MODEL_PROFILES=/data/workspaces/config/kb-model-profiles.yaml`，
   新建库自动继承该 profiles 文件（`create_kb` 已实现并实测 `seed: True`）。
+- **2026-11-26 起 javis 默认也走 trial 网关**：`.env` 的 `OPENAI_API_BASE` 改为
+  `http://www.oneroute.cn:60080/v1`，`OPENAI_API_KEY` = `DEEPSEEK_API_KEY`，
+  `EXTRACTION/ANALYSIS/WIKI_MODEL=deepseek-v4.1-flash`。embedding 与 shell 仍用 OpenAI
+  （各自 `EMBEDDING_API_KEY` / `SHELL_API_KEY`，不受影响）。备份
+  `.env.bak-20261126-190637`。实测：无 `model_profiles.yaml` 的新库也走 oneroute 并能正常生成。
 
 ## Pending issues / Blocker
 
