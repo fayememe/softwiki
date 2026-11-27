@@ -41,6 +41,14 @@
 
 ---
 
+### 1.1 模型配置（重要）
+
+新库默认继承部署的 `config/model_profiles.yaml`（由 `SOFTWIKI_KB_MODEL_PROFILES` 指定）。
+若该变量没设置，新库会回落到 `.env` 的默认 provider —— 曾经因此落到欠费的 Gemini，
+表现为抽取/wiki 生成 `Error code: 402`。
+
+排查：`kb/config/model_profiles.yaml` 是否存在；`pipeline_status` 里的 claims/wiki 是否一直是 0。
+
 ## 2. 切到新库
 
 侧栏「知识库」下拉选中新库 → 页面重载。

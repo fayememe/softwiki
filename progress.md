@@ -460,6 +460,18 @@
   wiki_build/wiki_subject_build/status），agent 连接带 `x-softwiki-role: wiki-manage`。
   实测：问流程状态 → 只调 `pipeline_status`，正确报告 tsmckb 各环节。
 
+## LLM 额度与模型路由（2026-11-26）
+
+- **Google Gemini 预付额度已耗尽**：`402 prepayment credits are depleted`（AI Studio）。
+  受影响：抽取 / 分析 / wiki 编译（默认 provider 走 Gemini 时）。
+- **仍在正常**：`SHELL_*` 的 `gpt-4.1-mini`（助手对话）与 OpenAI embedding。
+- **为什么只有新库出问题**：`tsmckb` 没有 `config/model_profiles.yaml`，回落到 `.env` 的
+  Gemini；`armkb` 早就有 DeepSeek/oneroute 的 profiles。
+- **修复**：把 armkb 的 profiles 复制给 tsmckb；wiki 任务从 15 failed 恢复为 9 done / 7 pending，
+  之后无新增 402。
+- **机制**：`SOFTWIKI_KB_MODEL_PROFILES=/data/workspaces/config/kb-model-profiles.yaml`，
+  新建库自动继承该 profiles 文件（`create_kb` 已实现并实测 `seed: True`）。
+
 ## Pending issues / Blocker
 
 - [!] **trial-host embedding 上游 504（2026-11-20 发现）**：`oneroute` 的 `/v1/embeddings` 返回 `Error code: 504`，单次耗时 **185s** 才失败；容器日志 `[rag] embedding unavailable, using BM25 only`。因此 `/api/ask` 会先卡 185s 再降级，实测 200s 超时未返回。
