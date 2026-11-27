@@ -354,8 +354,11 @@ function HomeInner() {
         {activePanel === 'conflicts' && <ConflictsPanel />}
         {activePanel === 'graph' && <GraphStudioPanel />}
         {activePanel === 'timeline' && <TimelinePanel />}
+        {activePanel === 'llmwiki' && (
+          <WikiWebPanel onOpenAssistant={openWikiAssistant} initialTab="pages" />
+        )}
         {activePanel === 'wikiweb' && (
-          <WikiWebPanel onOpenAssistant={openWikiAssistant} />
+          <WikiWebPanel onOpenAssistant={openWikiAssistant} initialTab="portal" />
         )}
         {activePanel === 'kbwizard' && <KbWizardPanel />}
         {activePanel === 'users' && <AdminPanel />}

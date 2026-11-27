@@ -11,7 +11,7 @@ import styles from './Sidebar.module.css';
 
 export type ActivePanel =
   | 'home' | 'chat' | 'ingest' | 'documents' | 'claims' | 'conflicts'
-  | 'graph' | 'timeline' | 'pipeline' | 'wikiweb' | 'kbwizard' | 'users';
+  | 'graph' | 'timeline' | 'pipeline' | 'llmwiki' | 'wikiweb' | 'kbwizard' | 'users';
 
 const ROLE_RANK: Record<string, number> = {
   'wiki-study': 1,
@@ -70,6 +70,7 @@ const NAV_GROUPS: {
       { id: 'claims', icon: <ClaimsIcon /> },
       { id: 'graph', icon: <GraphIcon /> },
       { id: 'timeline', icon: <TimelineIcon /> },
+      { id: 'llmwiki', icon: <WikiIcon /> },
       { id: 'wikiweb', icon: <PortalIcon /> },
       { id: 'ingest', icon: <IngestIcon />, minRole: 'wiki-work' },
       { id: 'conflicts', icon: <ConflictsIcon />, minRole: 'wiki-work' },
@@ -85,6 +86,8 @@ const NAV_GROUPS: {
     ],
   },
 ];
+
+function WikiIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>; }
 
 function PipelineIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3.5 3.5 0 0 1 3.5 3.5v4"/></svg>; }
 

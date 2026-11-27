@@ -58,6 +58,7 @@ export const zh: Dict = {
     status: '状态',
     statusUnknown: '尚未生成或无法读取',
     resizeRail: '拖动调整宽度，双击复位',
+    pagesTitle: 'LLM Wiki',
   },
 
   sidebar: {

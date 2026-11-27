@@ -60,6 +60,7 @@ export const en = {
     status: 'Status',
     statusUnknown: 'Not generated yet, or unreadable',
     resizeRail: 'Drag to resize, double-click to reset',
+    pagesTitle: 'LLM Wiki',
   },
 
   sidebar: {

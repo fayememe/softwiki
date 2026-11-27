@@ -58,6 +58,7 @@ export const ja: Dict = {
     status: '状態',
     statusUnknown: '未生成、または読み取れません',
     resizeRail: 'ドラッグで幅を変更、ダブルクリックでリセット',
+    pagesTitle: 'LLM Wiki',
   },
 
   sidebar: {

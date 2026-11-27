@@ -455,6 +455,19 @@ def create_kb(
             f.write(body)
         written.append(scope_path)
 
+    # Optional seed: every new kb gets the deployment's model profile file, so
+    # it does not silently fall back to the instance default provider (which is
+    # how a new kb ended up on a depleted Gemini account while the others were
+    # already on DeepSeek).
+    seed = os.getenv("SOFTWIKI_KB_MODEL_PROFILES")
+    if seed and os.path.isfile(seed):
+        dest = os.path.join(kb_path, "config", "model_profiles.yaml")
+        if not os.path.isfile(dest):
+            import shutil
+
+            shutil.copyfile(seed, dest)
+            written.append(dest)
+
     KbRegistry(root).register(
         name,
         description=plan.description,

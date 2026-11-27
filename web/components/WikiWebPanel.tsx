@@ -34,9 +34,16 @@ interface PortalState {
   subjects: number | null;
 }
 
-export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: () => void }) {
+export default function WikiWebPanel({
+  onOpenAssistant,
+  initialTab = 'portal',
+}: {
+  onOpenAssistant?: () => void;
+  /** Sidebar has two entries: the portal preview and the page/generation view. */
+  initialTab?: Tab;
+}) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>('portal');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [kb, setKb] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [portal, setPortal] = useState<PortalState>({ generated: null, subjects: null });
@@ -75,7 +82,7 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>{t('wikiweb.title')}</h1>
+          <h1 className={styles.title}>{tab === 'pages' ? t('wikiweb.pagesTitle') : t('wikiweb.title')}</h1>
           <div className={styles.tabs} role="tablist">
             <button
               role="tab"
