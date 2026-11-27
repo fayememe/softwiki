@@ -200,7 +200,22 @@ export const zh: Dict = {
     logError: '✗ 错误：{msg}',
     logRebuildStart: '正在重建向量 + BM25 索引…',
     logRebuildDone: '✓ 索引已重建：{n} 个分块。',
-  },
+
+    someNotPdf: '{n} 个文件不是 PDF，已忽略',
+    batchLimit: '单批最多 {n} 个文件',
+    dropMore: '继续拖入 PDF（可多个）',
+    queueTitle: '上传队列',
+    queueSummary: '共 {total} · 完成 {done} · 跳过 {skipped} · 失败 {failed}',
+    retryFailed: '重试失败项',
+    clearFinished: '清除已完成',
+    retry: '重试',
+    remove: '移除',
+    claims: '条论断',
+    q_waiting: '等待',
+    q_uploading: '上传中',
+    q_done: '完成',
+    q_skipped: '跳过',
+    q_error: '失败',  },
 
   documents: {
     title: '已导入文档',

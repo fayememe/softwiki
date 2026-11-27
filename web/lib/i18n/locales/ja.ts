@@ -201,7 +201,22 @@ export const ja: Dict = {
     logError: '✗ エラー：{msg}',
     logRebuildStart: 'ベクトル + BM25 インデックスを再構築中…',
     logRebuildDone: '✓ インデックス再構築：{n} 個のチャンク。',
-  },
+
+    someNotPdf: '{n} 件は PDF ではないため無視しました',
+    batchLimit: '1 回の最大は {n} 件です',
+    dropMore: 'さらに PDF をドロップ（複数可）',
+    queueTitle: 'アップロード待ち',
+    queueSummary: '合計 {total} · 完了 {done} · スキップ {skipped} · 失敗 {failed}',
+    retryFailed: '失敗を再試行',
+    clearFinished: '完了分を消す',
+    retry: '再試行',
+    remove: '削除',
+    claims: '件の主張',
+    q_waiting: '待機',
+    q_uploading: '送信中',
+    q_done: '完了',
+    q_skipped: 'スキップ',
+    q_error: '失敗',  },
 
   documents: {
     title: '取り込み済みドキュメント',

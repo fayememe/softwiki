@@ -203,7 +203,22 @@ export const en = {
     logError: '✗ Error: {msg}',
     logRebuildStart: 'Rebuilding vector + BM25 index…',
     logRebuildDone: '✓ Index rebuilt: {n} chunks.',
-  },
+
+    someNotPdf: '{n} file(s) were not PDFs and were skipped',
+    batchLimit: 'At most {n} files per batch',
+    dropMore: 'Drop more PDFs (multiple allowed)',
+    queueTitle: 'Upload queue',
+    queueSummary: '{total} total · {done} done · {skipped} skipped · {failed} failed',
+    retryFailed: 'Retry failed',
+    clearFinished: 'Clear finished',
+    retry: 'Retry',
+    remove: 'Remove',
+    claims: 'claims',
+    q_waiting: 'Waiting',
+    q_uploading: 'Uploading',
+    q_done: 'Done',
+    q_skipped: 'Skipped',
+    q_error: 'Failed',  },
 
   documents: {
     title: 'Ingested Documents',
