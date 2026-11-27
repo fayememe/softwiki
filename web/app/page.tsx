@@ -14,6 +14,7 @@ import GraphStudioPanel from '@/components/GraphStudioPanel';
 import KbWizardPanel from '@/components/KbWizardPanel';
 import TimelinePanel from '@/components/TimelinePanel';
 import WikiWebPanel from '@/components/WikiWebPanel';
+import PipelinePanel from '@/components/PipelinePanel';
 import GlobalSearch from '@/components/GlobalSearch';
 import { apiStatus } from '@/lib/api';
 import type { Message } from '@/components/ChatMessage';
@@ -347,6 +348,7 @@ function HomeInner() {
         )}
         {activePanel === 'home' && <DashboardPanel />}
         {activePanel === 'ingest' && <IngestPanel />}
+        {activePanel === 'pipeline' && <PipelinePanel onNavigate={setActivePanel} />}
         {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} />}
         {activePanel === 'claims' && <ClaimsPanel />}
         {activePanel === 'conflicts' && <ConflictsPanel />}

@@ -430,6 +430,8 @@
 - [x] `/api/kb/switch` 在 off 模式放行（原来 401，新库可用了也切不过去）
 - [x] 建库/补库后侧栏下拉自动刷新（`softwiki:kb-changed` 事件）
 - [x] `docs/04-guides/new-kb-workflow.md`：建库 → 加资料 → 索引 → Wiki/门户 的完整流程
+- [x] 资料流程状态页：`GET /api/kb/pipeline` + 侧栏「资料流程」，三条链路（检索/知识/发布），
+      每环 ok / 生成中 / 需更新 / 无数据 / 部分缺失，索引卡片可直接触发重建
 - [ ] 门户重建按钮（需后台任务 API + 重启 web）
 - [ ] 侧栏会话与面板内 agent session 选择器合并
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）

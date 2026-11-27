@@ -19,6 +19,7 @@ softwiki            [语言] [折叠]
 总览（Home，跨库）
 
 知识库 ─────────────
+  资料流程         ← 各环节状态与依赖（新增 2026-11-26）
   文档
   论断
   图谱             ← 内嵌 Graph Studio
@@ -52,6 +53,26 @@ softwiki            [语言] [折叠]
 |---|---|---|---|
 | 助手（AgentSidePane） | 420 | 320–760（同时给主区留 520） | `softwiki_assistant_width` |
 | Wiki 右侧栏 | 300 | 240–720（给预览留 320） | `softwiki_wiki_rail_width` |
+
+## 3.1 资料流程（`/api/kb/pipeline`）
+
+一个库不是「一次性建好的东西」，而是几件产物各有触发条件和过期判定。面板把它们画成三条链路：
+
+| 链路 | 关系 |
+|---|---|
+| ① 检索 | 文档 → 切块 + 向量化 → 检索索引（chunks / vectors / BM25） |
+| ② 知识 | 文档 → 抽取 → 论断 → 投影 → 图谱 / 时间线 |
+| ③ 发布 | 论断 → 组合 → Wiki 页面 → 发布 → 静态门户 |
+
+每张卡片给出 `ok / 生成中 / 需更新 / 无数据 / 部分缺失` 与计数，后端一次性算好：
+
+- 索引过期：`chunks == 0`、或存在无分块文档、或 pg 向量数 < chunk 数；
+- 论断在跑：存在 `pending/extracting` 文档；
+- 图谱/时间线「部分缺失」：有 claim 未挂到边/事件；
+- Wiki 在跑/过期：`wiki_rebuild_tasks` 的 pending+running、`wiki_artifact_states.stale_at`；
+- 门户过期：`exports/wikiweb/<kb>/index.html` 的 mtime 早于最新 `WikiArtifactState.built_at`。
+
+有生成中的环节时前端 5s 轮询，否则 30s。索引卡片的「重建索引」仍是全量重建，按钮上明确提示。
 
 ## 4. 图谱
 

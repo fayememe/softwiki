@@ -1,6 +1,6 @@
 // Central API client for all Softwiki REST endpoints
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface StatusResponse {
   workspace: string;
