@@ -434,6 +434,10 @@
       每环 ok / 生成中 / 需更新 / 无数据 / 部分缺失，索引卡片可直接触发重建
 - [x] 颜色统一到设计 token：`--surface-1/-2`、`--border-strong`、语义 tint（两套主题）；
       写死的 Wikipedia 调色板全部替换；原生表单控件补全局兜底；面板 header 预留 112px
+- [x] 面板交叉链接：`lib/navigation.ts` + `go(panel, focus)`；论断↔文档、图谱 claim→论断、
+      时间线主题→论断、LLM Wiki→论断；论断新增搜索框与聚焦 chip
+- [x] 修复 `/api/graph/entity` 对旧数据（关系缺 endpoint id）返回 0 边：按名称/别名回退；
+      tsmckb 已跑 `graph_normalize`（267 条边全部解析）
 - [ ] 门户重建按钮（需后台任务 API + 重启 web）
 - [ ] 侧栏会话与面板内 agent session 选择器合并
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）
