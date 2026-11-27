@@ -450,6 +450,10 @@
   全量 **297 passed**。
 - 端到端（tsmckb）：16/16 文档抽取完成、5,650 claims、1,793 chunks 索引、
   `/api/ask` 命中；投影回填 rel 267→4、events 146→44。
+- 追加修复 `5f3f4e2`：wiki worker 轮转到「目录在、库没建」的 lsl-kb 时抛错，杀掉
+  reconcile leader，新库任务不再被处理；改为 `probe_kb` 过滤 + session 移入 try。
+- 当前 blocker：tsmckb 的 wiki 生成任务大量 `failed`，错误 `Error code: 402`
+  （LLM 配额/余额），scope guard 也因此 bypass。
 
 ## Pending issues / Blocker
 

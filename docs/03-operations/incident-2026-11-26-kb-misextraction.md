@@ -32,6 +32,7 @@
 |---|---|
 | `250f2f6` | `_bg_extraction_worker(..., kb)`，线程内 `enter_kb(kb)`；`run_extraction_pipeline` 捕获 `current_kb_name()` 传入；`canonicalize_document` 加全局锁 |
 | `5f8aadc` | wiki 重建 worker 同样没有 kb 上下文，过去只处理默认库；改为按 kb 轮转（启动恢复 / 任务循环 / reconcile 都遍历，定期重新发现新库） |
+| `5f3f4e2` | 轮转时遇到「目录在、数据库没建」的库（javis 的 `lsl-kb`）会让 `SessionLocal` 抛错，而该异常在 reconcile 线程的 try 之外，直接杀掉 leader → 新库任务再也不被处理。改为用 `probe_kb` 过滤不可用库，并把 session 创建移入 try |
 | `250f2f6` | `extract-pending` 只挑没有 claims 的文档，避免重复追加断言 |
 | `5f8aadc` | `/api/index` 完成后清 pipeline 缓存 |
 
@@ -72,6 +73,12 @@ armkb  docs 73 completed · chunks 39,870 · vectors 39,870
 3. `POST /api/index` → 1,793 chunks / vectors / BM25，`/api/ask` 命中新文档（9 sources）；
 4. 投影回填：relationships 未挂 claim 267 → 4，events 146 → 44；
 5. wiki worker 已经开始处理 tsmckb 的任务（过去永远不会）。
+
+## 5.1 恢复后发现的连带问题
+
+- 新库 `tsmckb` 的 wiki 生成开始跑起来后，任务大量 `failed`，错误是 **Error code: 402**
+  （LLM 配额/余额），不是代码问题；scope guard 也因 402 走了 bypass。
+- 该库 16 篇文档、5,650 claims、1,793 chunks 已可用问答；wiki 页面要等配额恢复。
 
 ## 6. 仍未做（已知缺口）
 
