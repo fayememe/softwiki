@@ -419,8 +419,6 @@ def prepare_agent_runtime(
         else:
             mode = default_mode
 
-    soul = _get_agent_soul(ws, root, web=web, mode=mode)
-
     session_id = os.getenv("SOFTWIKI_SESSION_ID", "default")
     abs_ws_path = os.path.abspath(ws)
 
@@ -529,7 +527,11 @@ Depending on the mode, certain operations are restricted:
    - You are restricted to performing softwiki-related tasks (ingestion, retrieval, indexing, wiki compilation, database query).
    - If the user asks you to perform tasks unrelated to softwiki (such as system administration, web browsing unrelated to softwiki sources, or modifying code unrelated to softwiki), you MUST politely refuse and state that your operations are restricted to the softwiki research workspace.
 """
-        full_instructions = soul + "\n" + workflows_md + "\n" + m_rules
+        # The soul depends on the mode: research/study get the read-only
+        # research persona, work/manage/admin the administrator persona.
+        # Computing it once outside the loop gave every agent the research soul.
+        mode_soul = _get_agent_soul(ws, root, web=web, mode=m)
+        full_instructions = mode_soul + "\n" + workflows_md + "\n" + m_rules
         m_path = os.path.join(opencode_config_dir, f"AGENTS_{m}.md")
         with open(m_path, "w", encoding="utf-8") as f:
             f.write(full_instructions)
