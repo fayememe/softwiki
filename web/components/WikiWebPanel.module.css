@@ -106,8 +106,8 @@
 }
 
 .primaryBtn {
-  background: var(--accent, #5588ff);
-  border-color: var(--accent, #5588ff);
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
   color: #fff;
 }
 
@@ -170,7 +170,7 @@
 }
 
 .railResizer:hover::after {
-  background: var(--accent, #5588ff);
+  background: var(--accent-blue);
 }
 
 .rail {

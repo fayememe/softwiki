@@ -419,7 +419,7 @@ export default function WikiPagesPanel() {
 
         {selected && (selected.pages?.length ?? 0) > 1 && (
           <div className={styles.parts}>
-            <span style={{ color: '#72777d' }}>
+            <span style={{ color: 'var(--text-tertiary)' }}>
               Split into {selected.pages!.length} parts (limit {limit}/page):
             </span>
             {selected.pages!.map((slug, i) => (

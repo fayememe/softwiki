@@ -350,12 +350,12 @@
 
 .engineActive {
   background: rgba(110, 220, 160, 0.14);
-  color: #8ee6b0;
+  color: var(--tint-ok-text);
 }
 
 .agentHint {
   font-size: 11px;
-  color: #8ee6b0;
+  color: var(--tint-ok-text);
   opacity: 0.8;
   margin-left: 8px;
   white-space: nowrap;

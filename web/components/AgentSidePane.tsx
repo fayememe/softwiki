@@ -176,7 +176,7 @@ export default function AgentSidePane({
     <aside
       className={styles.pane}
       style={{
-        ['--accent' as string]: project?.color || '#3366cc',
+        ['--accent' as string]: project?.color || 'var(--accent-blue, #3366cc)',
         width: pane.width,
       }}
       data-dragging={pane.dragging ? 'true' : undefined}

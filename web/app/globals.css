@@ -17,6 +17,28 @@
   --bg-hover:          rgba(255, 255, 255, 0.06);
   --bg-inset:          rgba(0, 0, 0, 0.2);
 
+  /* ── Panels (opaque-ish surfaces used by side panes and cards) ── */
+  --surface-1:         rgba(20, 21, 33, 0.82);
+  --surface-2:         rgba(255, 255, 255, 0.05);
+  --border-strong:     rgba(255, 255, 255, 0.16);
+
+  /* ── Semantic tints (badges, notices) — safe on both themes ── */
+  --tint-info-bg:      rgba(85, 136, 255, 0.14);
+  --tint-info-border:  rgba(85, 136, 255, 0.35);
+  --tint-info-text:    #9dbcff;
+  --tint-ok-bg:        rgba(34, 197, 94, 0.14);
+  --tint-ok-border:    rgba(34, 197, 94, 0.35);
+  --tint-ok-text:      #86efac;
+  --tint-warn-bg:      rgba(245, 158, 11, 0.14);
+  --tint-warn-border:  rgba(245, 158, 11, 0.35);
+  --tint-warn-text:    #fbbf24;
+  --tint-neutral-bg:   rgba(255, 255, 255, 0.06);
+  --tint-neutral-border: rgba(255, 255, 255, 0.12);
+  --tint-neutral-text: rgba(255, 255, 255, 0.60);
+  --tint-danger-bg:    rgba(239, 68, 68, 0.12);
+  --tint-danger-border: rgba(239, 68, 68, 0.35);
+  --tint-danger-text:  #fca5a5;
+
   /* ── Borders ── */
   --border-subtle:     var(--glass-border);
   --border-normal:     var(--glass-border-hover);
@@ -87,6 +109,18 @@ body::before {
   z-index: -1;
 }
 
+/* ── Form controls: default to the theme instead of the UA white ── */
+input, textarea, select {
+  color: var(--text-primary);
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
+select option { background-color: #1a1b26; color: #fff; }
+[data-theme="light"] select option { background-color: #fff; color: #111; }
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -134,6 +168,26 @@ body::before {
   --bg-elevated:       rgba(255, 255, 255, 0.50);
   --bg-hover:          rgba(0, 0, 0, 0.04);
   --bg-inset:          rgba(255, 255, 255, 0.70);
+
+  --surface-1:         rgba(255, 255, 255, 0.86);
+  --surface-2:         rgba(255, 255, 255, 0.96);
+  --border-strong:     rgba(0, 0, 0, 0.16);
+
+  --tint-info-bg:      #eaf3ff;
+  --tint-info-border:  #c7dcff;
+  --tint-info-text:    #1d4ed8;
+  --tint-ok-bg:        #f0fdf4;
+  --tint-ok-border:    #bbf7d0;
+  --tint-ok-text:      #166534;
+  --tint-warn-bg:      #fef6e7;
+  --tint-warn-border:  #ffe3b3;
+  --tint-warn-text:    #92400e;
+  --tint-neutral-bg:   #f3f4f6;
+  --tint-neutral-border: #e5e7eb;
+  --tint-neutral-text: #4b5563;
+  --tint-danger-bg:    #fee7e6;
+  --tint-danger-border: #fca5a5;
+  --tint-danger-text:  #b32424;
 
   --border-subtle:     rgba(0, 0, 0, 0.06);
   --border-normal:     rgba(0, 0, 0, 0.10);

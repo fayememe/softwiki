@@ -12,6 +12,8 @@
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 24px;
+  /* leave room for the main-area action cluster */
+  padding-right: 112px;
 }
 
 .title {
@@ -56,7 +58,7 @@
   border-radius: 10px;
   border: 1px solid rgba(239, 68, 68, 0.4);
   background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  color: var(--accent-red);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -121,7 +123,7 @@
 }
 
 .cardActive {
-  border-color: var(--accent-blue, #5588ff);
+  border-color: var(--accent-blue);
 }
 
 .cardDisabled {
@@ -158,12 +160,12 @@
 }
 
 .activePill {
-  color: var(--accent-blue, #5588ff);
-  border-color: var(--accent-blue, #5588ff);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
 }
 
 .badTag {
-  color: #d97706;
+  color: var(--accent-amber);
   border-color: rgba(217, 119, 6, 0.45);
 }
 
@@ -208,7 +210,7 @@
   margin: 0;
   font-size: 11.5px;
   line-height: 1.5;
-  color: #d97706;
+  color: var(--accent-amber);
   word-break: break-word;
 }
 

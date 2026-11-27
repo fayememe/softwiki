@@ -6,7 +6,7 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary, var(--text-secondary));
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -16,7 +16,7 @@
 
 .langBtn:hover {
   background: var(--bg-hover, rgba(128, 128, 128, 0.15));
-  color: var(--text-primary, #eee);
+  color: var(--text-primary, var(--border-subtle));
 }
 
 .langLabel {

@@ -101,6 +101,23 @@ softwiki            [语言] [折叠]
 验收（javis 实测）：问「检查流程状态，只报告，不要重建」→ 只调用 `softwiki_pipeline_status`，
 回答里列出 tsmckb 的检索/知识/发布三链状态并指出 4 条边、44 个事件、Wiki/门户待更新。
 
+## 3.3 颜色与主题
+
+所有面板只用 `app/globals.css` 的 token，不再写死颜色：
+
+| 用途 | token |
+|---|---|
+| 文字 | `--text-primary` / `--text-secondary` / `--text-tertiary` |
+| 表面 | `--surface-1`（侧板/卡片）、`--surface-2`（次级块）、`--bg-hover` / `--bg-inset` |
+| 边框 | `--border-subtle` / `--border-strong` |
+| 主色 | `--accent-blue`（暗色 #5588ff，亮色 #3366cc） |
+| 语义色 | `--accent-green` / `--accent-amber` / `--accent-red` |
+| 语义底色 | `--tint-{info,ok,warn,danger,neutral}-{bg,border,text}`（两套主题各一组） |
+
+- 原生控件（`input/textarea/select`）有全局兜底样式，避免暗色主题里出现 UA 白底；
+- Graph Studio 保留自己的深色画布，只把强调色对齐成品牌蓝；
+- 主区右上角的助手/主题按钮是绝对定位在 `<main>` 内，各面板 header 预留 `padding-right: 112px`，避免盖住「Scan now」「刷新」这类右侧操作。
+
 ## 4. 图谱
 
 - `components/GraphStudioPanel.tsx` 是唯一实现；`app/graph-studio/page.tsx` 只是薄包装（保留旧书签）。

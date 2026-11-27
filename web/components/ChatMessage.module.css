@@ -116,7 +116,7 @@
 }
 
 .botBubble :global(.prose) :not(pre) > code {
-  background: #1a1a2e;
+  background: var(--bg-inset);
   padding: 2px 7px;
   border-radius: 5px;
   font-size: 13px;
@@ -126,9 +126,9 @@
 }
 
 [data-theme="light"] .botBubble :global(.prose) :not(pre) > code {
-  background: #f7f7f9;
+  background: var(--surface-2);
   color: #c7254e;
-  border-color: #ccc;
+  border-color: var(--border-subtle);
 }
 
 .codeBlock {
@@ -137,11 +137,11 @@
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(85, 136, 255, 0.12);
-  background: #0a1620;
+  background: var(--bg-inset);
 }
 
 [data-theme="light"] .codeBlock {
-  background: #e8f4ff;
+  background: var(--tint-info-bg);
   border-color: #87ceeb;
 }
 
@@ -161,20 +161,20 @@
 .codeBlock :global(pre code):not(.specificity-hack) {
   line-height: 1.15 !important;
   font-size: 13px !important;
-  color: #c9d1d9 !important;
+  color: var(--text-secondary) !important;
 }
 
 [data-theme="light"] .codeBlock :global(pre code):not(.specificity-hack) {
-  color: #2b5797 !important;
+  color: var(--accent-blue) !important;
 }
 
 [data-theme="light"] .codeBlock {
-  background: #f8f8f8;
-  border-color: #ddd;
+  background: var(--surface-2);
+  border-color: var(--border-subtle);
 }
 
 [data-theme="light"] .botBubble :global(.prose pre code) {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .codeCopyBtn {
@@ -206,7 +206,7 @@
   padding: 0;
   border: none;
   font-size: 13px;
-  color: #e8e8e8;
+  color: var(--border-subtle);
   line-height: 1.6;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
@@ -458,7 +458,7 @@
 }
 
 .researchIcon {
-  color: #8ee6b0;
+  color: var(--tint-ok-text);
   font-size: 12px;
 }
 
@@ -469,7 +469,7 @@
   padding: 1px 6px;
   border-radius: 20px;
   background: rgba(110, 220, 160, 0.1);
-  color: #8ee6b0;
+  color: var(--tint-ok-text);
 }
 
 .researchList {
@@ -507,7 +507,7 @@
 }
 
 .researchOk {
-  color: #8ee6b0;
+  color: var(--tint-ok-text);
 }
 
 .researchInput {

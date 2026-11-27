@@ -108,9 +108,9 @@ export default function KnowledgeBaseSelector() {
           marginTop: 6,
           padding: '5px 7px',
           borderRadius: 6,
-          border: '1px solid var(--glass-border, #d8dde3)',
-          background: 'var(--glass-bg, #fff)',
-          color: 'var(--text-secondary, #54595d)',
+          border: '1px solid var(--glass-border)',
+          background: 'var(--glass-bg)',
+          color: 'var(--text-secondary)',
           fontSize: 11,
         }}
       >
@@ -136,7 +136,7 @@ export default function KnowledgeBaseSelector() {
             marginTop: 4,
             fontSize: 10,
             lineHeight: 1.4,
-            color: '#ac6600',
+            color: 'var(--accent-amber)',
           }}
           title={kbs.filter((k) => k.available === false).map((k) => `${k.name}: ${k.unavailable_reason || 'no database'}`).join('\n')}
         >

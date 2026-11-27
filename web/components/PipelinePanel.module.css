@@ -12,6 +12,8 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 22px;
+  /* leave room for the main-area action cluster */
+  padding-right: 112px;
 }
 
 .title {
@@ -29,7 +31,7 @@
 }
 
 .live {
-  color: var(--accent-blue, #3366cc);
+  color: var(--accent-blue);
 }
 
 .ghostBtn {
@@ -51,7 +53,7 @@
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.4);
   background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  color: var(--accent-red);
   font-size: 13px;
 }
 
@@ -61,7 +63,7 @@
   border-radius: 8px;
   border: 1px solid rgba(20, 134, 109, 0.35);
   background: rgba(20, 134, 109, 0.08);
-  color: #14866d;
+  color: var(--accent-green);
   font-size: 13px;
 }
 
@@ -108,12 +110,12 @@
   border-left-width: 3px;
 }
 
-.cardDoc { border-left-color: #5588ff; }
+.cardDoc { border-left-color: var(--accent-blue); }
 .cardIndex { border-left-color: #22d3ee; }
 .cardClaims { border-left-color: #a78bfa; }
-.cardGraph { border-left-color: #22c55e; }
-.cardTimeline { border-left-color: #ef4444; }
-.cardWiki { border-left-color: #f59e0b; }
+.cardGraph { border-left-color: var(--accent-green); }
+.cardTimeline { border-left-color: var(--accent-red); }
+.cardWiki { border-left-color: var(--accent-amber); }
 .cardPortal { border-left-color: #94a3b8; }
 
 .cardHead {
@@ -150,8 +152,8 @@
   color: var(--text-tertiary);
 }
 
-.warnText { color: #ac6600; }
-.roomText { color: var(--accent-blue, #3366cc); }
+.warnText { color: var(--accent-amber); }
+.roomText { color: var(--accent-blue); }
 
 .cardActions {
   margin-top: auto;
@@ -231,10 +233,10 @@
   white-space: nowrap;
 }
 
-.chip_ok { color: #14866d; border-color: currentColor; }
-.chip_running { color: var(--accent-blue, #3366cc); border-color: currentColor; }
-.chip_stale { color: #ac6600; border-color: currentColor; }
-.chip_warn { color: #ac6600; border-color: currentColor; }
+.chip_ok { color: var(--accent-green); border-color: currentColor; }
+.chip_running { color: var(--accent-blue); border-color: currentColor; }
+.chip_stale { color: var(--accent-amber); border-color: currentColor; }
+.chip_warn { color: var(--accent-amber); border-color: currentColor; }
 .chip_empty { color: var(--text-tertiary); }
 
 .activeList {
@@ -264,7 +266,7 @@
 }
 
 .dotRunning {
-  background: var(--accent-blue, #3366cc);
+  background: var(--accent-blue);
   box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.15);
 }
 

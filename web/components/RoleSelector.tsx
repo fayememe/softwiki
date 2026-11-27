@@ -88,9 +88,9 @@ export default function RoleSelector() {
           marginTop: 6,
           padding: '5px 7px',
           borderRadius: 6,
-          border: '1px solid var(--glass-border, #d8dde3)',
-          background: 'var(--glass-bg, #fff)',
-          color: 'var(--text-secondary, #54595d)',
+          border: '1px solid var(--glass-border)',
+          background: 'var(--glass-bg)',
+          color: 'var(--text-secondary)',
           fontSize: 11,
         }}
       >
@@ -101,7 +101,7 @@ export default function RoleSelector() {
         ))}
       </select>
       {error && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#b32424' }}>{error}</div>
+        <div style={{ marginTop: 4, fontSize: 10, color: 'var(--accent-red)' }}>{error}</div>
       )}
     </div>
   );
