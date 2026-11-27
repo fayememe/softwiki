@@ -1448,11 +1448,8 @@ def agent_status():
 @app.post("/api/swa/session")
 @app.post("/api/agent/session")
 def agent_create_session(req: AgentSessionRequest):
-    body = {"title": req.title or "SWAgent"}
-    model = _agent_model()
-    if model:
-        body["model"] = model
-    session = _agent_request("POST", "/session", body)
+    # opencode 1.19.5 rejects `model` on session creation; it is sent per prompt.
+    session = _agent_request("POST", "/session", {"title": req.title or "SWAgent"})
     return {"session_id": session.get("id"), "session": session}
 
 
@@ -1466,11 +1463,7 @@ def agent_ask(req: AgentAskRequest):
     """
     session_id = req.session_id
     if not session_id:
-        create_body = {"title": req.question[:60]}
-        create_model = _agent_model()
-        if create_model:
-            create_body["model"] = create_model
-        session = _agent_request("POST", "/session", create_body)
+        session = _agent_request("POST", "/session", {"title": req.question[:60]})
         session_id = session.get("id")
     if not session_id:
         raise HTTPException(status_code=502, detail="Agent did not return a session id")
