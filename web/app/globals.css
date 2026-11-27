@@ -173,7 +173,10 @@ body::before {
    Assistant + theme live in one fixed row so they can never overlap.
    ════════════════════════════════════════════════════════ */
 .top-actions {
-  position: fixed;
+  /* Absolute inside <main> on purpose: when the assistant pane opens, main
+     shrinks and the buttons move with it instead of sitting on top of the
+     pane's own header (and its close button). */
+  position: absolute;
   top: 12px;
   right: 14px;
   z-index: 100;
