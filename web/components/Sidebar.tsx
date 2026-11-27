@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import type { Session } from '@/app/page';
 import { NEW_CHAT_NAME } from '@/app/page';
 import { useI18n } from '@/lib/i18n';
-import LanguageSwitcher from './LanguageSwitcher';
 import RoleSelector from './RoleSelector';
 import KnowledgeBaseSelector from './KnowledgeBaseSelector';
 import styles from './Sidebar.module.css';
@@ -163,7 +162,6 @@ export default function Sidebar({
         </div>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <LanguageSwitcher />
             <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} title={t("sidebar.collapse")}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -274,7 +272,6 @@ export default function Sidebar({
       {/* ── Collapsed mode ── */}
       {collapsed && (
         <div className={styles.collapsedFooter}>
-          <LanguageSwitcher collapsed />
           <button className={styles.expandBtn} onClick={() => setCollapsed(false)} title={t("sidebar.expand")}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6" />

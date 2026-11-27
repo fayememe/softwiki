@@ -12,7 +12,7 @@
   flex-direction: column;
   gap: 4px;
   /* leave room for the main-area action cluster */
-  padding-right: 112px;
+  padding-right: 152px;
 }
 
 .title {

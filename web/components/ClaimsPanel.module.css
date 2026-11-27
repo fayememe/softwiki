@@ -16,7 +16,7 @@
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
   /* leave room for the main-area action cluster */
-  padding-right: 112px;
+  padding-right: 152px;
 }
 
 .title {

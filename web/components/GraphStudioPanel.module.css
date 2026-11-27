@@ -29,7 +29,7 @@
   justify-content: space-between;
   gap: 24px;
   /* leave room for the main-area action cluster (assistant + theme) */
-  padding: 18px 112px 10px 26px;
+  padding: 18px 152px 10px 26px;
 }
 
 .brand {
