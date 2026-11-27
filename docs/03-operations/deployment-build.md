@@ -275,7 +275,9 @@ sudo -E env TAG=<sha> \
 - LLM 走 trial 网关：**实例默认**（`.env`）即为 `oneroute` + `deepseek-v4.1-flash`
   （`OPENAI_API_BASE` / `OPENAI_API_KEY` / `EXTRACTION_MODEL` / `ANALYSIS_MODEL` / `WIKI_MODEL`），
   key 由 `DEEPSEEK_API_KEY` 提供；`armkb/config/model_profiles.yaml` 也指向同一网关（不落 key）。
-  embedding 与助手 shell 仍走 OpenAI（`EMBEDDING_API_KEY` / `SHELL_API_KEY` 各自独立）。
+  embedding 仍走 OpenAI（`EMBEDDING_API_KEY` 独立）。**助手（opencode）的 shell 模型**
+  2026-11-26 起也切到 trial 网关：`SHELL_API_BASE/SHELL_API_KEY/SHELL_MODEL`
+  = oneroute / `DEEPSEEK_API_KEY` / `deepseek-v4.1-flash`（与 trial 的 SWAgent 一致）。
   2026-11-26 之前默认是 Gemini，预付额度耗尽后切到 trial 网关。
 
 **回滚**：`sudo docker tag softwiki-api:<旧sha> softwiki-api:latest` 相当于回退 TAG；

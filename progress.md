@@ -471,6 +471,13 @@
   之后无新增 402。
 - **机制**：`SOFTWIKI_KB_MODEL_PROFILES=/data/workspaces/config/kb-model-profiles.yaml`，
   新建库自动继承该 profiles 文件（`create_kb` 已实现并实测 `seed: True`）。
+- **助手模型（SHELL_*）也切到 trial 网关**：`SHELL_MODEL=deepseek-v4.1-flash`、
+  `SHELL_API_BASE=oneroute`、`SHELL_API_KEY=DEEPSEEK_API_KEY`；重开 agent-web 后实测
+  助手能正确调用 `pipeline_status`/`status` 并答出 tsmckb 的真实计数。备份
+  `.env.bak-20261126-231901`。
+- **MCP 无 kb 头时跟随用户当前库**：`KbHeaderMiddleware` 缺 `X-SoftWiki-KB` 时用
+  `default_kb_name()`（off 模式 = LocalUser.active_kb），修掉 status/list_*/rebuild 报
+  默认库的问题；`tests/test_mcp_kb_middleware.py`。
 - **2026-11-26 起 javis 默认也走 trial 网关**：`.env` 的 `OPENAI_API_BASE` 改为
   `http://www.oneroute.cn:60080/v1`，`OPENAI_API_KEY` = `DEEPSEEK_API_KEY`，
   `EXTRACTION/ANALYSIS/WIKI_MODEL=deepseek-v4.1-flash`。embedding 与 shell 仍用 OpenAI
