@@ -115,7 +115,7 @@ softwiki            [语言] [折叠]
 | 语义底色 | `--tint-{info,ok,warn,danger,neutral}-{bg,border,text}`（两套主题各一组） |
 
 - 原生控件（`input/textarea/select`）有全局兜底样式，避免暗色主题里出现 UA 白底；
-- Graph Studio 保留自己的深色画布，只把强调色对齐成品牌蓝；
+- Graph Studio 也跟随主题：面板/边框/文字用全局 token，画布用 `--graph-*` 变量（暗色深底浅字、亮色白底深字），仅节点类型色保留固定色板；
 - 主区右上角的助手/主题按钮是绝对定位在 `<main>` 内，各面板 header 预留 `padding-right: 112px`，避免盖住「Scan now」「刷新」这类右侧操作。
 
 ## 4. 图谱
