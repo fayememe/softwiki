@@ -74,6 +74,33 @@ softwiki            [语言] [折叠]
 
 有生成中的环节时前端 5s 轮询，否则 30s。索引卡片的「重建索引」仍是全量重建，按钮上明确提示。
 
+## 3.2 助手（Work / Manage / Admin）
+
+助手是**知识库管理助手**，不是研究聊天：
+
+| 项目 | opencode agent | 能做什么 | 人格 |
+|---|---|---|---|
+| Work | `wiki-work` | 检索、读 wiki、提出变更方案（不能导入/索引/发布） | 管理员人格（只读受限） |
+| Manage | `wiki-manage` | 导入、重建索引、继续抽取、生成主题页/实体页、审批计划 | 管理员人格 |
+| Admin | `wiki-admin` | 全部（workspace/modules 除外） | 管理员人格 |
+| （研究入口） | `wiki-research` / `wiki-study` | 只读问答，要求页码引用 | 研究人格 |
+
+两条容易搞错的地方（都已修）：
+
+1. **人格按 mode 选**：`AGENTS_<mode>.md` 之前用同一个 soul（研究人格），
+   所以 Manage 也会用 `softwiki_ask` 写答案。现在 work/manage/admin 用管理员人格，
+   研究/学习模式用研究人格。
+2. **MCP 服务整进程只有一个角色**：javis 上 `SOFTWIKI_ROLE=wiki-study`，管理助手的写工具
+   全被拒。现在 agent 的 remote MCP 连接发送 `x-softwiki-role: wiki-manage`
+   （`SOFTWIKI_AGENT_MCP_ROLE` 可覆盖）；项目级最小权限仍由 opencode 的 deny 列表保证。
+
+管理工具（服务端实际暴露：`softwiki.mcp.sse`）：`pipeline_status`、`status`、
+`resume_extraction`、`rebuild_index`、`wiki_build`、`wiki_subject_build`、
+`ingest_url`/`ingest_file`、`list_documents`/`list_claims`、`search`/`ask`（核对用）等。
+
+验收（javis 实测）：问「检查流程状态，只报告，不要重建」→ 只调用 `softwiki_pipeline_status`，
+回答里列出 tsmckb 的检索/知识/发布三链状态并指出 4 条边、44 个事件、Wiki/门户待更新。
+
 ## 4. 图谱
 
 - `components/GraphStudioPanel.tsx` 是唯一实现；`app/graph-studio/page.tsx` 只是薄包装（保留旧书签）。

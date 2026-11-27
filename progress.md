@@ -454,6 +454,11 @@
   reconcile leader，新库任务不再被处理；改为 `probe_kb` 过滤 + session 移入 try。
 - 当前 blocker：tsmckb 的 wiki 生成任务大量 `failed`，错误 `Error code: 402`
   （LLM 配额/余额），scope guard 也因此 bypass。
+- 助手行为修复（`319830f` / `f8fa771` / `8a372a6`）：浏览器助手无论哪个项目都用研究人格 +
+  MCP 固定 `wiki-study` 角色，导致管理类请求只会 `softwiki_ask`。现在按 mode 选人格、
+  补齐服务端实际 MCP（`softwiki.mcp.sse`）的管理工具（pipeline_status/resume_extraction/
+  wiki_build/wiki_subject_build/status），agent 连接带 `x-softwiki-role: wiki-manage`。
+  实测：问流程状态 → 只调 `pipeline_status`，正确报告 tsmckb 各环节。
 
 ## Pending issues / Blocker
 
