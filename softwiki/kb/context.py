@@ -125,6 +125,11 @@ class KbHeaderMiddleware:
         }
         requested = (headers.get("x-softwiki-kb") or "").strip()
         if not requested:
+            # No explicit pin: follow the same preference the UI switch writes,
+            # otherwise every kb-scoped tool (status, list_*, rebuild) answered
+            # for the instance default instead of the kb on screen.
+            requested = default_kb_name() or ""
+        if not requested:
             await self.app(scope, receive, send)
             return
 
