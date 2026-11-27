@@ -432,6 +432,8 @@
 - [x] `docs/04-guides/new-kb-workflow.md`：建库 → 加资料 → 索引 → Wiki/门户 的完整流程
 - [x] 资料流程状态页：`GET /api/kb/pipeline` + 侧栏「资料流程」，三条链路（检索/知识/发布），
       每环 ok / 生成中 / 需更新 / 无数据 / 部分缺失，索引卡片可直接触发重建
+- [x] 颜色统一到设计 token：`--surface-1/-2`、`--border-strong`、语义 tint（两套主题）；
+      写死的 Wikipedia 调色板全部替换；原生表单控件补全局兜底；面板 header 预留 112px
 - [ ] 门户重建按钮（需后台任务 API + 重启 web）
 - [ ] 侧栏会话与面板内 agent session 选择器合并
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）
