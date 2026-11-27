@@ -90,15 +90,16 @@ services:
     image: softwiki-web:${TAG:-latest}
     environment:
       API_INTERNAL_URL: http://api:6200
-      # Which page /wikiweb opens. Per-kb so a portal never links to another kb.
-      WIKIWEB_ENTRY: ${WIKIWEB_ENTRY:-index.html}
+      # The web app serves /wikiweb/<kb>/ straight from the stack's workspace,
+      # so every kb's portal is reachable without a per-kb bind mount.
+      WORKSPACES_ROOT: /data/workspaces
     ports:
       - "${WEB_HOST_PORT:-6308}:6108"
     volumes:
-      # Static wiki portal for *this* kb: lives in the workspace with the data,
-      # mounted read-only into public/ so Next serves /wikiweb/*.
-      # Generated artifact — see docs/03-operations/deployment-trial.md.
-      - ${WIKIWEB_DIR:-./workspace/lsl-kb/exports/wikiweb}:/app/public/wikiweb:ro
+      # Read-only view of this stack's kbs: the /wikiweb route streams the
+      # generated portal from <kb>/exports/wikiweb. Read-only on purpose — the
+      # web container never writes kb data.
+      - ${SOFTWIKI_STACK_ROOT:-./workspace/stacks/default}:/data/workspaces:ro
     depends_on:
       api:
         condition: service_healthy

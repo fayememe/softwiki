@@ -125,7 +125,7 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
               <iframe
                 key={reloadKey}
                 className={styles.frame}
-                src="/wikiweb"
+                src={kb ? `/wikiweb/${encodeURIComponent(kb)}/` : '/wikiweb'}
                 title={t('wikiweb.title')}
               />
             </div>
