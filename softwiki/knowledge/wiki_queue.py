@@ -316,9 +316,17 @@ def _available_kbs() -> list:
     """
     try:
         from softwiki.config import get_workspaces_root
+        from softwiki.kb.health import probe_kb
         from softwiki.kb.registry import list_kb_infos
 
-        names = [info.name for info in list_kb_infos(get_workspaces_root())]
+        # A kb directory can exist while its database was never created in this
+        # instance (lsl-kb on javis). Entering it makes SessionLocal raise, which
+        # used to kill the reconcile thread.
+        names = [
+            info.name
+            for info in list_kb_infos(get_workspaces_root())
+            if probe_kb(info.path)[0]
+        ]
     except Exception as exc:  # noqa: BLE001 - fall back to the default workspace
         print(f"[wiki-worker] kb discovery skipped: {exc}", flush=True)
         names = []
@@ -422,8 +430,9 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
             kbs = _available_kbs()
             for kb in kbs:
                 token = _enter(kb)
-                db = SessionLocal()
+                db = None
                 try:
+                    db = SessionLocal()
                     reap_stale_running(db)
                     if AUTO_ENQUEUE_MISSING:
                         enqueue_missing_subjects(db)
@@ -436,6 +445,7 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
                 except Exception as exc:  # noqa: BLE001 - never kill the worker
                     print(f"[wiki-worker] reconcile skipped for {kb}: {exc}", flush=True)
                 finally:
-                    db.close()
+                    if db is not None:
+                        db.close()
                     _leave(token)
         time.sleep(5)
