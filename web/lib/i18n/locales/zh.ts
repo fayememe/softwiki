@@ -303,6 +303,8 @@ export const zh: Dict = {
     deleteConfirm:
       '确定要删除文档 "{title}" 吗？这也会同时删除其关联的所有分块、论断、事件和关系。',
     deleteFailed: '删除失败：{msg}',
+
+    viewClaims: '论断',
   },
 
   claims: {
@@ -327,6 +329,16 @@ export const zh: Dict = {
     colConfidence: '置信度',
     colText: '论断描述',
     colDate: '日期',
+
+    searchLabel: '搜索',
+    searchPlaceholder: '按文本 / 主体 / 主题搜索…',
+    focusFilter: '聚焦',
+    byDocument: '文档 #{id}',
+    byTopic: '主题：{topic}',
+    byClaim: '论断 #{id}',
+    openDocument: '查看来源文档',
+    sourceDoc: '来源',
+    colActions: '操作',
   },
 
   conflicts: {

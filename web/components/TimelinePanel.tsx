@@ -6,7 +6,11 @@ import type { TimelineEvent } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import styles from './TimelinePanel.module.css';
 
-export default function TimelinePanel() {
+export default function TimelinePanel({
+  onNavigate,
+}: {
+  onNavigate?: (panel: 'claims', focus: { kind: 'claims'; topic?: string }) => void;
+} = {}) {
   const t = useT();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
@@ -32,7 +36,15 @@ export default function TimelinePanel() {
             <div className={styles.content}>
               <div className={styles.eventTitle}>{ev.title}</div>
               {ev.description && <div className={styles.eventDesc}>{ev.description}</div>}
-              {ev.topic && <span className={styles.topic}>{ev.topic}</span>}
+              {ev.topic && (
+                <button
+                  className={styles.topic}
+                  title={onNavigate ? '查看该主题的论断' : undefined}
+                  onClick={() => onNavigate?.('claims', { kind: 'claims', topic: ev.topic ?? undefined })}
+                >
+                  {ev.topic}
+                </button>
+              )}
             </div>
           </div>
         ))}

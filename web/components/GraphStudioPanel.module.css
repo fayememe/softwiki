@@ -498,3 +498,12 @@
     max-height: 38vh;
   }
 }
+
+.claimLink {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.claimLink:hover {
+  color: var(--accent-blue);
+}

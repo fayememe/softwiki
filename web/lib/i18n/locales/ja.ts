@@ -304,6 +304,8 @@ export const ja: Dict = {
     deleteConfirm:
       'ドキュメント "{title}" を削除しますか？関連するチャンク、論点、イベント、関係もすべて削除されます。',
     deleteFailed: '削除に失敗しました：{msg}',
+
+    viewClaims: '主張',
   },
 
   claims: {
@@ -328,6 +330,16 @@ export const ja: Dict = {
     colConfidence: '信頼度',
     colText: '論点の説明',
     colDate: '日付',
+
+    searchLabel: '検索',
+    searchPlaceholder: '本文・主体・トピックで検索…',
+    focusFilter: '絞り込み',
+    byDocument: '文書 #{id}',
+    byTopic: 'トピック：{topic}',
+    byClaim: '主張 #{id}',
+    openDocument: '出典文書を開く',
+    sourceDoc: '出典',
+    colActions: '操作',
   },
 
   conflicts: {

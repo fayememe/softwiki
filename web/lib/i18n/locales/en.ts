@@ -306,6 +306,8 @@ export const en = {
     deleteConfirm:
       'Are you sure you want to delete the document "{title}"? This will also delete all associated chunks, claims, events, and relationships.',
     deleteFailed: 'Delete failed: {msg}',
+
+    viewClaims: 'Claims',
   },
 
   claims: {
@@ -331,6 +333,16 @@ export const en = {
     colConfidence: 'Confidence',
     colText: 'Claim Description',
     colDate: 'Date',
+
+    searchLabel: 'Search',
+    searchPlaceholder: 'Search text / actor / topic…',
+    focusFilter: 'Focus',
+    byDocument: 'document #{id}',
+    byTopic: 'topic: {topic}',
+    byClaim: 'claim #{id}',
+    openDocument: 'Open source document',
+    sourceDoc: 'source',
+    colActions: 'Actions',
   },
 
   conflicts: {

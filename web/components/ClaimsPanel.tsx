@@ -5,11 +5,18 @@ import { apiListClaims } from '@/lib/api';
 import type { Claim } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import Pagination from './Pagination';
+import type { NavFocus, Navigate } from '@/lib/navigation';
 import styles from './ClaimsPanel.module.css';
 
 const STANCES = ['supportive', 'cautious', 'opposed', 'unclear'];
 
-export default function ClaimsPanel() {
+export default function ClaimsPanel({
+  focus,
+  onNavigate,
+}: {
+  focus?: NavFocus;
+  onNavigate?: Navigate;
+}) {
   const t = useT();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +25,10 @@ export default function ClaimsPanel() {
   // Filter states
   const [selectedActor, setSelectedActor] = useState('all');
   const [selectedStance, setSelectedStance] = useState('all');
+  const [query, setQuery] = useState('');
+  const [docFilter, setDocFilter] = useState<number | null>(null);
+  const [topicFilter, setTopicFilter] = useState<string | null>(null);
+  const [claimFilter, setClaimFilter] = useState<number | null>(null);
 
   // Paging is applied after filtering, so the page always shows full rows.
   const [page, setPage] = useState(1);
@@ -40,18 +51,38 @@ export default function ClaimsPanel() {
     fetchClaims();
   }, []);
 
+  // Apply the focus payload handed over by another panel (graph claim, document
+  // row, wiki subject, timeline topic...).
+  useEffect(() => {
+    if (!focus || focus.kind !== 'claims') return;
+    setSelectedActor(focus.actor ?? 'all');
+    setSelectedStance('all');
+    setQuery(focus.q ?? '');
+    setDocFilter(focus.documentId ?? null);
+    setTopicFilter(focus.topic ?? null);
+    setClaimFilter(focus.claimId ?? null);
+  }, [focus]);
+
   // Compute unique actors for filter
   const actors = Array.from(new Set(claims.map(c => c.actor).filter(a => a && a.trim()))) as string[];
 
   // Filtered claims
+  const needle = query.trim().toLowerCase();
   const filteredClaims = claims.filter(c => {
     const matchActor = selectedActor === 'all' || c.actor === selectedActor;
     const matchStance = selectedStance === 'all' || (c.stance || 'unclear').toLowerCase() === selectedStance.toLowerCase();
-    return matchActor && matchStance;
+    const matchDoc = docFilter === null || c.document_id === docFilter;
+    const matchTopic = !topicFilter || (c.topic || '').toLowerCase() === topicFilter.toLowerCase();
+    const matchClaim = claimFilter === null || c.id === claimFilter;
+    const matchQuery = !needle
+      || c.text.toLowerCase().includes(needle)
+      || (c.actor || '').toLowerCase().includes(needle)
+      || (c.topic || '').toLowerCase().includes(needle);
+    return matchActor && matchStance && matchDoc && matchTopic && matchClaim && matchQuery;
   });
 
   // Reset to the first page whenever the filter result set changes shape.
-  useEffect(() => { setPage(1); }, [selectedActor, selectedStance]);
+  useEffect(() => { setPage(1); }, [selectedActor, selectedStance, query, docFilter, topicFilter, claimFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredClaims.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -98,6 +129,38 @@ export default function ClaimsPanel() {
               ))}
             </select>
           </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel} htmlFor="claim-search">{t('claims.searchLabel')}</label>
+            <input
+              id="claim-search"
+              className={styles.select}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={t('claims.searchPlaceholder')}
+            />
+          </div>
+          {(docFilter !== null || topicFilter || claimFilter !== null) && (
+            <div className={styles.filterGroup}>
+              <span className={styles.filterLabel}>{t('claims.focusFilter')}</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {docFilter !== null && (
+                  <button className={styles.focusChip} onClick={() => setDocFilter(null)}>
+                    {t('claims.byDocument', { id: docFilter })} ✕
+                  </button>
+                )}
+                {topicFilter && (
+                  <button className={styles.focusChip} onClick={() => setTopicFilter(null)}>
+                    {t('claims.byTopic', { topic: topicFilter })} ✕
+                  </button>
+                )}
+                {claimFilter !== null && (
+                  <button className={styles.focusChip} onClick={() => setClaimFilter(null)}>
+                    {t('claims.byClaim', { id: claimFilter })} ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -135,6 +198,7 @@ export default function ClaimsPanel() {
                   <th className={styles.th}>{t('claims.colConfidence')}</th>
                   <th className={styles.th}>{t('claims.colText')}</th>
                   <th className={styles.th}>{t('claims.colDate')}</th>
+                  <th className={styles.th}>{t('claims.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,6 +221,17 @@ export default function ClaimsPanel() {
                     </td>
                     <td className={`${styles.td} ${styles.claimDate}`}>
                       {c.published_at}
+                    </td>
+                    <td className={styles.td}>
+                      {onNavigate && c.document_id ? (
+                        <button
+                          className={styles.focusChip}
+                          onClick={() => onNavigate('documents', { kind: 'document', documentId: c.document_id })}
+                          title={t('claims.openDocument')}
+                        >
+                          {t('claims.sourceDoc')}
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

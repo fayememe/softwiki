@@ -20,6 +20,7 @@ import GlobalSearch from '@/components/GlobalSearch';
 import { apiStatus } from '@/lib/api';
 import type { Message } from '@/components/ChatMessage';
 import { useT } from '@/lib/i18n';
+import type { NavFocus } from '@/lib/navigation';
 
 export interface Session {
   id: string;
@@ -159,6 +160,8 @@ function HomeInner() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>('chat');
+  // Payload for the panel we are navigating to (see lib/navigation.ts).
+  const [focus, setFocus] = useState<NavFocus | undefined>(undefined);
   const [docCount, setDocCount] = useState(0);
   const [claimCount, setClaimCount] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>('auto');
@@ -248,6 +251,12 @@ function HomeInner() {
     setAgentOpen(true);
   }, []);
 
+  /** Cross-panel navigation: switch panel and hand it a focus payload. */
+  const go = useCallback((panel: ActivePanel, next?: NavFocus) => {
+    setFocus(next);
+    setActivePanel(panel);
+  }, []);
+
   // Selecting a session from the always-visible sidebar list also opens chat.
   const selectSession = useCallback((id: string) => {
     setActiveSessionId(id);
@@ -299,7 +308,7 @@ function HomeInner() {
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         activePanel={activePanel}
-        onPanelChange={setActivePanel}
+        onPanelChange={(panel) => { setFocus(undefined); setActivePanel(panel); }}
         docCount={docCount}
         claimCount={claimCount}
         sessions={sessions}
@@ -350,17 +359,17 @@ function HomeInner() {
         )}
         {activePanel === 'home' && <DashboardPanel />}
         {activePanel === 'ingest' && <IngestPanel />}
-        {activePanel === 'pipeline' && <PipelinePanel onNavigate={setActivePanel} />}
-        {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} />}
-        {activePanel === 'claims' && <ClaimsPanel />}
+        {activePanel === 'pipeline' && <PipelinePanel onNavigate={(p) => go(p)} />}
+        {activePanel === 'documents' && <DocumentsPanel onRefreshStats={fetchStats} focus={focus} onNavigate={go} />}
+        {activePanel === 'claims' && <ClaimsPanel focus={focus} onNavigate={go} />}
         {activePanel === 'conflicts' && <ConflictsPanel />}
-        {activePanel === 'graph' && <GraphStudioPanel />}
-        {activePanel === 'timeline' && <TimelinePanel />}
+        {activePanel === 'graph' && <GraphStudioPanel onNavigate={go} focus={focus} />}
+        {activePanel === 'timeline' && <TimelinePanel onNavigate={go} />}
         {activePanel === 'llmwiki' && (
-          <WikiWebPanel onOpenAssistant={openWikiAssistant} initialTab="pages" />
+          <WikiWebPanel onOpenAssistant={openWikiAssistant} onNavigate={go} initialTab="pages" />
         )}
         {activePanel === 'wikiweb' && (
-          <WikiWebPanel onOpenAssistant={openWikiAssistant} initialTab="portal" />
+          <WikiWebPanel onOpenAssistant={openWikiAssistant} onNavigate={go} initialTab="portal" />
         )}
         {activePanel === 'kbwizard' && <KbWizardPanel />}
         {activePanel === 'users' && <AdminPanel />}

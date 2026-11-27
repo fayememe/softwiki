@@ -125,7 +125,13 @@ function edgeKey(rel: ApiRel): number {
   return rel.id;
 }
 
-export default function GraphStudioPanel() {
+export default function GraphStudioPanel({
+  onNavigate,
+  focus,
+}: {
+  onNavigate?: (panel: 'claims', focus: { kind: 'claims'; q?: string; actor?: string }) => void;
+  focus?: { kind: 'entity'; name: string } | { kind: 'claims' } | { kind: 'document'; documentId: number };
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const nodesRef = useRef<Map<string, Node>>(new Map());
@@ -150,6 +156,17 @@ export default function GraphStudioPanel() {
   const [path, setPath] = useState<PathResponse | null>(null);
   const [pathError, setPathError] = useState<string | null>(null);
   const [status, setStatus] = useState('Loading graph…');
+
+  // A link from another panel: focus that entity in the canvas.
+  useEffect(() => {
+    if (!focus || focus.kind !== 'entity') return;
+    const name = focus.name;
+    const timer = setTimeout(() => {
+      setQuery(name);
+      void openEntity(name).then(() => expand(name)).catch(() => {});
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [focus]);
 
   // keep refs in sync for the render loop
   useEffect(() => {
@@ -824,7 +841,21 @@ export default function GraphStudioPanel() {
                   <ul className={styles.claimList}>
                     {detail.claims.slice(0, 6).map((claim) => (
                       <li key={claim.id}>
-                        <p>{claim.text}</p>
+                        <p
+                          role={onNavigate ? 'button' : undefined}
+                          tabIndex={onNavigate ? 0 : undefined}
+                          className={onNavigate ? styles.claimLink : undefined}
+                          title={onNavigate ? '在论断中查看' : undefined}
+                          onClick={() => onNavigate?.('claims', { kind: 'claims', q: claim.text.slice(0, 80), actor: claim.actor })}
+                          onKeyDown={(event) => {
+                            if (onNavigate && (event.key === 'Enter' || event.key === ' ')) {
+                              event.preventDefault();
+                              onNavigate('claims', { kind: 'claims', q: claim.text.slice(0, 80), actor: claim.actor });
+                            }
+                          }}
+                        >
+                          {claim.text}
+                        </p>
                         <div className={styles.edgeMeta}>
                           <span className={claim.status === 'disputed' ? styles.disputed : styles.active}>{claim.status}</span>
                           {' · '}evidence {claim.evidence_count}

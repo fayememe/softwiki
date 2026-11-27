@@ -220,3 +220,18 @@ td.claimDate {
   margin-bottom: 12px;
 }
 
+
+.focusChip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--tint-info-border);
+  background: var(--tint-info-bg);
+  color: var(--tint-info-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.focusChip:hover {
+  filter: brightness(1.08);
+}

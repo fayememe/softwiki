@@ -53,7 +53,11 @@ function stripMeta(raw: string): { body: string; meta: Record<string, string> } 
   return { body: raw.slice(end + 3).replace(/^\n+/, ''), meta };
 }
 
-export default function WikiPagesPanel() {
+export default function WikiPagesPanel({
+  onNavigate,
+}: {
+  onNavigate?: (panel: 'claims', focus: { kind: 'claims'; q?: string; topic?: string }) => void;
+} = {}) {
   const [subjects, setSubjects] = useState<SubjectPageEntry[]>([]);
   const [candidates, setCandidates] = useState<SubjectPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -511,9 +515,22 @@ export default function WikiPagesPanel() {
         )}
 
         {selected && !pageLoading && body && (
-          <article className={styles.content}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
-          </article>
+          <>
+            {onNavigate && selected.subject && (
+              <div className={styles.pageActions}>
+                <button
+                  className={styles.btnGhost}
+                  title="Open these claims in the claims table"
+                  onClick={() => onNavigate('claims', { kind: 'claims', q: selected.subject })}
+                >
+                  View claims
+                </button>
+              </div>
+            )}
+            <article className={styles.content}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+            </article>
+          </>
         )}
 
         {selected && !pageLoading && !body && !error && (

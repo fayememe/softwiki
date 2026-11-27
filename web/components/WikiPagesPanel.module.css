@@ -430,3 +430,9 @@
 }
 .btnGhost:hover { background: var(--bg-hover); }
 
+
+.pageActions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 16px 0;
+}

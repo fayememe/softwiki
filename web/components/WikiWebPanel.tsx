@@ -36,9 +36,12 @@ interface PortalState {
 
 export default function WikiWebPanel({
   onOpenAssistant,
+  onNavigate,
   initialTab = 'portal',
 }: {
   onOpenAssistant?: () => void;
+  /** Cross-panel links (wiki subject -> claims). */
+  onNavigate?: (panel: 'claims', focus: { kind: 'claims'; q?: string; topic?: string }) => void;
   /** Sidebar has two entries: the portal preview and the page/generation view. */
   initialTab?: Tab;
 }) {
@@ -124,7 +127,7 @@ export default function WikiWebPanel({
       <div className={styles.body} ref={bodyRef} data-dragging={rail.dragging ? 'true' : undefined}>
         {tab === 'pages' ? (
           <div className={styles.pagesPane}>
-            <WikiPagesPanel />
+            <WikiPagesPanel onNavigate={onNavigate} />
           </div>
         ) : (
           <>

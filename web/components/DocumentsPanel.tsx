@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiListDocumentsPaged, apiDeleteDocument } from '@/lib/api';
+import { apiListDocuments, apiListDocumentsPaged, apiDeleteDocument } from '@/lib/api';
 import type { Document } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import Pagination from './Pagination';
 import styles from './DocumentsPanel.module.css';
 
+import type { NavFocus, Navigate } from '@/lib/navigation';
+
 interface DocumentsPanelProps {
   onRefreshStats?: () => void;
+  focus?: NavFocus;
+  onNavigate?: Navigate;
 }
 
-export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) {
+export default function DocumentsPanel({ onRefreshStats, focus, onNavigate }: DocumentsPanelProps) {
   const t = useT();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal] = useState(0);
@@ -19,6 +23,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
   const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<number | null>(null);
 
   const fetchDocs = useCallback(async () => {
     setLoading(true);
@@ -37,6 +42,24 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
   useEffect(() => {
     void fetchDocs();
   }, [fetchDocs]);
+
+  // Jump to the page that holds the document another panel linked to.
+  useEffect(() => {
+    if (!focus || focus.kind !== 'document') return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const all = await apiListDocuments();
+        if (cancelled) return;
+        const index = all.findIndex(doc => doc.id === focus.documentId);
+        if (index >= 0) setPage(Math.floor(index / pageSize) + 1);
+        setHighlight(focus.documentId);
+      } catch {
+        /* the table still works without the jump */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [focus, pageSize]);
 
   const handleDelete = async (id: number, title: string) => {
     if (!confirm(t('documents.deleteConfirm', { title }))) {
@@ -89,7 +112,7 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
               </thead>
               <tbody>
                 {documents.map(doc => (
-                  <tr key={doc.id} className={styles.tr}>
+                  <tr key={doc.id} className={`${styles.tr} ${highlight === doc.id ? styles.trFocus : ''}`}>
                     <td className={styles.td}>
                       <div className={styles.docTitleRow}>
                         <span className={styles.docTitle} title={doc.title}>
@@ -121,12 +144,22 @@ export default function DocumentsPanel({ onRefreshStats }: DocumentsPanelProps) 
                       </span>
                     </td>
                     <td className={styles.td}>
-                      <button
-                        className={styles.btnDelete}
-                        onClick={() => handleDelete(doc.id, doc.title)}
-                      >
-                        {t('common.delete')}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {onNavigate && (
+                          <button
+                            className={styles.btnDelete}
+                            onClick={() => onNavigate('claims', { kind: 'claims', documentId: doc.id })}
+                          >
+                            {t('documents.viewClaims')}
+                          </button>
+                        )}
+                        <button
+                          className={styles.btnDelete}
+                          onClick={() => handleDelete(doc.id, doc.title)}
+                        >
+                          {t('common.delete')}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
