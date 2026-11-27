@@ -426,6 +426,9 @@
 - [x] 对话默认只走 agent；Quick 降为对话空状态的次级入口
 - [x] 首页改为跨库总览：新增 `GET /api/kb/stats`（30s 缓存，逐库读 DB，
       不可用库灰显）；`tests/test_kb_stats.py` 2 项通过
+- [x] 建库自动建数据库（SQLite 建文件 / PG 建库+建表）+ `POST /api/kb/{name}/provision` 补建
+- [x] `/api/kb/switch` 在 off 模式放行（原来 401，新库可用了也切不过去）
+- [x] 建库/补库后侧栏下拉自动刷新（`softwiki:kb-changed` 事件）
 - [ ] 门户重建按钮（需后台任务 API + 重启 web）
 - [ ] 侧栏会话与面板内 agent session 选择器合并
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）

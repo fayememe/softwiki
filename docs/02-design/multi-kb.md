@@ -186,6 +186,21 @@ C 的唯一优势是「同库内跨 schema JOIN」，但：
 - [ ] auth 关闭时 `POST /api/workspace` 返回 403
 - [ ] `pytest tests -q` 全绿
 
+## 6.1 建库 = 目录 + 数据库（2026-11-26 修正）
+
+建库向导过去只写目录、注册到 `config/kbs.yaml`，**不建数据库**。结果：
+目录出现在 `/api/kb` 里，但 `?verify=true` 判为 `available=false`，
+侧栏下拉把该库渲染成 `disabled` —— 表现就是「加了库但选不了」。
+
+现在 `POST /api/kb/create` 在写盘后会调用 `softwiki/kb/provision.ensure_kb_database()`：
+
+- SQLite：建文件 + 建表；
+- PostgreSQL：连维护库 `postgres`，`CREATE DATABASE`（先查 `pg_database`，幂等），再建表；
+- 失败不抛异常，返回 `{"created": false, "error": ...}`，前端提示原因。
+
+既有目录用 `POST /api/kb/{name}/provision` 补建（知识库管理面板每行有按钮）。
+另外 `/api/kb/switch` 在 `off` 模式现在放行（本机即操作员），否则可用的库也会 401。
+
 ## 6. 已知限制
 
 - v0 不提供跨库检索；调用方需分别 `ask` 后自行归纳（证据粒度受限于答案文本）。
