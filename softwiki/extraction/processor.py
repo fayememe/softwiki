@@ -5,6 +5,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import Optional
 from softwiki.config import is_module_enabled
 from softwiki.source_store.models import Document
 from softwiki.source_store.document_repo import DocumentRepository
@@ -151,10 +152,25 @@ def _save_extraction_artifacts(db, doc_id: int) -> None:
         logger.warning(f"Extraction artifact save failed for doc {doc_id}: {exc}")
 
 
-def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime):
-    """Background thread worker to perform NLP extraction on a document."""
+#: Canonicalization writes globally unique keys; two documents extracted in
+#: parallel deadlock on `canonical_claims` (or hit duplicate keys). Extraction
+#: can run in parallel, canonicalization must not.
+_CANONICAL_LOCK = threading.Lock()
+
+
+def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime, kb: Optional[str] = None):
+    """Background thread worker to perform NLP extraction on a document.
+
+    `kb` is captured in the calling request: a new thread has no request context,
+    so without it the session resolves to the instance's default workspace and
+    the extraction is written into the wrong knowledge base.
+    """
+    from softwiki.kb.context import enter_kb
     from softwiki.source_store.db import SessionLocal
-    
+
+    if kb:
+        enter_kb(kb)
+
     # Tiny delay to ensure parent transaction committing completes
     time.sleep(0.5)
     
@@ -172,7 +188,9 @@ def _bg_extraction_worker(doc_id: int, cleaned_text: str, published_at: datetime
         _extract_document(db, doc_id, cleaned_text, published_at)
         try:
             from softwiki.knowledge.canonical import canonicalize_document
-            canonicalize_document(db, doc_id)
+
+            with _CANONICAL_LOCK:
+                canonicalize_document(db, doc_id)
         except Exception as exc:
             logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
 
@@ -225,8 +243,14 @@ def run_extraction_pipeline(db: Session, doc_id: int, cleaned_text: str, publish
             doc.status = "pending"
             db.commit()
         
-        # Spawn background thread
-        t = threading.Thread(target=_bg_extraction_worker, args=(doc_id, cleaned_text, published_at))
+        from softwiki.kb.context import current_kb_name
+
+        # Spawn background thread, carrying the kb: threads do not inherit the
+        # request-scoped workspace.
+        t = threading.Thread(
+            target=_bg_extraction_worker,
+            args=(doc_id, cleaned_text, published_at, current_kb_name()),
+        )
         t.daemon = True
         t.start()
         
@@ -251,7 +275,9 @@ def run_extraction_pipeline(db: Session, doc_id: int, cleaned_text: str, publish
     if os.getenv("EXTRACTION_SKIP_CANONICALIZE", "").lower() not in ("1", "true", "yes"):
         try:
             from softwiki.knowledge.canonical import canonicalize_document
-            canonicalize_document(db, doc_id)
+
+            with _CANONICAL_LOCK:
+                canonicalize_document(db, doc_id)
         except Exception as exc:
             logger.warning(f"Knowledge canonicalization failed for doc {doc_id}: {exc}")
 
