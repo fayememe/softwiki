@@ -45,6 +45,14 @@ softwiki            [语言] [折叠]
 固定操作簇 `.top-actions`：`[助手] [主题]`，横向排列、8px 间距，`top:12px right:14px`。
 助手打开时高亮（`.icon-btn-active`）。各面板头部右侧预留约 108px，避免内容被压。
 
+右侧两个「侧栏」都可以拖动左边框调宽，逻辑在 `lib/use-resizable-width.ts`（pointer capture +
+双击复位 + localStorage）：
+
+| 面板 | 默认 | 范围 | 存储 key |
+|---|---|---|---|
+| 助手（AgentSidePane） | 420 | 320–760（同时给主区留 520） | `softwiki_assistant_width` |
+| Wiki 右侧栏 | 300 | 240–720（给预览留 320） | `softwiki_wiki_rail_width` |
+
 ## 4. 图谱
 
 - `components/GraphStudioPanel.tsx` 是唯一实现；`app/graph-studio/page.tsx` 只是薄包装（保留旧书签）。

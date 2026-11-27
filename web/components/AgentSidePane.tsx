@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import AgentMessageView from './chat/AgentMessageView';
 import { useAgentChat } from './chat/useAgentChat';
+import { useResizableWidth } from '@/lib/use-resizable-width';
 import styles from './AgentSidePane.module.css';
 
 interface Project {
@@ -85,6 +86,13 @@ export default function AgentSidePane({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const pane = useResizableWidth({
+    storageKey: 'softwiki_assistant_width',
+    defaultWidth: 420,
+    min: 320,
+    max: () => Math.max(360, Math.min(760, window.innerWidth - 520)),
+  });
 
   const project = useMemo(
     () => projects.find((p) => p.id === projectId) || null,
@@ -165,7 +173,22 @@ export default function AgentSidePane({
   const label = projectTitle(project);
 
   return (
-    <aside className={styles.pane} style={{ ['--accent' as string]: project?.color || '#3366cc' }}>
+    <aside
+      className={styles.pane}
+      style={{
+        ['--accent' as string]: project?.color || '#3366cc',
+        width: pane.width,
+      }}
+      data-dragging={pane.dragging ? 'true' : undefined}
+    >
+      <div
+        className={styles.resizer}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('assistant.resize')}
+        title={t('assistant.resize')}
+        {...pane.handleProps}
+      />
       <header className={styles.head}>
         <nav className={styles.projects}>
           {projects.map((p) => (

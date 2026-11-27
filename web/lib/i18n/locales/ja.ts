@@ -482,7 +482,8 @@ export const ja: Dict = {
         title: '作業',
         description:
           'Wiki ページの起草・編集、KB 検索、変更提案。公開・取り込み・削除はできない。',
-      },
+        resize: 'ドラッグで幅を変更、ダブルクリックでリセット',
+  },
       manage: {
         title: '管理',
         description:

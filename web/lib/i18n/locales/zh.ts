@@ -476,7 +476,8 @@ export const zh: Dict = {
       work: {
         title: '工作',
         description: '起草、编辑 Wiki 页面，检索知识库，提出改动方案。不能发布、入库或删除。',
-      },
+        resize: '拖动调整宽度，双击复位',
+  },
       manage: {
         title: '管理',
         description: '包含「工作」的全部能力，另可入库、重建索引、裁定冲突、批准提案。',

@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useResizableWidth } from '@/lib/use-resizable-width';
 import { useT } from '@/lib/i18n';
 import WikiPagesPanel from './WikiPagesPanel';
 import styles from './WikiWebPanel.module.css';
@@ -39,63 +40,14 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
   const [kb, setKb] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [portal, setPortal] = useState<PortalState>({ generated: null, subjects: null });
-  const [railWidth, setRailWidth] = useState(RAIL_DEFAULT);
-  const [railDragging, setRailDragging] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const draggingRef = useRef(false);
-  // Double-tap detection is done by hand: taking pointer capture makes Chrome
-  // unreliable about synthesising `dblclick` on the handle.
-  const lastTapRef = useRef(0);
-  const dragStartXRef = useRef(0);
-
-  useEffect(() => {
-    try {
-      const saved = Number(localStorage.getItem(RAIL_KEY));
-      if (Number.isFinite(saved) && saved >= RAIL_MIN) setRailWidth(Math.min(RAIL_MAX, saved));
-    } catch {
-      /* storage disabled: keep the default */
-    }
-  }, []);
-
-  const applyRailWidth = useCallback((clientX: number) => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const rect = body.getBoundingClientRect();
-    // Leave at least 320px for the portal preview.
-    const maxForWidth = Math.max(RAIL_MIN, Math.min(RAIL_MAX, rect.width - 320));
-    setRailWidth(Math.min(maxForWidth, Math.max(RAIL_MIN, rect.right - clientX)));
-  }, []);
-
-  const endRailDrag = useCallback(() => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setRailDragging(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
-
-  // Safety net: if the capture is lost (window loses focus, pointer leaves the
-  // window), the drag must still end.
-  useEffect(() => {
-    window.addEventListener('pointerup', endRailDrag);
-    window.addEventListener('pointercancel', endRailDrag);
-    return () => {
-      window.removeEventListener('pointerup', endRailDrag);
-      window.removeEventListener('pointercancel', endRailDrag);
-    };
-  }, [endRailDrag]);
-
-  // Persist a settled width (not every animation frame of the drag).
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(RAIL_KEY, String(railWidth));
-      } catch {
-        /* ignore */
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [railWidth]);
+  const rail = useResizableWidth({
+    storageKey: RAIL_KEY,
+    defaultWidth: RAIL_DEFAULT,
+    min: RAIL_MIN,
+    // Keep at least 320px for the portal preview.
+    max: () => Math.max(RAIL_MIN, Math.min(RAIL_MAX, (bodyRef.current?.clientWidth ?? window.innerWidth) - 320)),
+  });
 
   useEffect(() => {
     fetch('/api/kb', { cache: 'no-store' })
@@ -162,7 +114,7 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
         </div>
       </header>
 
-      <div className={styles.body} ref={bodyRef} data-dragging={railDragging ? 'true' : undefined}>
+      <div className={styles.body} ref={bodyRef} data-dragging={rail.dragging ? 'true' : undefined}>
         {tab === 'pages' ? (
           <div className={styles.pagesPane}>
             <WikiPagesPanel />
@@ -184,44 +136,9 @@ export default function WikiWebPanel({ onOpenAssistant }: { onOpenAssistant?: ()
               aria-orientation="vertical"
               aria-label={t('wikiweb.resizeRail')}
               title={t('wikiweb.resizeRail')}
-              onPointerDown={(event) => {
-                // No preventDefault here: it also cancels the compatibility
-                // click/dblclick events, which is what the reset gesture uses.
-                // Selection is suppressed with user-select instead.
-                // Pointer capture matters, though: without it the moves go to
-                // the portal <iframe> as soon as the cursor crosses it and the
-                // drag silently freezes at the starting width.
-                event.currentTarget.setPointerCapture(event.pointerId);
-                draggingRef.current = true;
-                dragStartXRef.current = event.clientX;
-                setRailDragging(true);
-                document.body.style.cursor = 'col-resize';
-                document.body.style.userSelect = 'none';
-              }}
-              onPointerMove={(event) => {
-                if (!draggingRef.current) return;
-                applyRailWidth(event.clientX);
-              }}
-              onPointerUp={(event) => {
-                event.currentTarget.releasePointerCapture?.(event.pointerId);
-                const moved = Math.abs(event.clientX - dragStartXRef.current);
-                endRailDrag();
-                if (moved > 4) {
-                  lastTapRef.current = 0;
-                  return;
-                }
-                const now = Date.now();
-                if (now - lastTapRef.current < 320) {
-                  setRailWidth(RAIL_DEFAULT);
-                  lastTapRef.current = 0;
-                } else {
-                  lastTapRef.current = now;
-                }
-              }}
-              onPointerCancel={endRailDrag}
-              onDoubleClick={() => setRailWidth(RAIL_DEFAULT)}
+              {...rail.handleProps}
             />
-            <aside className={styles.rail} style={{ width: railWidth }}>
+            <aside className={styles.rail} style={{ width: rail.width }}>
               <div className={styles.railSection}>
                 <h2 className={styles.railTitle}>{t('wikiweb.generate')}</h2>
                 <button className={styles.railBtn} onClick={() => setTab('pages')}>

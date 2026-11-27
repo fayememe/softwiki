@@ -487,7 +487,8 @@ export const en = {
         title: 'Work',
         description:
           'Draft and edit wiki pages, search the kb, and propose changes. Cannot publish, ingest or delete.',
-      },
+        resize: 'Drag to resize, double-click to reset',
+  },
       manage: {
         title: 'Manage',
         description:
