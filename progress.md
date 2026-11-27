@@ -437,6 +437,20 @@
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）
 - [ ] 删除已无引用的 `GraphPanel.tsx`
 
+## 事故与修复（2026-11-26）
+
+- **后台抽取写错知识库**：线程没有继承请求 kb → tsmckb 的抽取写进 armkb
+  （claims 15,465 → 21,649，8 篇 failed），同时并行 canonicalize 死锁。
+  已修（`250f2f6` / `5f8aadc`）并从 11-24 备份恢复 armkb，重灌向量 39,870；
+  坏库保留为 `softwiki_armkb_bad_20261127`。详见
+  `docs/03-operations/incident-2026-11-26-kb-misextraction.md`。
+- 同批修复：`extract-pending` 跳过已有 claims 的文档；wiki worker 按 kb 轮转
+  （过去只处理默认库）；`/api/index` 清 pipeline 缓存。
+- 回归测试：`tests/test_extraction_kb_context.py`、`tests/test_wiki_worker_kbs.py`；
+  全量 **297 passed**。
+- 端到端（tsmckb）：16/16 文档抽取完成、5,650 claims、1,793 chunks 索引、
+  `/api/ask` 命中；投影回填 rel 267→4、events 146→44。
+
 ## Pending issues / Blocker
 
 - [!] **trial-host embedding 上游 504（2026-11-20 发现）**：`oneroute` 的 `/v1/embeddings` 返回 `Error code: 504`，单次耗时 **185s** 才失败；容器日志 `[rag] embedding unavailable, using BM25 only`。因此 `/api/ask` 会先卡 185s 再降级，实测 200s 超时未返回。
