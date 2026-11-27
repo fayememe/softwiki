@@ -269,10 +269,10 @@ def search(query: str, top_k: int = 5, kb: str = None) -> str:
         top_k: Number of search results to return (default: 5).
         kb: Knowledge base name (see kb_list). Omit to use the active kb.
     """
-    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+    from softwiki.kb.context import KbResolutionError, default_kb_name, enter_kb, restore_kb
 
     try:
-        previous_kb = enter_kb(kb)
+        previous_kb = enter_kb(kb or default_kb_name())
     except KbResolutionError as exc:
         return f"Search failed: {exc}"
     db = SessionLocal()
@@ -334,10 +334,10 @@ def ask(query: str, mode: str = "normal", workflow: str = None, kb: str = None) 
         workflow: Optional workflow name.
         kb: Knowledge base name (see kb_list). Omit to use the active kb.
     """
-    from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+    from softwiki.kb.context import KbResolutionError, default_kb_name, enter_kb, restore_kb
 
     try:
-        previous_kb = enter_kb(kb)
+        previous_kb = enter_kb(kb or default_kb_name())
     except KbResolutionError as exc:
         return f"Ask failed: {exc}"
     db = SessionLocal()

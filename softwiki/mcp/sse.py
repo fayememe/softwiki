@@ -32,10 +32,10 @@ def create_mcp_server():
             mode: Answer style — "normal", "deep", "concise", "creative".
             kb: Knowledge base name (see kb_list). Omit to use the active kb.
         """
-        from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+        from softwiki.kb.context import KbResolutionError, default_kb_name, enter_kb, restore_kb
         from softwiki.intelligence.answer_engine import AnswerEngine
         try:
-            previous_kb = enter_kb(kb)
+            previous_kb = enter_kb(kb or default_kb_name())
         except KbResolutionError as exc:
             return f"Ask failed: {exc}"
         db = SessionLocal()
@@ -271,9 +271,9 @@ def create_mcp_server():
             top_k: Number of results (default 5).
             kb: Knowledge base name (see kb_list). Omit to use the active kb.
         """
-        from softwiki.kb.context import KbResolutionError, enter_kb, restore_kb
+        from softwiki.kb.context import KbResolutionError, default_kb_name, enter_kb, restore_kb
         try:
-            previous_kb = enter_kb(kb)
+            previous_kb = enter_kb(kb or default_kb_name())
         except KbResolutionError as exc:
             return f"Search failed: {exc}"
         db = SessionLocal()

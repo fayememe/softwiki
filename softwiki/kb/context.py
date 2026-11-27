@@ -54,6 +54,33 @@ def _apply(kb_name: Optional[str]) -> None:
     set_request_workspace(resolve_kb_dir(kb_name) if kb_name else None)
 
 
+def default_kb_name() -> Optional[str]:
+    """The kb a *user* means when a tool omits `kb`.
+
+    Request paths already carry it (middleware enters the user's active kb), but
+    the MCP server runs in its own process: its tools defaulted to the instance
+    workspace, so the assistant kept querying armkb after the UI switched to
+    another kb. In `off` mode there is exactly one user, whose `active_kb` is the
+    same preference the UI writes.
+    """
+    current = current_kb_name()
+    if current:
+        return current
+    try:
+        from softwiki.identity.superuser import auth_mode
+
+        if auth_mode() != "off":
+            return None
+        from softwiki.identity.users import UserStore
+
+        name = getattr(UserStore().ensure_superuser_row(), "active_kb", None)
+        if name and resolve_kb_dir(name):
+            return name
+    except Exception:  # noqa: BLE001 - a broken users.yaml must not break tools
+        return None
+    return None
+
+
 def enter_kb(kb: Optional[str]) -> Optional[str]:
     """Scope this execution context to `kb`; returns the previous kb name.
 
