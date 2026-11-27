@@ -115,7 +115,11 @@ export async function GET(
     if (!stat.isFile()) throw new Error('not a file');
     body = await fs.readFile(resolved);
   } catch {
-    return notFound(kb, `No portal has been generated for this knowledge base yet.`);
+    return notFound(
+      kb,
+      'No static portal has been generated for this knowledge base yet. '
+        + 'Build one with scripts/wikiweb_build.py, or use the Wiki panel to generate pages first.',
+    );
   }
 
   return new Response(new Uint8Array(body), {

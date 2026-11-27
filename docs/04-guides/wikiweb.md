@@ -33,7 +33,7 @@ python /app/scripts/wikiweb_build.py \
 - 摘要：优先取 LLM Wiki 页首段，没有就用 claims 拼句（**不调 LLM**）；
 - 只链接到实际生成的页面；slug 冲突自动加 `-2` 后缀。
 
-输出结构（与 `WIKIWEB_ENTRY=<kb>/index.html` 匹配）：
+输出结构（由 `/wikiweb/<kb>/...` 直接读盘提供）：
 
 ```
 exports/wikiweb/
@@ -49,15 +49,21 @@ exports/wikiweb/
 - 框架稳定性可验证：对比生成前后的 `assets/` 和外壳 hash（脚本固定模板）；
 - 新实体：重新生成会新增页面；被淘汰的实体页面不会自动删除，需要手工清理。
 
-## 必须重启 web 容器
+## 不再需要重启 web 容器
 
-Next.js 在**启动时**枚举 `public/`，运行期新增的文件不会自动可访问：
+2026-11-26 起，`/wikiweb` 由 `app/wikiweb/[...path]/route.ts` **每次请求读盘**，直接取
+`<stack>/<kb>/exports/wikiweb/` 下的文件：
 
-```bash
-# 生成后
-sudo docker restart softwiki-web-1        # javis
-# trial: softwiki-web-1 / softwiki-ai-web-1
 ```
+/wikiweb/<kb>/...   -> <stack>/<kb>/exports/wikiweb/<kb>/...
+/wikiweb/<kb>/assets/... -> <stack>/<kb>/exports/wikiweb/assets/...
+/wikiweb            -> 307 到当前 active kb
+```
+
+- 重新生成门户后**刷新页面即可**，不用 `docker restart`（旧实现把单库导出目录挂到
+  `public/wikiweb` 并固定 `WIKIWEB_ENTRY`，既要求重启，又让所有库都显示同一个门户）；
+- web 容器只需要把 `SOFTWIKI_STACK_ROOT` 只读挂到 `/data/workspaces`；
+- 该库没生成门户时返回明确的提示页，而不是别的库的内容。
 
 否则 `/wikiweb/...` 返回 404（文件确实在容器里，但 Next 不认识）。
 
