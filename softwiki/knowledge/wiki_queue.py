@@ -306,22 +306,65 @@ def _heartbeat(task_id: int, stop_event: threading.Event) -> None:
             db.close()
 
 
-def _worker_loop(stop_event: Optional[threading.Event] = None) -> None:
-    """Claim and process one task per iteration (one loop per worker thread)."""
+def _available_kbs() -> list:
+    """Every initialised kb in this instance (``[None]`` = the default one).
+
+    The worker is started once per process, outside any request, so it has no
+    kb context. Without iterating, only the instance's default workspace ever
+    got its wiki rebuilt — tasks enqueued for any other kb sat in their own
+    database forever.
+    """
+    try:
+        from softwiki.config import get_workspaces_root
+        from softwiki.kb.registry import list_kb_infos
+
+        names = [info.name for info in list_kb_infos(get_workspaces_root())]
+    except Exception as exc:  # noqa: BLE001 - fall back to the default workspace
+        print(f"[wiki-worker] kb discovery skipped: {exc}", flush=True)
+        names = []
+    return names or [None]
+
+
+def _enter(kb):
+    if kb is None:
+        return None
+    from softwiki.kb.context import enter_kb
+
+    return enter_kb(kb)
+
+
+def _leave(token) -> None:
+    if token is None:
+        return
+    from softwiki.kb.context import restore_kb
+
+    restore_kb(token)
+
+
+def _worker_loop(stop_event: Optional[threading.Event] = None, kbs: Optional[list] = None):
+    """Claim and process one task per iteration, round-robin over kbs."""
     from softwiki.source_store.db import SessionLocal
 
+    names = kbs or [None]
+    index = 0
     while not (stop_event and stop_event.is_set()):
         if _provider_paused():
             time.sleep(30)
             continue
-        db = SessionLocal()
+        kb = names[index % len(names)]
+        index += 1
+        token = _enter(kb)
         try:
-            result = run_once(db)
+            db = SessionLocal()
+            try:
+                result = run_once(db)
+            finally:
+                db.close()
         except Exception as exc:  # noqa: BLE001 - one bad task must not stop the pool
-            print(f"[wiki-worker] loop error: {exc}", flush=True)
+            print(f"[wiki-worker] loop error ({kb}): {exc}", flush=True)
             result = None
         finally:
-            db.close()
+            _leave(token)
         time.sleep(2 if result else 5)
 
 
@@ -336,16 +379,20 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
     """
     from softwiki.source_store.db import SessionLocal
 
-    db = SessionLocal()
-    try:
-        if REQUEUE_RUNNING_ON_START:
-            requeue_running_on_start(db)
-        if AUTO_ENQUEUE_MISSING:
-            enqueue_missing_subjects(db)
-    except Exception as exc:  # noqa: BLE001 - startup must not kill the app
-        print(f"[wiki-worker] startup recovery skipped: {exc}", flush=True)
-    finally:
-        db.close()
+    kbs = _available_kbs()
+    for kb in kbs:
+        token = _enter(kb)
+        db = SessionLocal()
+        try:
+            if REQUEUE_RUNNING_ON_START:
+                requeue_running_on_start(db)
+            if AUTO_ENQUEUE_MISSING:
+                enqueue_missing_subjects(db)
+        except Exception as exc:  # noqa: BLE001 - startup must not kill the app
+            print(f"[wiki-worker] startup recovery skipped for {kb}: {exc}", flush=True)
+        finally:
+            db.close()
+            _leave(token)
 
     concurrency = WORKER_CONCURRENCY
     try:
@@ -358,7 +405,10 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
         pass
     for index in range(concurrency):
         threading.Thread(
-            target=_worker_loop, name=f"wiki-worker-{index + 1}", daemon=True
+            target=_worker_loop,
+            args=(None, kbs),
+            name=f"wiki-worker-{index + 1}",
+            daemon=True,
         ).start()
     print(f"[wiki-worker] {concurrency} worker(s) started", flush=True)
 
@@ -368,19 +418,24 @@ def worker_loop(stop_event: Optional[threading.Event] = None) -> None:
         now = time.monotonic()
         if now - last_reconcile >= RECONCILE_INTERVAL_SECONDS:
             last_reconcile = now
-            db = SessionLocal()
-            try:
-                reap_stale_running(db)
-                if AUTO_ENQUEUE_MISSING:
-                    enqueue_missing_subjects(db)
-                from softwiki.wiki.auto_pages import reconcile
+            # New kbs can appear without a restart.
+            kbs = _available_kbs()
+            for kb in kbs:
+                token = _enter(kb)
+                db = SessionLocal()
+                try:
+                    reap_stale_running(db)
+                    if AUTO_ENQUEUE_MISSING:
+                        enqueue_missing_subjects(db)
+                    from softwiki.wiki.auto_pages import reconcile
 
-                queued = reconcile(db, allow_initial=False)
-                if queued.get("enqueued"):
-                    print(f"[wiki-worker] queued {queued['enqueued']} changed subject(s)",
-                          flush=True)
-            except Exception as exc:  # noqa: BLE001 - never kill the worker
-                print(f"[wiki-worker] reconcile skipped: {exc}", flush=True)
-            finally:
-                db.close()
+                    queued = reconcile(db, allow_initial=False)
+                    if queued.get("enqueued"):
+                        print(f"[wiki-worker] queued {queued['enqueued']} changed subject(s) in {kb}",
+                              flush=True)
+                except Exception as exc:  # noqa: BLE001 - never kill the worker
+                    print(f"[wiki-worker] reconcile skipped for {kb}: {exc}", flush=True)
+                finally:
+                    db.close()
+                    _leave(token)
         time.sleep(5)

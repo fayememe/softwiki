@@ -2096,9 +2096,12 @@ def extract_pending(limit: int = 10):
     limit = max(1, min(limit, 50))
     db = SessionLocal()
     try:
+        # Only documents that never produced claims. Re-running extraction on a
+        # partially extracted document would append duplicate claims.
         docs = (
             db.query(Document)
-            .filter(Document.status.in_(("pending", "extracting")))
+            .outerjoin(Claim, Claim.document_id == Document.id)
+            .filter(Document.status.in_(("pending", "extracting")), Claim.id.is_(None))
             .order_by(Document.id)
             .limit(limit)
             .all()
@@ -2170,6 +2173,7 @@ def rebuild_index(kb: Optional[str] = None):
         chunk_id_to_text = {c.id: c.text for c in all_chunks}
         bm25_store.rebuild_index(chunk_id_to_text)
 
+        _pipeline_cache.clear()
         return {
             "status": "success",
             "kb": kb or os.path.basename(get_workspace_dir()),
