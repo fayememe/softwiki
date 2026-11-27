@@ -3252,6 +3252,21 @@ def graph_entity(name: str = "", id: int | None = None):
             .limit(60)
             .all()
         )
+        if not edges:
+            # Relationships written before `graph_normalize` have NULL endpoint
+            # ids; fall back to names so the card is not empty for those kbs.
+            names = [canonical.name, *aliases]
+            edges = (
+                db.query(Relationship)
+                .filter(Relationship.status == "active")
+                .filter(
+                    (Relationship.source_name.in_(names))
+                    | (Relationship.target_name.in_(names))
+                )
+                .order_by(Relationship.weight.desc(), Relationship.confidence.desc())
+                .limit(60)
+                .all()
+            )
 
         doc_ids = {rel.document_id for rel in edges if rel.document_id}
         docs = {
