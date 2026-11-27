@@ -157,7 +157,13 @@ export const en = {
     resumeExtraction: 'Resume extraction',
     resuming: '…',
     resumeDone: 'Restarted extraction for {n} documents',
-  },
+
+    docsPendingDetail: '{extracting} extracting · {pending} queued · {failed} failed',
+    buildingIndex: 'rebuilding',
+    llmwiki: 'LLM Wiki',
+    taskRunning: 'generating',
+    taskPending: 'queued',
+    moreTasks: '…{n} more',  },
 
   chat: {
     messagesAria: 'Chat messages',

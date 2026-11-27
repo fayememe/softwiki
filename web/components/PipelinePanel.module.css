@@ -237,6 +237,55 @@
 .chip_warn { color: #ac6600; border-color: currentColor; }
 .chip_empty { color: var(--text-tertiary); }
 
+.activeList {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.activeList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.dotRunning {
+  background: var(--accent-blue, #3366cc);
+  box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.15);
+}
+
+.activeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeState {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+
+.activeMore {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+}
+
 .footer {
   margin: 8px 0 0;
   font-size: 11px;

@@ -1841,6 +1841,7 @@ def ask_question(req: AskRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        BUILDING.pop(kb_name, None)
         db.close()
         restore_kb(previous_kb)
 
@@ -2133,6 +2134,9 @@ def rebuild_index(kb: Optional[str] = None):
     except KbResolutionError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
+    from softwiki.kb.pipeline import BUILDING
+
+    kb_name = kb or os.path.basename(get_workspace_dir())
     db = SessionLocal()
     try:
         documents = DocumentRepository.get_all_documents(db)
@@ -2151,6 +2155,7 @@ def rebuild_index(kb: Optional[str] = None):
             db_chunks = DocumentRepository.build_chunk_models(chunks_data)
             DocumentRepository.create_chunks(db, db_chunks)
             
+        BUILDING[kb_name] = "index"
         all_chunks = DocumentRepository.get_all_chunks(db)
         chunk_ids = [c.id for c in all_chunks]
         chunk_texts = [c.text for c in all_chunks]
@@ -2184,6 +2189,7 @@ def rebuild_index(kb: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        BUILDING.pop(kb_name, None)
         db.close()
         restore_kb(previous_kb)
 

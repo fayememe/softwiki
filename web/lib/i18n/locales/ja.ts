@@ -155,7 +155,13 @@ export const ja: Dict = {
     resumeExtraction: '抽出を再開',
     resuming: '…',
     resumeDone: '{n} 件の抽出を再開しました',
-  },
+
+    docsPendingDetail: '抽出中 {extracting} · 待機 {pending} · 失敗 {failed}',
+    buildingIndex: '再構築中',
+    llmwiki: 'LLM Wiki',
+    taskRunning: '生成中',
+    taskPending: '待機',
+    moreTasks: '…他 {n} 件',  },
 
   chat: {
     messagesAria: 'チャットメッセージ',

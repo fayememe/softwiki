@@ -18,6 +18,10 @@ from typing import Dict, Optional
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
+#: kb -> operation currently running in this process ("index"). Long operations
+#: cannot be seen from the database, so they report themselves here.
+BUILDING: Dict[str, str] = {}
+
 from softwiki.source_store.models import (
     CanonicalClaim,
     Chunk,
@@ -114,6 +118,29 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
         .all()
     )
     tasks = {status: int(count) for status, count in task_rows}
+    # Who is being generated right now (or next in line), so the UI can show
+    # actual work instead of just a number.
+    active_rows = (
+        db.query(WikiRebuildTask)
+        .filter(WikiRebuildTask.status.in_(("pending", "running")))
+        .order_by(WikiRebuildTask.status.desc(), WikiRebuildTask.updated_at.asc())
+        .limit(8)
+        .all()
+    )
+    active_tasks = [
+        {
+            "topic": row.topic,
+            "kind": getattr(row, "kind", "topic"),
+            "status": row.status,
+            "attempts": row.attempts,
+            "started_at": row.started_at.isoformat() + "Z" if row.started_at else None,
+        }
+        for row in active_rows
+    ]
+
+    doc_unfinished_detail = {
+        key: doc_status.get(key, 0) for key in ("pending", "extracting", "failed")
+    }
 
     vectors = None
     try:
@@ -157,6 +184,7 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
             "total": docs_total,
             "by_status": doc_status,
             "unfinished": docs_unfinished,
+            "in_progress": doc_unfinished_detail,
             "without_chunks": docs_without_chunks,
             "without_claims": docs_without_claims,
             "without_relationships": docs_without_relationships,
@@ -165,6 +193,7 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
             ),
         },
         "index": {
+            "building": BUILDING.get(kb),
             "chunks": int(chunks),
             "vectors": vectors,
             "vector_backend": os.getenv("SOFTWIKI_VECTOR_BACKEND", "file"),
@@ -194,6 +223,7 @@ def snapshot(db: Session, kb: str, workspace: str) -> Dict:
             "stale": int(wiki_stale),
             "tasks": tasks,
             "running": (tasks.get("pending", 0) + tasks.get("running", 0)) > 0,
+            "active": active_tasks,
             "built_at": wiki_built_at.isoformat() + "Z" if wiki_built_at else None,
         },
         "portal": {

@@ -155,7 +155,13 @@ export const zh: Dict = {
     resumeExtraction: '继续抽取待处理',
     resuming: '…',
     resumeDone: '已重新开始 {n} 篇的抽取',
-  },
+
+    docsPendingDetail: '抽取中 {extracting} · 待抽取 {pending} · 失败 {failed}',
+    buildingIndex: '重建中',
+    llmwiki: 'LLM Wiki',
+    taskRunning: '生成中',
+    taskPending: '排队',
+    moreTasks: '…还有 {n} 个',  },
 
   chat: {
     messagesAria: '聊天消息',

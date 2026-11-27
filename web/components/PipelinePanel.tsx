@@ -26,12 +26,14 @@ interface Pipeline {
     total: number;
     by_status: Record<string, number>;
     unfinished: number;
+    in_progress: Record<string, number>;
     without_chunks: number;
     without_claims: number;
     without_relationships: number;
     oldest_unfinished: string | null;
   };
   index: {
+    building: string | null;
     chunks: number;
     vectors: number | null;
     vector_backend: string;
@@ -47,6 +49,7 @@ interface Pipeline {
     stale: number;
     tasks: Record<string, number>;
     running: boolean;
+    active: { topic: string; kind: string; status: string; attempts: number; started_at: string | null }[];
     built_at: string | null;
   };
   portal: { exists: boolean; built_at: string | null; pages: number; stale: boolean };
@@ -186,7 +189,13 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
             <div className={styles.metrics}>
               <span><strong>{data.documents.total}</strong> {t('pipeline.docsTotal')}</span>
               {data.documents.unfinished > 0 && (
-                <span className={styles.warnText}>{t('pipeline.docsPending', { n: data.documents.unfinished })}</span>
+                <span className={styles.warnText}>
+                  {t('pipeline.docsPendingDetail', {
+                    extracting: data.documents.in_progress.extracting ?? 0,
+                    pending: data.documents.in_progress.pending ?? 0,
+                    failed: data.documents.in_progress.failed ?? 0,
+                  })}
+                </span>
               )}
             </div>
             <div className={styles.cardActions}>
@@ -207,7 +216,7 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
           <article className={`${styles.card} ${styles.cardIndex}`}>
             <div className={styles.cardHead}>
               <span className={styles.cardName}>{t('pipeline.index')}</span>
-              {chip(indexState)}
+              {data.index.building ? chip('running', t('pipeline.buildingIndex')) : chip(indexState)}
             </div>
             <div className={styles.metrics}>
               <span><strong>{data.index.chunks.toLocaleString()}</strong> {t('pipeline.chunks')}</span>
@@ -297,7 +306,7 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
         <div className={styles.row}>
           <article className={`${styles.card} ${styles.cardWiki}`}>
             <div className={styles.cardHead}>
-              <span className={styles.cardName}>{t('pipeline.wiki')}</span>
+              <span className={styles.cardName}>{t('pipeline.llmwiki')}</span>
               {chip(wikiState)}
             </div>
             <div className={styles.metrics}>
@@ -316,6 +325,24 @@ export default function PipelinePanel({ onNavigate }: { onNavigate?: (panel: Act
               )}
               <span>{t('pipeline.builtAt')}: {fmtDate(data.wiki.built_at)}</span>
             </div>
+            {data.wiki.active.length > 0 && (
+              <ul className={styles.activeList}>
+                {data.wiki.active.slice(0, 5).map(task => (
+                  <li key={`${task.kind}:${task.topic}`}>
+                    <span className={`${styles.dot} ${task.status === 'running' ? styles.dotRunning : ''}`} />
+                    <span className={styles.activeName}>{task.topic}</span>
+                    <span className={styles.activeState}>
+                      {task.status === 'running' ? t('pipeline.taskRunning') : t('pipeline.taskPending')}
+                    </span>
+                  </li>
+                ))}
+                {data.wiki.active.length > 5 && (
+                  <li className={styles.activeMore}>
+                    {t('pipeline.moreTasks', { n: data.wiki.active.length - 5 })}
+                  </li>
+                )}
+              </ul>
+            )}
             <button className={styles.cardBtn} onClick={() => onNavigate?.('wikiweb')}>{t('pipeline.goWiki')}</button>
           </article>
 
