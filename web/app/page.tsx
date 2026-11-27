@@ -251,24 +251,92 @@ function HomeInner() {
     setAgentOpen(true);
   }, []);
 
-  /** Cross-panel navigation: switch panel and hand it a focus payload. */
+  /**
+   * Panels live in client state, so the browser back/forward buttons used to do
+   * nothing. Every navigation writes a small query into the URL
+   * (`?panel=claims&focus=claims&documentId=12`) and popstate restores it.
+   */
+  const writeUrl = useCallback((panel: ActivePanel, next?: NavFocus, sessionId?: string | null) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams();
+    params.set('panel', panel);
+    if (next) {
+      params.set('focus', next.kind);
+      const payload = next as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(payload)) {
+        if (key !== 'kind' && value !== undefined && value !== null) {
+          params.set(key, String(value));
+        }
+      }
+    }
+    if (panel === 'chat' && sessionId) params.set('session', sessionId);
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({ panel, focus: next ?? null, sessionId: sessionId ?? null }, '', url);
+  }, []);
+
+  /** Cross-panel navigation: switch panel, hand it a focus payload, remember it. */
   const go = useCallback((panel: ActivePanel, next?: NavFocus) => {
     setFocus(next);
     setActivePanel(panel);
+    writeUrl(panel, next, panel === 'chat' ? activeSessionId : null);
+  }, [activeSessionId, writeUrl]);
+
+  // Restore state from the URL (first load and browser back/forward).
+  useEffect(() => {
+    const PANELS: ActivePanel[] = [
+      'home', 'chat', 'ingest', 'documents', 'claims', 'conflicts',
+      'graph', 'timeline', 'pipeline', 'llmwiki', 'wikiweb', 'kbwizard', 'users',
+    ];
+    const apply = () => {
+      const params = new URLSearchParams(window.location.search);
+      const panel = params.get('panel') as ActivePanel | null;
+      if (!panel || !PANELS.includes(panel)) return;
+      const kind = params.get('focus');
+      let next: NavFocus | undefined;
+      if (kind === 'claims') {
+        next = {
+          kind: 'claims',
+          claimId: params.get('claimId') ? Number(params.get('claimId')) : undefined,
+          actor: params.get('actor') ?? undefined,
+          topic: params.get('topic') ?? undefined,
+          documentId: params.get('documentId') ? Number(params.get('documentId')) : undefined,
+          q: params.get('q') ?? undefined,
+        };
+      } else if (kind === 'document' && params.get('documentId')) {
+        next = { kind: 'document', documentId: Number(params.get('documentId')) };
+      } else if (kind === 'entity' && params.get('name')) {
+        next = { kind: 'entity', name: String(params.get('name')) };
+      }
+      const session = params.get('session');
+      if (panel === 'chat' && session) setActiveSessionId(session);
+      setFocus(next);
+      setActivePanel(panel);
+    };
+    apply();
+    // Establish a baseline entry so the first "back" has somewhere to go.
+    if (!new URLSearchParams(window.location.search).get('panel')) {
+      window.history.replaceState({ panel: 'chat' }, '', `${window.location.pathname}?panel=chat`);
+    }
+    window.addEventListener('popstate', apply);
+    return () => window.removeEventListener('popstate', apply);
+    // Run once on mount; later navigations go through go()/writeUrl().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Selecting a session from the always-visible sidebar list also opens chat.
   const selectSession = useCallback((id: string) => {
     setActiveSessionId(id);
     setActivePanel('chat');
-  }, []);
+    writeUrl('chat', undefined, id);
+  }, [writeUrl]);
 
   const handleNewSession = useCallback(() => {
     const ns = createNewSession();
     setSessions(prev => [ns, ...prev]);
     setActiveSessionId(ns.id);
     setActivePanel('chat');
-  }, []);
+    writeUrl('chat', undefined, ns.id);
+  }, [writeUrl]);
 
   const handleDeleteSession = useCallback((id: string) => {
     setSessions(prev => {
@@ -308,7 +376,7 @@ function HomeInner() {
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         activePanel={activePanel}
-        onPanelChange={(panel) => { setFocus(undefined); setActivePanel(panel); }}
+        onPanelChange={(panel) => { setFocus(undefined); setActivePanel(panel); writeUrl(panel); }}
         docCount={docCount}
         claimCount={claimCount}
         sessions={sessions}

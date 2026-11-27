@@ -438,6 +438,7 @@
       时间线主题→论断、LLM Wiki→论断；论断新增搜索框与聚焦 chip
 - [x] 修复 `/api/graph/entity` 对旧数据（关系缺 endpoint id）返回 0 边：按名称/别名回退；
       tsmckb 已跑 `graph_normalize`（267 条边全部解析）
+- [x] 面板状态写入 URL（`?panel=…&focus=…`），浏览器前进/后退可用，支持深链与 focus 还原
 - [ ] 门户重建按钮（需后台任务 API + 重启 web）
 - [ ] 侧栏会话与面板内 agent session 选择器合并
 - [ ] 旧全局会话 key 迁移（升级后历史会话不显示）

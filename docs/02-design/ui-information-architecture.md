@@ -117,6 +117,20 @@ softwiki            [语言] [折叠]
 论断面板新增搜索框与「聚焦」chip（文档 #id / 主题 / 论断 #id），chip 可单个清除。
 从侧栏直接切面板会清空 focus，避免上一次的过滤残留。
 
+### URL 与前进/后退
+
+面板状态写进 URL，浏览器前进/后退可用（此前是纯客户端 state，两个按钮无效）：
+
+```
+/?panel=claims&focus=claims&documentId=30&q=Eva
+/?panel=graph&focus=entity&name=Cortex-M55
+/?panel=chat&session=<sessionId>
+```
+
+- 每次导航 `pushState`；`popstate` 时按 URL 还原 panel / focus / session；
+- 首次加载若无 `panel` 参数，用 `replaceState` 建立 `?panel=chat` 基线，保证第一次「后退」有落点；
+- 直接粘贴带 focus 的链接可以打开已过滤的视图。
+
 ## 3.4 颜色与主题
 
 所有面板只用 `app/globals.css` 的 token，不再写死颜色：
