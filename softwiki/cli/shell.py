@@ -572,12 +572,19 @@ Depending on the mode, certain operations are restricted:
         # avoids needing psycopg2 / DB connectivity on the host and keeps the
         # host opencode process independent from the database.
         mcp_url = os.getenv("SOFTWIKI_AGENT_MCP_URL", "http://127.0.0.1:6100/mcp")
+        # The MCP service runs with one role for the whole process (usually
+        # wiki-study), which made the Manage assistant read-only no matter what
+        # the UI said. The per-project gating lives in the agent deny lists, so
+        # the agent connection asks for the management role explicitly.
+        mcp_role = os.getenv("SOFTWIKI_AGENT_MCP_ROLE", "wiki-manage")
         mcp_config = {
             "type": "remote",
             "url": mcp_url,
             "enabled": True,
             "timeout": int(os.getenv("SWAGENT_MCP_TIMEOUT_MS", "600000")),
         }
+        if mcp_role:
+            mcp_config["headers"] = {"x-softwiki-role": mcp_role}
     else:
         mcp_config = {
             "type": "local",
