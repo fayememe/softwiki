@@ -338,6 +338,9 @@ export const ja: Dict = {
     unregistered: '解除済み',
     unhook: '解除',
     rehook: '登録',
+    provision: 'DB 作成',
+    provisionHint: '既存 KB のデータベースを作成（冪等）。新規 KB は自動作成されます',
+    dbFailed: 'データベース作成に失敗：{error}',
   },
 
   wiki: {

@@ -24,10 +24,16 @@ export interface KbCreatePlan {
   warnings: string[];
 }
 
+export interface KbProvisionResult {
+  created: boolean;
+  error: string | null;
+  database: string | null;
+}
+
 export interface KbCreateResponse {
   dry_run: boolean;
   plan: KbCreatePlan;
-  result?: { name: string; written: string[] };
+  result?: { name: string; written: string[]; database?: KbProvisionResult };
 }
 
 export interface KbRegistryRow {
@@ -47,6 +53,17 @@ export async function apiKbTemplates(): Promise<{ templates: KbTemplate[] }> {
   const res = await fetch(`${API_BASE}/api/kb/templates`);
   if (!res.ok) throw new Error(`Failed to list kb templates: ${res.status}`);
   return res.json();
+}
+
+/** Create the database behind an existing kb directory (idempotent). */
+export async function apiProvisionKb(name: string): Promise<KbProvisionResult> {
+  const res = await fetch(`${API_BASE}/api/kb/${encodeURIComponent(name)}/provision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `Failed to provision: ${res.status}`);
+  return body as KbProvisionResult;
 }
 
 export async function apiCreateKb(input: {

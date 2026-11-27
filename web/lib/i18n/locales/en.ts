@@ -342,6 +342,9 @@ export const en = {
     unregistered: 'unhooked',
     unhook: 'Unhook',
     rehook: 'Register',
+    provision: 'Provision DB',
+    provisionHint: 'Create the missing database for an existing kb (idempotent); new kbs do this automatically',
+    dbFailed: 'Database provisioning failed: {error}',
   },
 
   wiki: {

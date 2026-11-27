@@ -394,6 +394,7 @@ def create_kb(
     created_by: Optional[str] = None,
     root: Optional[str] = None,
     overwrite_topics: bool = False,
+    provision_database: bool = True,
 ) -> dict:
     """Execute a :class:`CreatePlan`. Returns a summary of what was written."""
     root = root or get_workspaces_root()
@@ -463,7 +464,18 @@ def create_kb(
     )
     written.append(KbRegistry(root).path)
 
-    return {"name": name, "written": written}
+    database = {"created": False, "error": "provisioning disabled", "database": None}
+    if provision_database:
+        # A directory without a database is listed but not selectable, which is
+        # indistinguishable from a broken kb in the UI. Provision it here and
+        # report the outcome instead of leaving the user to guess.
+        from softwiki.kb.provision import ensure_kb_database
+
+        database = ensure_kb_database(kb_path)
+        if not database.get("created"):
+            logger.warning("kb %s created but database provisioning failed: %s", name, database.get("error"))
+
+    return {"name": name, "written": written, "database": database}
 
 
 def delete_kb_dir(name: str, *, root: Optional[str] = None) -> None:

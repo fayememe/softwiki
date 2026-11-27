@@ -336,6 +336,9 @@ export const zh: Dict = {
     unregistered: '已卸载',
     unhook: '卸载',
     rehook: '注册',
+    provision: '创建数据库',
+    provisionHint: '为已存在的库补建数据库（幂等）：新建库会自动创建，旧的库需要手动补一次',
+    dbFailed: '数据库创建失败：{error}',
   },
 
   wiki: {

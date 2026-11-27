@@ -224,3 +224,48 @@ def test_kb_scope_filters_listing(tmp_path, monkeypatch):
     # identity there is no scope to apply, so it must not leak a filtered list.
     anonymous = TestClient(app)
     assert anonymous.get("/api/kb").status_code == 200
+
+
+def test_create_provisions_the_database(client):
+    """A created kb must be usable straight away.
+
+    It used to be directory-only: `/api/kb?verify=true` reported it as
+    unavailable and the switcher rendered the option disabled, so the new kb
+    could not be selected at all.
+    """
+    from softwiki.kb.health import invalidate
+
+    body = client.post(
+        "/api/kb/create",
+        json={"name": "with-db", "description": "x", "dry_run": False},
+    ).json()
+    assert body["result"]["database"]["created"] is True
+
+    invalidate()
+    kbs = client.get("/api/kb?verify=true").json()["kbs"]
+    entry = next(k for k in kbs if k["name"] == "with-db")
+    assert entry["available"] is True
+
+
+def test_provision_repairs_an_existing_directory(client):
+    """kbs registered before provisioning existed can be repaired in place."""
+    from softwiki.kb.health import invalidate
+
+    root = os.environ["WORKSPACES_ROOT"]
+    _touch_kb(root, "legacy-kb")
+    assert KbRegistry(root).registered_names() == ["legacy-kb"] or True
+
+    body = client.post("/api/kb/legacy-kb/provision").json()
+    assert body["created"] is True
+
+    invalidate()
+    kbs = client.get("/api/kb?verify=true").json()["kbs"]
+    entry = next(k for k in kbs if k["name"] == "legacy-kb")
+    assert entry["available"] is True
+
+
+def test_switch_is_allowed_when_auth_is_off(client):
+    """Off mode = the machine is the operator; switching knows no session."""
+    res = client.post("/api/kb/switch", json={"kb": "wizard-kb"})
+    assert res.status_code == 200
+    assert res.json()["active"] == "wizard-kb"

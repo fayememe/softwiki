@@ -13,7 +13,7 @@
  * (design D4). When `web_url` is absent the entry is listed but not navigable.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n';
 
 interface KbEntry {
@@ -31,7 +31,8 @@ export default function KnowledgeBaseSelector() {
   const [active, setActive] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     fetch('/api/kb?verify=true', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
@@ -41,6 +42,14 @@ export default function KnowledgeBaseSelector() {
       .catch(() => setKbs([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+    // A kb created (or repaired) elsewhere must show up without a page reload.
+    const onChange = () => load();
+    window.addEventListener('softwiki:kb-changed', onChange);
+    return () => window.removeEventListener('softwiki:kb-changed', onChange);
+  }, [load]);
 
   const currentHost = typeof window === 'undefined' ? '' : window.location.hostname;
 

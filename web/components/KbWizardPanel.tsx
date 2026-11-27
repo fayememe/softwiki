@@ -5,6 +5,7 @@ import {
   apiCreateKb,
   apiKbRegistry,
   apiKbTemplates,
+  apiProvisionKb,
   apiRegisterKb,
   apiUnregisterKb,
 } from '@/lib/kb-api';
@@ -82,12 +83,34 @@ export default function KbWizardPanel() {
         language,
         dry_run: false,
       });
+      const db = res.result?.database;
+      if (db && !db.created) {
+        // The kb exists on disk but is not usable; say so instead of leaving
+        // it to show up disabled in the switcher.
+        setError(t('kbWizard.dbFailed', { error: db.error || '' }));
+      }
+      // The kb switcher in the sidebar fetched its list on mount; tell it to
+      // re-read so the new kb appears without a page reload.
+      window.dispatchEvent(new Event('softwiki:kb-changed'));
       setDone(res.result?.name ?? name.trim());
       setPlan(null);
       setStep(1);
       setName('');
       setDescription('');
       loadRegistry();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const provision = async (name: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiProvisionKb(name);
+      window.dispatchEvent(new Event('softwiki:kb-changed'));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -247,6 +270,14 @@ export default function KbWizardPanel() {
               <span className={styles.registryName}>{row.name}</span>
               <span className={styles.registryMeta}>{row.template}</span>
               {row.created_at && <span className={styles.registryMeta}>{row.created_at}</span>}
+              <button
+                className={styles.linkButton}
+                disabled={busy}
+                title={t('kbWizard.provisionHint')}
+                onClick={() => void provision(row.name)}
+              >
+                {t('kbWizard.provision')}
+              </button>
               <button
                 className={styles.linkButton}
                 disabled={busy}

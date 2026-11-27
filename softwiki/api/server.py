@@ -3473,6 +3473,37 @@ def kb_create(req: KbCreateRequest, request: Request):
     return {"dry_run": False, "plan": plan.to_dict(), "result": result}
 
 
+@app.post("/api/kb/{name}/provision")
+def kb_provision(name: str, request: Request, reauth_token: Optional[str] = None):
+    """Create the database for an existing kb directory (idempotent).
+
+    Needed for kbs that were registered before creation provisioned their
+    database, and for retrying after a transient database-server failure.
+    """
+    from softwiki.config import get_workspaces_root
+    from softwiki.kb.health import invalidate as invalidate_kb_health
+    from softwiki.kb.provision import ensure_kb_database
+
+    require_capability("kb.create")
+    path = os.path.join(get_workspaces_root(), name)
+    if not os.path.isdir(path):
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{name}' not found")
+    _reauth_guard(request, reauth_token, "kb.provision", "kb.create")
+
+    result = ensure_kb_database(path)
+    invalidate_kb_health()
+    audit.record(
+        "kb.provision",
+        target={"kb": name},
+        result="ok" if result.get("created") else "error",
+        detail=json.dumps(result, ensure_ascii=False),
+        source_ip=_client_ip(request),
+    )
+    if not result.get("created"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "provisioning failed")
+    return result
+
+
 @app.get("/api/kb/registry")
 def kb_registry(request: Request):
     """Every kb on disk with its registration state."""
@@ -3737,7 +3768,12 @@ def switch_kb(req: KbSwitchRequest, request: Request):
     from softwiki.kb.registry import list_kb_infos
 
     identity = getattr(request.state, "identity", None)
-    if identity is None or not identity.authenticated or identity.authorization is None:
+    if identity is None or identity.authorization is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    # In `off` mode there is no login: the machine itself is the superuser, so
+    # "which kb am I looking at" is a local preference rather than a session.
+    # Without this the switcher answered 401 and every kb looked unselectable.
+    if not identity.authenticated and not identity.superuser:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     authz = identity.authorization
