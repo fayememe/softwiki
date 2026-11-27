@@ -19,7 +19,7 @@
 | 环节 | 判断 | 动作 |
 |---|---|---|
 | 文档 | `pending/extracting` > 0 | `softwiki_resume_extraction` |
-| 检索索引 | 有文档没分块 / 向量数 < 分块数 | `softwiki_index`（**全量重建**） |
+| 检索索引 | 有文档没分块 / 向量数 < 分块数 | `softwiki_rebuild_index`（**全量重建**） |
 | 论断 / 图谱 / 时间线 | claims 为 0 或远少于文档数 | 继续抽取；投影由服务端脚本完成 |
 | Wiki 页面 | 主题页缺失 / 过期 / 队列有待办 | `softwiki_wiki_subject_build` 或 `softwiki_wiki_build` |
 | 静态门户 | 页面已更新但门户没重建 | 属于运维脚本（`scripts/wikiweb_build.py`），你只能提示 |
@@ -33,18 +33,20 @@
 |---|---|
 | `softwiki_pipeline_status` | 各环节计数、是否过期、队列情况（先看这个） |
 | `softwiki_status` | 工作区健康与总量 |
-| `softwiki_source_list` / `softwiki_source_preview` | 文档清单与正文预览 |
+| `softwiki_list_documents` | 文档清单 |
 | `softwiki_wiki_read` | 读已生成的 Wiki 页 |
 | `softwiki_search` / `softwiki_ask` | 抽查内容是否被正确收录（只作核对） |
 
 ### 写（按角色授权）
 | 工具 | 用途 |
 |---|---|
-| `softwiki_ingest` | 导入 URL / 文件 |
-| `softwiki_index` | 重建检索索引 |
+| `softwiki_ingest_url` / `softwiki_ingest_file` | 导入 URL / 文件 |
+| `softwiki_rebuild_index` | 重建检索索引（全量） |
 | `softwiki_resume_extraction` | 继续抽取 pending/extracting 文档 |
 | `softwiki_wiki_subject_build` | 生成/重生成一个实体的 Wiki 页 |
 | `softwiki_wiki_build` | 生成一个策展主题页 |
+
+权限不足时（例如 Work 不能导入/重建索引）不要绕过：说明限制，给出计划或改用 Work 的提案流程。
 
 ### 不要做
 - 不要用 `bash` / `edit` / `write` 改代码或数据文件；

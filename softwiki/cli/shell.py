@@ -315,8 +315,9 @@ def _build_mcp_config(softwiki_mcp: dict, include_global: bool = True) -> dict:
 
 #: Tools that write to the knowledge base, grouped by the capability they need.
 _WRITE_TOOLS = {
-    "ingest": "softwiki_ingest",
-    "index": "softwiki_index",
+    # The served MCP exposes ingest_url / ingest_file, not a single `ingest`.
+    "ingest_url": "softwiki_ingest_url",
+    "ingest_file": "softwiki_ingest_file",
     "rebuild_index": "softwiki_rebuild_index",
     "wiki_build": "softwiki_wiki_build",
     "wiki_propose": "softwiki_wiki_propose",
@@ -342,8 +343,8 @@ def _agent_permissions(mode: str) -> dict[str, str]:
     denied = list(_AGENT_BASE_DENY)
     if mode in ("wiki-study", "wiki-research"):
         denied += [
-            _WRITE_TOOLS["ingest"],
-            _WRITE_TOOLS["index"],
+            _WRITE_TOOLS["ingest_url"],
+            _WRITE_TOOLS["ingest_file"],
             _WRITE_TOOLS["rebuild_index"],
             _WRITE_TOOLS["wiki_build"],
             _WRITE_TOOLS["wiki_propose"],
@@ -354,8 +355,8 @@ def _agent_permissions(mode: str) -> dict[str, str]:
         ]
     elif mode == "wiki-work":
         denied += [
-            _WRITE_TOOLS["ingest"],
-            _WRITE_TOOLS["index"],
+            _WRITE_TOOLS["ingest_url"],
+            _WRITE_TOOLS["ingest_file"],
             _WRITE_TOOLS["rebuild_index"],
             _WRITE_TOOLS["workspace_set"],
             _WRITE_TOOLS["modules_set"],

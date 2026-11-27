@@ -308,6 +308,136 @@ def create_mcp_server():
         finally:
             db.close()
 
+
+    @mcp.tool()
+    def status() -> str:
+        """Workspace health and document/claim counts."""
+        from softwiki.source_store.models import Claim, Chunk, Entity, Event, Relationship
+        db = SessionLocal()
+        try:
+            return (
+                f"workspace: {os.path.basename(get_workspace_dir())}\n"
+                f"documents: {db.query(Document).count()}\n"
+                f"chunks: {db.query(Chunk).count()}\n"
+                f"claims: {db.query(Claim).count()}\n"
+                f"entities: {db.query(Entity).count()}\n"
+                f"relationships: {db.query(Relationship).count()}\n"
+                f"events: {db.query(Event).count()}"
+            )
+        except Exception as e:
+            return f"Status failed: {e}"
+        finally:
+            db.close()
+
+    @mcp.tool()
+    def pipeline_status(kb: str = None) -> str:
+        """Where each processing stage stands and what needs work.
+
+        Call this FIRST for management requests ("修复/补齐/重建/更新"): it reports
+        documents, index, claims, graph, timeline, wiki pages and the static
+        portal, marking what is stale or generating.
+
+        Args:
+            kb: Knowledge base name. Omit to use the active kb.
+        """
+        from softwiki.kb.context import KbResolutionError, current_kb_name, default_kb_name, enter_kb, restore_kb
+        from softwiki.kb.pipeline import describe, snapshot
+
+        try:
+            previous_kb = enter_kb(kb or default_kb_name())
+        except KbResolutionError as exc:
+            return f"Pipeline status failed: {exc}"
+        db = SessionLocal()
+        try:
+            name = current_kb_name() or os.path.basename(get_workspace_dir())
+            return describe(snapshot(db, name, get_workspace_dir()))
+        except Exception as e:
+            return f"Pipeline status failed: {e}"
+        finally:
+            db.close()
+            restore_kb(previous_kb)
+
+    @mcp.tool()
+    def resume_extraction(limit: int = 10) -> str:
+        """Resume extraction for documents left pending or stuck extracting.
+
+        Args:
+            limit: How many documents to queue (default 10, max 50).
+        """
+        if not can("ingest.write"):
+            return f"Error: role '{current_role()}' cannot run extraction."
+        from softwiki.extraction.processor import run_extraction_pipeline
+        from softwiki.kb.context import current_kb_name
+
+        limit = max(1, min(int(limit or 10), 50))
+        db = SessionLocal()
+        try:
+            docs = (
+                db.query(Document)
+                .outerjoin(Claim, Claim.document_id == Document.id)
+                .filter(Document.status.in_(("pending", "extracting")), Claim.id.is_(None))
+                .order_by(Document.id)
+                .limit(limit)
+                .all()
+            )
+            started = []
+            for doc in docs:
+                if not doc.cleaned_text:
+                    continue
+                run_extraction_pipeline(db, doc.id, doc.cleaned_text, doc.published_at, background=True)
+                started.append(doc.id)
+            kb = current_kb_name() or "(active)"
+            if not started:
+                return f"没有待抽取的文档（kb={kb}）。"
+            return (f"已在 {kb} 重新开始 {len(started)} 篇的抽取（doc id: "
+                    f"{', '.join(map(str, started))}）。后台进行，稍后用 pipeline_status 复查。")
+        except Exception as e:
+            return f"Resume extraction failed: {e}"
+        finally:
+            db.close()
+
+    @mcp.tool()
+    def wiki_build(topic: str) -> str:
+        """Compile the curated wiki page for one topic.
+
+        Args:
+            topic: Topic id from the workspace topics list.
+        """
+        if not can("wiki.build"):
+            return f"Error: role '{current_role()}' cannot build wiki pages."
+        from softwiki.wiki.page_generator import WikiPageGenerator
+
+        db = SessionLocal()
+        try:
+            filepath = WikiPageGenerator().generate_topic_page(db, topic)
+            return f"Wiki page compiled and written to: {filepath}"
+        except Exception as e:
+            return f"Wiki build failed: {e}"
+        finally:
+            db.close()
+
+    @mcp.tool()
+    def wiki_subject_build(subject: str) -> str:
+        """Generate or regenerate the wiki page for one entity/subject.
+
+        Args:
+            subject: Entity name from the wiki candidate list.
+        """
+        if not can("wiki.apply"):
+            return f"Error: role '{current_role()}' cannot build wiki pages."
+        from softwiki.wiki.subject_pages import generate_subject_pages
+
+        db = SessionLocal()
+        try:
+            result = generate_subject_pages(db, subject)
+            return f"已生成 {subject} 的 Wiki 页：{result}"
+        except (ValueError, RuntimeError) as e:
+            return f"Wiki build failed: {e}"
+        except Exception as e:
+            return f"Wiki build failed: {e}"
+        finally:
+            db.close()
+
     @mcp.tool()
     def list_entities() -> str:
         """List all entities in the knowledge graph."""
