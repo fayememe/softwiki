@@ -96,16 +96,38 @@ export async function GET(
   const rest = scoped ? segments.slice(1) : segments;
   const base = path.join(ROOT, kb, 'exports', 'wikiweb');
 
-  // `assets` sits at the export root; pages sit one level down under the kb name.
-  const target =
-    rest.length === 0
-      ? path.join(base, kb, 'index.html')
-      : rest[0] === 'assets'
-        ? path.join(base, ...rest)
-        : path.join(base, kb, ...rest);
+  // Asset paths are relative to the page and drop the kb segment for top-level
+  // pages (`../assets/wiki.css` -> `/wikiweb/assets/...`). Resolve them across
+  // kbs instead of trusting the active one.
+  const isAssetRequest = rest[0] === 'assets' || segments[0] === 'assets';
+  const assetRel = rest[0] === 'assets' ? rest.slice(1)
+    : segments[0] === 'assets' ? segments.slice(1)
+    : null;
+
+  let target: string;
+  if (isAssetRequest) {
+    let found: string | null = null;
+    for (const candidate of [kb, active, ...names]) {
+      const attempt = path.join(ROOT, candidate, 'exports', 'wikiweb', 'assets', ...(assetRel ?? []));
+      try {
+        await fs.access(attempt);
+        found = attempt;
+        break;
+      } catch {
+        /* try the next kb */
+      }
+    }
+    if (!found) return notFound(kb, 'Asset not found.');
+    target = found;
+  } else if (rest.length === 0) {
+    target = path.join(base, kb, 'index.html');
+  } else {
+    target = path.join(base, kb, ...rest);
+  }
 
   const resolved = path.resolve(target);
-  if (!resolved.startsWith(path.resolve(base) + path.sep)) {
+  const allowedRoots = [path.resolve(base) + path.sep, path.resolve(ROOT) + path.sep];
+  if (!allowedRoots.some(root => resolved.startsWith(root))) {
     return notFound(kb, 'Invalid path.');
   }
 
