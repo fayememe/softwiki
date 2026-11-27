@@ -93,6 +93,17 @@ app = FastAPI(title="Softwiki REST API", version="0.1.0")
 AGENT_WEB_URL = (os.getenv("SWAGENT_URL") or os.getenv("AGENT_WEB_URL") or "http://127.0.0.1:6111").rstrip("/")
 AGENT_DEFAULT = os.getenv("SWAGENT_DEFAULT") or os.getenv("AGENT_DEFAULT") or "wiki-research"
 AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "300"))
+#: opencode stores the model a session was created with. After switching
+#: SHELL_MODEL, old sessions still asked for the previous model and failed with
+#: `ProviderModelNotFoundError`. Every prompt now states the model explicitly.
+AGENT_PROVIDER = os.getenv("SHELL_PROVIDER", "gemini-compat")
+AGENT_MODEL = os.getenv("SHELL_MODEL", "")
+
+
+def _agent_model() -> dict | None:
+    if not AGENT_MODEL:
+        return None
+    return {"providerID": AGENT_PROVIDER, "modelID": AGENT_MODEL}
 # opencode serves the global event stream at /global/event (v1) or /event.
 AGENT_EVENT_PATH = os.getenv("SWAGENT_EVENT_PATH") or os.getenv("AGENT_EVENT_PATH") or "/global/event"
 AGENT_EVENT_HEARTBEAT = float(os.getenv("SWAGENT_EVENT_HEARTBEAT", "15"))
@@ -1437,7 +1448,11 @@ def agent_status():
 @app.post("/api/swa/session")
 @app.post("/api/agent/session")
 def agent_create_session(req: AgentSessionRequest):
-    session = _agent_request("POST", "/session", {"title": req.title or "SWAgent"})
+    body = {"title": req.title or "SWAgent"}
+    model = _agent_model()
+    if model:
+        body["model"] = model
+    session = _agent_request("POST", "/session", body)
     return {"session_id": session.get("id"), "session": session}
 
 
@@ -1451,7 +1466,11 @@ def agent_ask(req: AgentAskRequest):
     """
     session_id = req.session_id
     if not session_id:
-        session = _agent_request("POST", "/session", {"title": req.question[:60]})
+        create_body = {"title": req.question[:60]}
+        create_model = _agent_model()
+        if create_model:
+            create_body["model"] = create_model
+        session = _agent_request("POST", "/session", create_body)
         session_id = session.get("id")
     if not session_id:
         raise HTTPException(status_code=502, detail="Agent did not return a session id")
@@ -1465,6 +1484,7 @@ def agent_ask(req: AgentAskRequest):
         _agent_request("POST", f"/session/{session_id}/message", {
             "agent": req.agent or AGENT_DEFAULT,
             "parts": [{"type": "text", "text": req.question}],
+            **({"model": model} if (model := _agent_model()) else {}),
         }, timeout=AGENT_TIMEOUT)
     except HTTPException:
         # A long-running prompt may time out at the HTTP layer while the
@@ -1682,6 +1702,9 @@ def agent_prompt(req: AgentPromptRequest):
         "agent": req.agent or AGENT_DEFAULT,
         "parts": [{"type": "text", "text": req.question}],
     }
+    model = _agent_model()
+    if model:
+        body["model"] = model
     try:
         _agent_request("POST", path, body, timeout=30)
     except HTTPException as exc:
